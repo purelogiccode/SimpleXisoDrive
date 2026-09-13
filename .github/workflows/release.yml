@@ -145,6 +145,7 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         run: >-
           gh release create "${GITHUB_REF_NAME}"
+          --repo "${GITHUB_REPOSITORY}"
           --title "SimpleXisoDrive ${VERSION}"
           --generate-notes
           assets/release_*.zip
