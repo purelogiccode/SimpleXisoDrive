@@ -47,7 +47,7 @@ public class IsoSt : IDisposable
             try
             {
                 // Apply VolumeOffset to the calculation
-                var fileOffset = VolumeOffset + (long)entry.StartSector * FileEntry.SectorSize + offset;
+                var fileOffset = VolumeOffset + ((long)entry.StartSector * FileEntry.SectorSize) + offset;
 
                 // Ensure we don't seek past the end of the stream
                 if (fileOffset >= _fileStream.Length)
@@ -71,7 +71,8 @@ public class IsoSt : IDisposable
             catch (Exception ex)
             {
                 DebugLogger.WriteLine($"Read error at sector {entry.StartSector}, offset {offset}: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, $"Physical Read Failure: Sector {entry.StartSector}, Offset {offset}, File: {entry.FileName}");
+                _ = BugReport.LogErrorAsync(ex,
+                    $"Physical Read Failure: Sector {entry.StartSector}, Offset {offset}, File: {entry.FileName}");
                 return 0;
             }
         }
@@ -87,7 +88,7 @@ public class IsoSt : IDisposable
             try
             {
                 // Apply VolumeOffset to the calculation
-                var position = VolumeOffset + sector * SectorSize + offset;
+                var position = VolumeOffset + (sector * SectorSize) + offset;
 
                 if (position >= _fileStream.Length)
                 {

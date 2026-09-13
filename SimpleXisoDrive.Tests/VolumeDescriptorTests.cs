@@ -32,21 +32,6 @@ public class VolumeDescriptorTests
         return data;
     }
 
-    /// <summary>
-    /// Creates an ISO-like byte array with a volume descriptor at the specified offset.
-    /// </summary>
-    private static MemoryStream CreateFakeIsoWithDescriptor(long descriptorOffset, byte[]? descriptorData = null)
-    {
-        var vdData = descriptorData ?? CreateValidVolumeDescriptor();
-
-        // Ensure the stream is large enough
-        var totalSize = descriptorOffset + 0x800 + 1024;
-        var isoData = new byte[totalSize];
-        vdData.CopyTo(isoData, descriptorOffset);
-
-        return new MemoryStream(isoData);
-    }
-
     [Fact]
     public void Validate_ReturnsTrue_ForValidDescriptor()
     {
@@ -73,15 +58,15 @@ public class VolumeDescriptorTests
     public void Validate_ReturnsFalse_WhenMagicMismatch()
     {
         // Create an ISO with wrong magic at all standard offsets
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         var wrongMagic = "WRONG*MAGIC*STRING!"u8.ToArray();
 
         // Place wrong magic at sector 32
         wrongMagic.CopyTo(isoData, 32 * 2048);
-        BitConverter.GetBytes((uint)256).CopyTo(isoData, 32 * 2048 + 0x14);
-        BitConverter.GetBytes((uint)2048).CopyTo(isoData, 32 * 2048 + 0x18);
-        BitConverter.GetBytes(DateTime.Now.ToFileTimeUtc()).CopyTo(isoData, 32 * 2048 + 0x1C);
-        wrongMagic.CopyTo(isoData, 32 * 2048 + 0x7EC);
+        BitConverter.GetBytes((uint)256).CopyTo(isoData, (32 * 2048) + 0x14);
+        BitConverter.GetBytes((uint)2048).CopyTo(isoData, (32 * 2048) + 0x18);
+        BitConverter.GetBytes(DateTime.Now.ToFileTimeUtc()).CopyTo(isoData, (32 * 2048) + 0x1C);
+        wrongMagic.CopyTo(isoData, (32 * 2048) + 0x7EC);
 
         using var ms = new MemoryStream(isoData);
         using var isoSt = new IsoSt(ms);
@@ -107,7 +92,7 @@ public class VolumeDescriptorTests
     {
         var data = CreateValidVolumeDescriptor();
         // Place descriptor at sector 32
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         data.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);
@@ -123,7 +108,7 @@ public class VolumeDescriptorTests
     {
         // Standard Xbox ISO: descriptor at sector 32, offset 0
         var vdData = CreateValidVolumeDescriptor();
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         vdData.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);
@@ -183,7 +168,7 @@ public class VolumeDescriptorTests
     public void ReadFrom_SetsVolumeOffset_ForStandardIso()
     {
         var vdData = CreateValidVolumeDescriptor();
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         vdData.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);
@@ -197,7 +182,7 @@ public class VolumeDescriptorTests
     public void ReadFrom_ReadsRootDirTableSector()
     {
         var vdData = CreateValidVolumeDescriptor();
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         vdData.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);
@@ -211,7 +196,7 @@ public class VolumeDescriptorTests
     public void ReadFrom_ReadsCreationTime()
     {
         var vdData = CreateValidVolumeDescriptor();
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         vdData.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);
@@ -231,7 +216,7 @@ public class VolumeDescriptorTests
         // Overwrite file time with invalid value
         BitConverter.GetBytes(long.MaxValue).CopyTo(vdData, 0x1C);
 
-        var isoData = new byte[32 * 2048 + 0x800];
+        var isoData = new byte[(32 * 2048) + 0x800];
         vdData.CopyTo(isoData, 32 * 2048);
 
         using var ms = new MemoryStream(isoData);

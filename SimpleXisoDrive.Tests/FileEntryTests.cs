@@ -126,7 +126,7 @@ public class FileEntryTests
     [Fact]
     public void GetWindowsAttributes_NoAttributes_ReturnsReadOnlyAndNormal()
     {
-        var entry = new FileEntry { Attributes = 0 };
+        var entry = new FileEntry { Attributes = XisoFsFileAttributes.None };
         var result = entry.GetWindowsAttributes();
 
         Assert.True(result.HasFlag(FileAttributes.ReadOnly));
@@ -171,12 +171,12 @@ public class FileEntryTests
 
         writer.Write((ushort)0xFFFF); // LeftSubTree = none
         writer.Write((ushort)0xFFFF); // RightSubTree = none
-        writer.Write((uint)100);       // StartSector
-        writer.Write((uint)2048);      // FileSize
-        writer.Write((byte)0x20);      // Attributes = Archive
-        writer.Write((byte)8);         // Name length
-        writer.Write("test.txt"u8);    // Filename
-        writer.Write((byte)0);         // Null terminator (part of name length)
+        writer.Write((uint)100); // StartSector
+        writer.Write((uint)2048); // FileSize
+        writer.Write((byte)0x20); // Attributes = Archive
+        writer.Write((byte)8); // Name length
+        writer.Write("test.txt"u8); // Filename
+        writer.Write((byte)0); // Null terminator (part of name length)
 
         ms.Position = 0;
         using var reader = new BinaryReader(ms);
@@ -199,13 +199,13 @@ public class FileEntryTests
         using var ms = new MemoryStream(entryBytes);
         using var writer = new BinaryWriter(ms);
 
-        writer.Write((ushort)0);       // LeftSubTree
-        writer.Write((ushort)0xFFFF);  // RightSubTree = none
-        writer.Write((uint)50);        // StartSector
-        writer.Write((uint)0);         // FileSize = 0 for directory
-        writer.Write((byte)0x10);      // Attributes = Directory
-        writer.Write((byte)5);         // Name length
-        writer.Write("Games"u8);       // Filename
+        writer.Write((ushort)0); // LeftSubTree
+        writer.Write((ushort)0xFFFF); // RightSubTree = none
+        writer.Write((uint)50); // StartSector
+        writer.Write((uint)0); // FileSize = 0 for directory
+        writer.Write((byte)0x10); // Attributes = Directory
+        writer.Write((byte)5); // Name length
+        writer.Write("Games"u8); // Filename
 
         ms.Position = 0;
         using var reader = new BinaryReader(ms);
@@ -230,7 +230,7 @@ public class FileEntryTests
         writer.Write((uint)10);
         writer.Write((uint)100);
         writer.Write((byte)0x01); // ReadOnly
-        writer.Write((byte)0);    // Name length = 0
+        writer.Write((byte)0); // Name length = 0
 
         ms.Position = 0;
         using var reader = new BinaryReader(ms);
@@ -254,7 +254,7 @@ public class FileEntryTests
         writer.Write((uint)10);
         writer.Write((uint)100);
         writer.Write((byte)0x01);
-        writer.Write((byte)4);    // Name length = 4
+        writer.Write((byte)4); // Name length = 4
         writer.Write("test"u8);
 
         ms.Position = 0;

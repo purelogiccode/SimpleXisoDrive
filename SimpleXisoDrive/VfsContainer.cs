@@ -8,8 +8,8 @@ public class VfsContainer : IDisposable
     private readonly IsoSt _isoSt;
     private readonly Dictionary<string, FileEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<FileEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
-    public ulong VolumeSize { get; private set; }
-    public DateTime VolumeCreationTime { get; private set; }
+    public ulong VolumeSize { get; }
+    public DateTime VolumeCreationTime { get; }
 
     public VfsContainer(string isoPath)
     {
@@ -62,7 +62,7 @@ public class VfsContainer : IDisposable
             normalizedPath = "\\";
         }
 
-        if (normalizedPath == "\\")
+        if (string.Equals(normalizedPath, "\\", StringComparison.OrdinalIgnoreCase))
         {
             return _entryCache.GetValueOrDefault("\\");
         }
@@ -117,14 +117,15 @@ public class VfsContainer : IDisposable
         // Check if we have the directory listing cached
         if (_childrenCache.TryGetValue(normalizedPath, out var cachedChildren))
         {
-            DebugLogger.WriteLine($"[GetFolderList] Using cached children for '{normalizedPath}' ({cachedChildren.Count} entries)");
+            DebugLogger.WriteLine(
+                $"[GetFolderList] Using cached children for '{normalizedPath}' ({cachedChildren.Count} entries)");
             foreach (var entry in cachedChildren) yield return entry;
 
             yield break;
         }
 
         // Get the directory entry itself
-        var dirEntry = normalizedPath == "\\" ? _entryCache.GetValueOrDefault("\\") : GetEntry(normalizedPath);
+        var dirEntry = string.Equals(normalizedPath, "\\", StringComparison.OrdinalIgnoreCase) ? _entryCache.GetValueOrDefault("\\") : GetEntry(normalizedPath);
         if (dirEntry is not { IsDirectory: true })
         {
             DebugLogger.WriteLine($"[ERROR] Directory not found or invalid: '{normalizedPath}'");
@@ -171,7 +172,8 @@ public class VfsContainer : IDisposable
         return entries;
     }
 
-    private void TraverseBinaryTreeForAll(FileEntry firstEntry, List<FileEntry> results, HashSet<(long Sector, long Offset)> visited)
+    private void TraverseBinaryTreeForAll(FileEntry firstEntry, List<FileEntry> results,
+        HashSet<(long Sector, long Offset)> visited)
     {
         var stack = new Stack<FileEntry>();
         const int maxIterations = 100000; // Safety limit to prevent infinite loops
@@ -190,8 +192,10 @@ public class VfsContainer : IDisposable
             // Safety check for infinite loops
             if (++iterations > maxIterations)
             {
-                DebugLogger.WriteLine("TraverseBinaryTreeForAll: Max iterations reached, possible corrupted tree structure");
-                _ = BugReport.LogErrorAsync(new InvalidOperationException("Max iterations reached in TraverseBinaryTreeForAll"),
+                DebugLogger.WriteLine(
+                    "TraverseBinaryTreeForAll: Max iterations reached, possible corrupted tree structure");
+                _ = BugReport.LogErrorAsync(
+                    new InvalidOperationException("Max iterations reached in TraverseBinaryTreeForAll"),
                     "Possible corrupted binary tree structure - too many nodes");
                 break;
             }

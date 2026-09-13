@@ -31,7 +31,7 @@ public class InvalidImageExceptionTests
     public void IsException_DerivedFromException()
     {
         var ex = new InvalidImageException("Test");
-        Assert.IsAssignableFrom<Exception>(ex);
+        Assert.IsType<Exception>(ex, exactMatch: false);
     }
 
     [Fact]

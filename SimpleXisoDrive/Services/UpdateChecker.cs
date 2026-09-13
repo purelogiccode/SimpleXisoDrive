@@ -6,11 +6,14 @@ using System.Text.RegularExpressions;
 
 namespace SimpleXisoDrive.Services;
 
-public static partial class UpdateChecker
+public static class UpdateChecker
 {
     private const string RepoOwner = "drpetersonfernandes";
     private const string RepoName = "SimpleXisoDrive";
     private const string LatestApiUrl = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
+
+    private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(1);
+    private static readonly Regex VersionRegex = new(@"\d+\.\d+\.\d+", RegexOptions.Compiled, RegexMatchTimeout);
 
     private static readonly HttpClient Http;
 
@@ -47,7 +50,7 @@ public static partial class UpdateChecker
             var htmlUrl = doc.RootElement.GetProperty("html_url").GetString();
             if (tagName is null || htmlUrl is null) return;
 
-            var m = MyRegex().Match(tagName);
+            var m = VersionRegex.Match(tagName);
             if (!m.Success) return;
 
             var latest = Version.Parse(m.Value);
@@ -93,7 +96,4 @@ public static partial class UpdateChecker
             await BugReport.LogErrorAsync(ex, "UpdateChecker.CheckForUpdateAsync");
         }
     }
-
-    [GeneratedRegex(@"\d+\.\d+\.\d+")]
-    private static partial Regex MyRegex();
 }

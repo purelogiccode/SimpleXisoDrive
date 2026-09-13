@@ -100,10 +100,8 @@ public static class StatsService
     /// </summary>
     private sealed class StatsRequest
     {
-        [JsonPropertyName("applicationId")]
-        public string AppId { get; set; } = string.Empty;
+        [JsonPropertyName("applicationId")] public string AppId { get; set; } = string.Empty;
 
-        [JsonPropertyName("version")]
-        public string AppVersion { get; set; } = string.Empty;
+        [JsonPropertyName("version")] public string AppVersion { get; set; } = string.Empty;
     }
 }

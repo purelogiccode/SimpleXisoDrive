@@ -12,6 +12,8 @@ namespace SimpleXisoDrive.Models;
 [Flags]
 public enum XisoFsFileAttributes : byte
 {
+    None = 0,
+
     /// <summary>
     /// Represents the "ReadOnly" file attribute in the Xiso filesystem.
     /// This attribute indicates that a file is read-only and cannot be modified.

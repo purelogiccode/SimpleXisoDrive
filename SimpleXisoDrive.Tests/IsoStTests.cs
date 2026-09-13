@@ -138,11 +138,11 @@ public class IsoStTests
         writer.Seek(2048, SeekOrigin.Begin);
         writer.Write((ushort)0xFFFF); // LeftSubTree
         writer.Write((ushort)0xFFFF); // RightSubTree
-        writer.Write((uint)10);       // StartSector
-        writer.Write((uint)100);      // FileSize
-        writer.Write((byte)0x20);     // Attributes = Archive
-        writer.Write((byte)4);        // Name length
-        writer.Write("test"u8);       // Filename
+        writer.Write((uint)10); // StartSector
+        writer.Write((uint)100); // FileSize
+        writer.Write((byte)0x20); // Attributes = Archive
+        writer.Write((byte)4); // Name length
+        writer.Write("test"u8); // Filename
 
         ms.Position = 0;
         using var isoSt = new IsoSt(ms);

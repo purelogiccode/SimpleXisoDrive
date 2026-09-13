@@ -6,4 +6,12 @@ public class InvalidImageException : Exception
         : base(message, inner)
     {
     }
+
+    public InvalidImageException()
+    {
+    }
+
+    public InvalidImageException(string? message) : base(message)
+    {
+    }
 }

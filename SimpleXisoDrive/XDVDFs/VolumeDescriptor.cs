@@ -2,7 +2,7 @@ using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive.XDVDFs;
 
-public class VolumeDescriptor
+public sealed class VolumeDescriptor
 {
     public uint Sector { get; }
     private const int VolumeDescriptorSector = 32;
@@ -34,7 +34,7 @@ public class VolumeDescriptor
         isoSt.ExecuteLocked(reader =>
         {
             // Calculate absolute position including the global offset (byteOffset)
-            var sectorStart = byteOffset + (long)sector * IsoSt.SectorSize;
+            var sectorStart = byteOffset + ((long)sector * IsoSt.SectorSize);
 
             // First, check if we can even read the full descriptor
             if (sectorStart + 0x800 > reader.BaseStream.Length)
@@ -136,13 +136,15 @@ public class VolumeDescriptor
                 return descriptor;
             }
 
-            errors.Add($"Sector 32 (Offset {GlobalPartitionOffset}): Found data but magic ID mismatch (not a valid global partition)");
+            errors.Add(
+                $"Sector 32 (Offset {GlobalPartitionOffset}): Found data but magic ID mismatch (not a valid global partition)");
         }
         catch (Exception ex)
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for global partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {GlobalPartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine($"Error reading volume descriptor from sector 32 (Offset {GlobalPartitionOffset}): {ex.Message}");
+            DebugLogger.WriteLine(
+                $"Error reading volume descriptor from sector 32 (Offset {GlobalPartitionOffset}): {ex.Message}");
         }
 
         // 3. Try Sector 32, Offset Xgd3PartitionOffset (XGD3 format)
@@ -157,13 +159,15 @@ public class VolumeDescriptor
                 return descriptor;
             }
 
-            errors.Add($"Sector 32 (Offset {Xgd3PartitionOffset}): Found data but magic ID mismatch (not a valid XGD3 partition)");
+            errors.Add(
+                $"Sector 32 (Offset {Xgd3PartitionOffset}): Found data but magic ID mismatch (not a valid XGD3 partition)");
         }
         catch (Exception ex)
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for XGD3 partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {Xgd3PartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine($"Error reading volume descriptor from sector 32 (Offset {Xgd3PartitionOffset}): {ex.Message}");
+            DebugLogger.WriteLine(
+                $"Error reading volume descriptor from sector 32 (Offset {Xgd3PartitionOffset}): {ex.Message}");
         }
 
         // 4. Try Sector 32, Offset Xgd1PartitionOffset (XGD1 Dual Layer / Hybrid)
@@ -178,13 +182,15 @@ public class VolumeDescriptor
                 return descriptor;
             }
 
-            errors.Add($"Sector 32 (Offset {Xgd1PartitionOffset}): Found data but magic ID mismatch (not a valid XGD1 partition)");
+            errors.Add(
+                $"Sector 32 (Offset {Xgd1PartitionOffset}): Found data but magic ID mismatch (not a valid XGD1 partition)");
         }
         catch (Exception ex)
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for XGD1 partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {Xgd1PartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine($"Error reading volume descriptor from sector 32 (Offset {Xgd1PartitionOffset}): {ex.Message}");
+            DebugLogger.WriteLine(
+                $"Error reading volume descriptor from sector 32 (Offset {Xgd1PartitionOffset}): {ex.Message}");
         }
 
         // 5. Try rebuilt XISO format at sector 0, Offset 0
@@ -225,13 +231,13 @@ public class VolumeDescriptor
         var errorDetails = string.Join("\n  - ", errors);
 
         throw new InvalidImageException(
-            $"Volume descriptor not found. This doesn't appear to be a valid Xbox ISO file.\n\n" +
+            "Volume descriptor not found. This doesn't appear to be a valid Xbox ISO file.\n\n" +
             $"{fileSizeInfo}\n\n" +
             $"Tried the following locations:\n  - {errorDetails}\n\n" +
-            $"Possible causes:\n" +
-            $"  - The file is not an Xbox ISO (may be a different format)\n" +
-            $"  - The ISO is corrupted or incomplete\n" +
-            $"  - The ISO uses an unsupported format variant\n\n" +
+            "Possible causes:\n" +
+            "  - The file is not an Xbox ISO (may be a different format)\n" +
+            "  - The ISO is corrupted or incomplete\n" +
+            "  - The ISO uses an unsupported format variant\n\n" +
             $"Expected magic ID: {System.Text.Encoding.ASCII.GetString(MagicId)}"
         );
     }

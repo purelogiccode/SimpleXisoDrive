@@ -52,7 +52,8 @@ public class XisoFsFileAttributesTests
     [Fact]
     public void Flags_CanBeCheckedIndependently()
     {
-        const XisoFsFileAttributes attrs = XisoFsFileAttributes.ReadOnly | XisoFsFileAttributes.Archive | XisoFsFileAttributes.System;
+        const XisoFsFileAttributes attrs = XisoFsFileAttributes.ReadOnly | XisoFsFileAttributes.Archive |
+                                           XisoFsFileAttributes.System;
 
         Assert.True(attrs.HasFlag(XisoFsFileAttributes.ReadOnly));
         Assert.True(attrs.HasFlag(XisoFsFileAttributes.Archive));

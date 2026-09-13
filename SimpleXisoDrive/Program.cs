@@ -62,7 +62,8 @@ internal static class Program
             {
                 case 0:
                     PrintUsage();
-                    DebugLogger.WriteLine("\nAlternatively, you can drag and drop an ISO file onto the executable to mount it automatically.");
+                    DebugLogger.WriteLine(
+                        "\nAlternatively, you can drag and drop an ISO file onto the executable to mount it automatically.");
                     DebugLogger.WriteLine("\nPress any key to exit.");
                     Console.ReadKey();
                     return 1;
@@ -110,21 +111,25 @@ internal static class Program
                 // Add hints for common mistakes
                 if (Directory.Exists(isoPath))
                 {
-                    await Console.Error.WriteLineAsync("Hint: The specified path is a directory. Please provide the path to a specific .iso file.");
+                    await Console.Error.WriteLineAsync(
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso file.");
                 }
 
                 if (!isoPath.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
                 {
-                    await Console.Error.WriteLineAsync($"Hint: Tried looking for '{isoPath}.iso' but that wasn't found either.");
+                    await Console.Error.WriteLineAsync(
+                        $"Hint: Tried looking for '{isoPath}.iso' but that wasn't found either.");
                 }
 
                 if (args.Length > 2 && !isoPath.Contains(' '))
                 {
-                    await Console.Error.WriteLineAsync("Hint: If your file path contains spaces, ensure it is wrapped in \"quotes\".");
+                    await Console.Error.WriteLineAsync(
+                        "Hint: If your file path contains spaces, ensure it is wrapped in \"quotes\".");
                 }
 
                 // Report this to the API so the developer knows the path was invalid
-                await BugReport.LogErrorAsync(new FileNotFoundException(errorMsg), "Mount attempt failed: File not found.");
+                await BugReport.LogErrorAsync(new FileNotFoundException(errorMsg),
+                    "Mount attempt failed: File not found.");
 
                 if (!isDragAndDrop) return 1;
 
@@ -204,11 +209,13 @@ internal static class Program
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Error.WriteLine("Error: Failed to load the Dokan runtime library (dokan2.dll).");
-            Console.Error.WriteLine("The file may be corrupted, of the wrong architecture, or its dependencies are missing.");
+            Console.Error.WriteLine(
+                "The file may be corrupted, of the wrong architecture, or its dependencies are missing.");
             Console.Error.WriteLine("");
             Console.Error.WriteLine("To fix this:");
             Console.Error.WriteLine("  1. Uninstall Dokan via Windows Settings > Apps");
-            Console.Error.WriteLine("  2. Download the latest version from: https://github.com/dokan-dev/dokany/releases");
+            Console.Error.WriteLine(
+                "  2. Download the latest version from: https://github.com/dokan-dev/dokany/releases");
             Console.Error.WriteLine("  3. Install the package matching your system architecture (x64)");
             Console.Error.WriteLine("  4. Restart your computer");
             Console.Error.WriteLine("  5. Re-run SimpleXisoDrive");
@@ -468,7 +475,8 @@ internal static class Program
                         DebugLogger.WriteLine($"Resolved directory '{isoPath}' to ISO file '{isoFiles[0]}'");
                         return isoFiles[0];
                     case > 1:
-                        DebugLogger.WriteLine($"Directory '{isoPath}' contains multiple .iso files; cannot auto-resolve.");
+                        DebugLogger.WriteLine(
+                            $"Directory '{isoPath}' contains multiple .iso files; cannot auto-resolve.");
                         break;
                 }
             }

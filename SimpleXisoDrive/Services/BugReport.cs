@@ -14,7 +14,7 @@ public static class BugReport
     private const string ApplicationName = "SimpleXisoDrive";
     private static readonly HttpClient HttpClientInstance;
     private static readonly bool IsApiLoggingConfigured;
-    private static readonly object FileLock = new();
+    private static readonly Lock FileLock = new();
     private static bool _isDisposed;
 
     private static readonly string BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
@@ -82,7 +82,8 @@ public static class BugReport
     {
         if (ex == null)
         {
-            ex = new ArgumentNullException(nameof(ex), "BugReport.LogErrorAsync was called with a null exception object.");
+            ex = new ArgumentNullException(nameof(ex),
+                "BugReport.LogErrorAsync was called with a null exception object.");
             try
             {
                 throw ex;
@@ -113,7 +114,8 @@ public static class BugReport
         catch (Exception writeEx)
         {
             await Console.Error.WriteLineAsync($"Failed to write to local error log: {writeEx.Message}");
-            WriteToCriticalLog(writeEx, $"Failed to write main error to '{ErrorLogFilePath}'. Original error: {ex.Message}");
+            WriteToCriticalLog(writeEx,
+                $"Failed to write main error to '{ErrorLogFilePath}'. Original error: {ex.Message}");
         }
 
         if (IsApiLoggingConfigured)
@@ -211,7 +213,8 @@ public static class BugReport
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
                 WriteToCriticalLog(
-                    new HttpRequestException($"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
+                    new HttpRequestException(
+                        $"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
                     "Error sending log to API.");
                 return false;
             }
@@ -230,7 +233,8 @@ public static class BugReport
             var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
             var criticalContent = new StringBuilder();
             criticalContent.AppendLine("--- CRITICAL LOGGING ERROR ---");
-            criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Timestamp: {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
+            criticalContent.AppendLine(CultureInfo.InvariantCulture,
+                $"Timestamp: {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Application: {ApplicationName}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Version: {version}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
@@ -243,7 +247,8 @@ public static class BugReport
         }
         catch (Exception writeEx)
         {
-            Console.Error.WriteLine($"FATAL: Could not write to critical error log '{CriticalLogFilePath}'. Reason: {writeEx.Message}");
+            Console.Error.WriteLine(
+                $"FATAL: Could not write to critical error log '{CriticalLogFilePath}'. Reason: {writeEx.Message}");
             Console.Error.WriteLine($"Original critical error: {contextMessage} - {ex.Message}");
         }
     }

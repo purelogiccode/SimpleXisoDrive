@@ -11,6 +11,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 {
     private readonly VfsContainer _vfs = vfs;
     private static readonly ConsoleLogger Logger = new("[VFS] ");
+    private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Helper to ensure every single operation is tracked.
@@ -57,7 +58,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         {
             var path = NormalizePath(fileName);
 
-            if (path == @"\")
+            if (string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
             {
                 var rootEntry = _vfs.GetEntry(@"\");
                 if (rootEntry is not { IsDirectory: true }) return DokanResult.Error;
@@ -77,7 +78,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             info.Context = entry;
 
             // Deny write access (Read-Only FS)
-            if ((access & (FileAccess.GenericWrite | FileAccess.WriteData | FileAccess.AppendData | FileAccess.Delete)) != 0)
+            if ((access & (FileAccess.GenericWrite | FileAccess.WriteData | FileAccess.AppendData |
+                           FileAccess.Delete)) != FileAccess.None)
             {
                 return DokanResult.AccessDenied;
             }
@@ -182,15 +184,19 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var template = new FileInformation
             {
                 Attributes = FileAttributes.Directory | FileAttributes.ReadOnly,
-                CreationTime = _vfs.VolumeCreationTime, LastAccessTime = _vfs.VolumeCreationTime, LastWriteTime = _vfs.VolumeCreationTime
+                CreationTime = _vfs.VolumeCreationTime, LastAccessTime = _vfs.VolumeCreationTime,
+                LastWriteTime = _vfs.VolumeCreationTime
             };
 
-            internalFiles.Add(new FileInformation { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
-            if (path != @"\") internalFiles.Add(new FileInformation { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
+            internalFiles.Add(new FileInformation
+                { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
+            if (!string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
+                internalFiles.Add(new FileInformation
+                    { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
 
             foreach (var entry in _vfs.GetFolderList(path))
             {
-                if (entry.FileName == @"\") continue;
+                if (string.Equals(entry.FileName, @"\", StringComparison.OrdinalIgnoreCase)) continue;
 
                 internalFiles.Add(new FileInformation
                 {
@@ -210,7 +216,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
-    public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, IDokanFileInfo info)
+    public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files,
+        IDokanFileInfo info)
     {
         var filteredFiles = new List<FileInformation>();
         var result = ExecuteWithReporting(nameof(FindFilesWithPattern), fileName, () =>
@@ -221,7 +228,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(searchPattern)
                 .Replace("\\*", ".*")
                 .Replace("\\?", ".") + "$";
-            var regex = new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var regex = new System.Text.RegularExpressions.Regex(regexPattern,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase, RegexMatchTimeout);
 
             foreach (var f in allFiles)
             {
@@ -236,7 +244,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
-    public NtStatus GetFileSecurity(string fileName, out FileSystemSecurity? security, AccessControlSections sections, IDokanFileInfo info)
+    public NtStatus GetFileSecurity(string fileName, out FileSystemSecurity? security, AccessControlSections sections,
+        IDokanFileInfo info)
     {
         FileSystemSecurity? internalSecurity = null;
         var result = ExecuteWithReporting(nameof(GetFileSecurity), fileName, () =>
@@ -244,8 +253,11 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var entry = _vfs.GetEntry(NormalizePath(fileName));
             internalSecurity = entry is { IsDirectory: true } ? new DirectorySecurity() : new FileSecurity();
 
-            var everyone = new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, null);
-            internalSecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.ReadAndExecute, AccessControlType.Allow));
+            var everyone =
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid,
+                    null);
+            internalSecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.ReadAndExecute,
+                AccessControlType.Allow));
 
             return DokanResult.Success;
         });
@@ -254,12 +266,14 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
-    public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features, out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
+    public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features,
+        out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
     {
         volumeLabel = "XBOX_ISO";
         fileSystemName = "XDVDFS";
         maximumComponentLength = 255;
-        features = FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.CasePreservedNames | FileSystemFeatures.UnicodeOnDisk;
+        features = FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.CasePreservedNames |
+                   FileSystemFeatures.UnicodeOnDisk;
 
         try
         {
@@ -272,7 +286,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
     }
 
-    public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalNumberOfBytes, out long totalNumberOfFreeBytes, IDokanFileInfo info)
+    public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalNumberOfBytes,
+        out long totalNumberOfFreeBytes, IDokanFileInfo info)
     {
         try
         {
@@ -326,7 +341,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return DokanResult.AccessDenied;
     }
 
-    public NtStatus SetFileTime(string fileName, DateTime? creationTime, DateTime? lastAccessTime, DateTime? lastWriteTime, IDokanFileInfo info)
+    public NtStatus SetFileTime(string fileName, DateTime? creationTime, DateTime? lastAccessTime,
+        DateTime? lastWriteTime, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
@@ -356,7 +372,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return DokanResult.AccessDenied;
     }
 
-    public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections, IDokanFileInfo info)
+    public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections,
+        IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }

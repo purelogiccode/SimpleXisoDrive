@@ -16,7 +16,7 @@ public class FileEntry
     public string FileName { get; internal set; }
     public long EntryOffset { get; set; }
     public int EntrySize { get; internal set; } // Total size of this entry in bytes
-    public bool IsDirectory => (Attributes & XisoFsFileAttributes.Directory) != 0;
+    public bool IsDirectory => (Attributes & XisoFsFileAttributes.Directory) != XisoFsFileAttributes.None;
     public bool HasLeftChild => LeftSubTree != 0xFFFF;
     public bool HasRightChild => RightSubTree != 0xFFFF;
 
@@ -92,7 +92,7 @@ public class FileEntry
             EntrySize = 14 + nameLength; // Fixed header (14 bytes) + variable filename length
 
             // Add padding to align to the 4-byte boundary (XDVDFS requirement)
-            var padding = (4 - EntrySize % 4) % 4;
+            var padding = (4 - (EntrySize % 4)) % 4;
             EntrySize += padding;
 
             // Skip the padding bytes
@@ -166,28 +166,29 @@ public class FileEntry
     public FileAttributes GetWindowsAttributes()
     {
         var winAttrs = FileAttributes.ReadOnly;
-        if ((Attributes & XisoFsFileAttributes.Directory) != 0)
+        if ((Attributes & XisoFsFileAttributes.Directory) != XisoFsFileAttributes.None)
         {
             winAttrs |= FileAttributes.Directory;
         }
 
-        if ((Attributes & XisoFsFileAttributes.Hidden) != 0)
+        if ((Attributes & XisoFsFileAttributes.Hidden) != XisoFsFileAttributes.None)
         {
             winAttrs |= FileAttributes.Hidden;
         }
 
-        if ((Attributes & XisoFsFileAttributes.System) != 0)
+        if ((Attributes & XisoFsFileAttributes.System) != XisoFsFileAttributes.None)
         {
             winAttrs |= FileAttributes.System;
         }
 
-        if ((Attributes & XisoFsFileAttributes.Archive) != 0)
+        if ((Attributes & XisoFsFileAttributes.Archive) != XisoFsFileAttributes.None)
         {
             winAttrs |= FileAttributes.Archive;
         }
 
-        const FileAttributes standardWindowsAttributes = FileAttributes.Directory | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive;
-        if ((winAttrs & standardWindowsAttributes) == 0)
+        const FileAttributes standardWindowsAttributes = FileAttributes.Directory | FileAttributes.Hidden |
+                                                         FileAttributes.System | FileAttributes.Archive;
+        if ((winAttrs & standardWindowsAttributes) == FileAttributes.None)
         {
             winAttrs |= FileAttributes.Normal;
         }
