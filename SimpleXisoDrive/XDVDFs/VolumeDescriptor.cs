@@ -2,8 +2,15 @@ using Serilog;
 
 namespace SimpleXisoDrive.XDVDFs;
 
+/// <summary>
+/// Represents an XDVDFS volume descriptor, which identifies an Xbox ISO image and
+/// stores the location of the root directory table together with the volume creation time.
+/// </summary>
 public sealed class VolumeDescriptor
 {
+    /// <summary>
+    /// Gets the sector from which this descriptor was read.
+    /// </summary>
     public uint Sector { get; }
     private const int VolumeDescriptorSector = 32;
 
@@ -20,7 +27,14 @@ public sealed class VolumeDescriptor
     private static readonly byte[] MagicId = "MICROSOFT*XBOX*MEDIA"u8.ToArray();
 
     private byte[] Id1 { get; set; } = new byte[0x14];
+    /// <summary>
+    /// Gets the sector containing the root directory table.
+    /// </summary>
     public uint RootDirTableSector { get; private set; }
+
+    /// <summary>
+    /// Gets the volume creation time, or <see cref="DateTime.MinValue"/> when the stored timestamp is invalid.
+    /// </summary>
     public DateTime CreationTime { get; private set; }
     private byte[] Id2 { get; set; } = new byte[0x14];
 
@@ -83,7 +97,11 @@ public sealed class VolumeDescriptor
         });
     }
 
-    // Add this method to verify the ISO format
+    /// <summary>
+    /// Determines whether the descriptor was read from a rebuilt XISO image (sector 0)
+    /// rather than a standard Xbox ISO (sector 32).
+    /// </summary>
+    /// <returns><see langword="true"/> for rebuilt XISO images; otherwise, <see langword="false"/>.</returns>
     public bool IsRebuiltXisoFormat()
     {
         return Sector == 0;
@@ -98,6 +116,9 @@ public sealed class VolumeDescriptor
     /// 4. Try Sector 32 (Offset Xgd1PartitionOffset) - XGD1 Dual Layer
     /// 5. Try Sector 0 (Offset 0) - Common XISO fallback
     /// </summary>
+    /// <param name="isoSt">The ISO stream to read from.</param>
+    /// <returns>The first valid volume descriptor found.</returns>
+    /// <exception cref="InvalidImageException">Thrown when no valid volume descriptor is found.</exception>
     public static VolumeDescriptor ReadFrom(IsoSt isoSt)
     {
         Exception? firstException = null;
@@ -242,6 +263,10 @@ public sealed class VolumeDescriptor
         );
     }
 
+    /// <summary>
+    /// Validates that both magic identifiers in the descriptor match the XDVDFS signature.
+    /// </summary>
+    /// <returns><see langword="true"/> if the descriptor is valid; otherwise, <see langword="false"/>.</returns>
     public bool Validate()
     {
         // Log.Debug($"Validating descriptor - ID1: {BitConverter.ToString(Id1)}");

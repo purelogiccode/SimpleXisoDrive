@@ -12,6 +12,9 @@ namespace SimpleXisoDrive.Models;
 [Flags]
 public enum XisoFsFileAttributes : byte
 {
+    /// <summary>
+    /// No attributes are set.
+    /// </summary>
     None = 0,
 
     /// <summary>

@@ -8,11 +8,10 @@ namespace SimpleXisoDrive.Services;
 public static class CheckAccess
 {
     /// <summary>
-    ///
-    /// </summary>
     /// Determines whether the current user has administrator privileges.
     /// The method evaluates the current Windows identity and checks if it is
     /// assigned to the built-in administrator role in the operating system.
+    /// </summary>
     /// <returns>
     /// True if the current user is in the administrator role; false otherwise or in case of an error.
     /// </returns>

@@ -4,8 +4,14 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 namespace SimpleXisoDrive.Services;
 
+/// <summary>
+/// Configures the global Serilog logger with console, rolling file and bug report sinks.
+/// </summary>
 public static class LoggingSetup
 {
+    /// <summary>
+    /// Creates and assigns the global logger used across the application.
+    /// </summary>
     public static void ConfigureLogger()
     {
         Log.Logger = new LoggerConfiguration()

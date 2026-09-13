@@ -6,6 +6,10 @@ using System.Text.Json;
 
 namespace SimpleXisoDrive.Services;
 
+/// <summary>
+/// Builds bug reports from exceptions and log events, writes them to the local
+/// error log, and forwards them to the remote BugReport API.
+/// </summary>
 public static class BugReport
 {
     private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";

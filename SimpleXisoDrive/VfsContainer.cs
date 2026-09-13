@@ -3,14 +3,31 @@ using SimpleXisoDrive.XDVDFs;
 
 namespace SimpleXisoDrive;
 
+/// <summary>
+/// Provides a read-only virtual file system view over an Xbox ISO image,
+/// resolving paths to directory entries and serving file data to the Dokan layer.
+/// </summary>
 public class VfsContainer : IDisposable
 {
     private readonly IsoSt _isoSt;
     private readonly Dictionary<string, FileEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<FileEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the total size of the ISO image in bytes.
+    /// </summary>
     public ulong VolumeSize { get; }
+
+    /// <summary>
+    /// Gets the volume creation time recorded in the volume descriptor.
+    /// </summary>
     public DateTime VolumeCreationTime { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VfsContainer"/> class for the specified ISO file.
+    /// </summary>
+    /// <param name="isoPath">The path to the Xbox ISO file to open.</param>
+    /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO image.</exception>
     public VfsContainer(string isoPath)
     {
         _isoSt = new IsoSt(isoPath);
@@ -55,6 +72,11 @@ public class VfsContainer : IDisposable
         _entryCache[path] = entry;
     }
 
+    /// <summary>
+    /// Gets the file entry for the specified virtual path.
+    /// </summary>
+    /// <param name="path">The virtual path to look up.</param>
+    /// <returns>The matching <see cref="FileEntry"/>, or <see langword="null"/> if no entry exists at the path.</returns>
     public FileEntry? GetEntry(string path)
     {
         try
@@ -118,6 +140,11 @@ public class VfsContainer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Enumerates the child entries of the directory at the specified virtual path.
+    /// </summary>
+    /// <param name="path">The virtual directory path to list.</param>
+    /// <returns>The entries contained in the directory; empty if the path is not a valid directory.</returns>
     public IEnumerable<FileEntry> GetFolderList(string path)
     {
         var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
@@ -326,6 +353,13 @@ public class VfsContainer : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Reads file data for the specified entry into the buffer.
+    /// </summary>
+    /// <param name="entry">The file entry to read from.</param>
+    /// <param name="buffer">The buffer that receives the data.</param>
+    /// <param name="offset">The byte offset within the file at which to start reading.</param>
+    /// <returns>The number of bytes read, or zero if the read fails.</returns>
     public int ReadFile(FileEntry entry, Span<byte> buffer, long offset)
     {
         try
@@ -339,6 +373,9 @@ public class VfsContainer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Closes the underlying ISO stream.
+    /// </summary>
     public void Dispose()
     {
         try

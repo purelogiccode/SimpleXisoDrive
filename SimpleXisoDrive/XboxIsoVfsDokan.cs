@@ -6,6 +6,10 @@ using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive;
 
+/// <summary>
+/// Dokan file system implementation that exposes an Xbox ISO image as a read-only
+/// virtual drive backed by a <see cref="VfsContainer"/>.
+/// </summary>
 public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 {
     private readonly VfsContainer _vfs = vfs;
@@ -47,6 +51,17 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return normalized;
     }
 
+    /// <summary>
+    /// Opens a file or directory handle, enforcing the read-only semantics of the volume.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory to open.</param>
+    /// <param name="access">The requested access mode.</param>
+    /// <param name="share">The requested sharing mode.</param>
+    /// <param name="mode">The action to take when opening the file.</param>
+    /// <param name="options">Additional file options.</param>
+    /// <param name="attributes">The requested file attributes.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the handle is opened; otherwise, an error status.</returns>
     public NtStatus CreateFile(string fileName, FileAccess access, FileShare share,
         FileMode mode, FileOptions options, FileAttributes attributes, IDokanFileInfo info)
     {
@@ -91,6 +106,15 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         });
     }
 
+    /// <summary>
+    /// Reads data from an open file into the supplied buffer.
+    /// </summary>
+    /// <param name="fileName">The path of the file to read.</param>
+    /// <param name="buffer">The buffer that receives the data.</param>
+    /// <param name="bytesRead">When this method returns, the number of bytes read.</param>
+    /// <param name="offset">The byte offset within the file at which to start reading.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the read completes; otherwise, an error status.</returns>
     public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
     {
         var internalBytesRead = 0;
@@ -120,6 +144,13 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
+    /// <summary>
+    /// Retrieves metadata such as size, attributes and timestamps for a file or directory.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="fileInfo">When this method returns, the information for the entry.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the entry is found; otherwise, an error status.</returns>
     public NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
     {
         FileInformation internalInfo = default;
@@ -166,6 +197,13 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
+    /// <summary>
+    /// Lists the entries of a directory, including the virtual "." and ".." entries.
+    /// </summary>
+    /// <param name="fileName">The path of the directory to list.</param>
+    /// <param name="files">When this method returns, the entries found in the directory.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the directory is listed; otherwise, an error status.</returns>
     public NtStatus FindFiles(string fileName, out IList<FileInformation> files, IDokanFileInfo info)
     {
         var internalFiles = new List<FileInformation>();
@@ -212,6 +250,14 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
+    /// <summary>
+    /// Lists the entries of a directory that match the specified wildcard search pattern.
+    /// </summary>
+    /// <param name="fileName">The path of the directory to list.</param>
+    /// <param name="searchPattern">The wildcard pattern (for example, "*.txt") used to filter entries.</param>
+    /// <param name="files">When this method returns, the matching entries.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the directory is listed; otherwise, an error status.</returns>
     public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files,
         IDokanFileInfo info)
     {
@@ -240,6 +286,14 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
+    /// <summary>
+    /// Returns a security descriptor that grants everyone read and execute access.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="security">When this method returns, the security descriptor for the entry.</param>
+    /// <param name="sections">The sections of the security descriptor requested.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the descriptor is built.</returns>
     public NtStatus GetFileSecurity(string fileName, out FileSystemSecurity? security, AccessControlSections sections,
         IDokanFileInfo info)
     {
@@ -262,6 +316,15 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         return result;
     }
 
+    /// <summary>
+    /// Returns information about the virtual volume, such as its label, file system name and features.
+    /// </summary>
+    /// <param name="volumeLabel">When this method returns, the volume label.</param>
+    /// <param name="features">When this method returns, the features supported by the volume.</param>
+    /// <param name="fileSystemName">When this method returns, the name of the file system.</param>
+    /// <param name="maximumComponentLength">When this method returns, the maximum length of a file name component.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the information is returned.</returns>
     public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features,
         out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
     {
@@ -282,6 +345,14 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
     }
 
+    /// <summary>
+    /// Returns the volume capacity. Because the volume is read-only, no free space is reported.
+    /// </summary>
+    /// <param name="freeBytesAvailable">When this method returns, the free space available to the user.</param>
+    /// <param name="totalNumberOfBytes">When this method returns, the total size of the volume.</param>
+    /// <param name="totalNumberOfFreeBytes">When this method returns, the total free space on the volume.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the information is returned.</returns>
     public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalNumberOfBytes,
         out long totalNumberOfFreeBytes, IDokanFileInfo info)
     {
@@ -303,14 +374,30 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     }
 
     // Boilerplate / Read-Only Enforcement
+    /// <summary>
+    /// Invoked when a file handle is cleaned up. No per-handle resources are held.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
     public void Cleanup(string fileName, IDokanFileInfo info)
     {
     }
 
+    /// <summary>
+    /// Invoked when a file handle is closed. No per-handle resources are held.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
     public void CloseFile(string fileName, IDokanFileInfo info)
     {
     }
 
+    /// <summary>
+    /// Invoked after the file system has been mounted.
+    /// </summary>
+    /// <param name="mountPoint">The mount point that was mounted.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the callback completes.</returns>
     public NtStatus Mounted(string mountPoint, IDokanFileInfo info)
     {
         try
@@ -324,6 +411,11 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
     }
 
+    /// <summary>
+    /// Invoked after the file system has been unmounted.
+    /// </summary>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/> when the callback completes.</returns>
     public NtStatus Unmounted(IDokanFileInfo info)
     {
         try
@@ -337,69 +429,165 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
     }
 
+    /// <summary>
+    /// Denies all writes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file to write to.</param>
+    /// <param name="buffer">The data that would be written.</param>
+    /// <param name="bytesWritten">Always zero, since no data is written.</param>
+    /// <param name="offset">The byte offset at which the write would start.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus WriteFile(string fileName, byte[] buffer, out int bytesWritten, long offset, IDokanFileInfo info)
     {
         bytesWritten = 0;
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies flushing because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus FlushFileBuffers(string fileName, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies attribute changes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="attributes">The attributes that would be applied.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus SetFileAttributes(string fileName, FileAttributes attributes, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies timestamp changes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="creationTime">The creation time that would be applied.</param>
+    /// <param name="lastAccessTime">The last access time that would be applied.</param>
+    /// <param name="lastWriteTime">The last write time that would be applied.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus SetFileTime(string fileName, DateTime? creationTime, DateTime? lastAccessTime,
         DateTime? lastWriteTime, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies file deletion because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file to delete.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus DeleteFile(string fileName, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies directory deletion because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the directory to delete.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus DeleteDirectory(string fileName, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies rename and move operations because the volume is read-only.
+    /// </summary>
+    /// <param name="oldName">The current path of the file or directory.</param>
+    /// <param name="newName">The destination path.</param>
+    /// <param name="replace">Whether an existing destination file would be replaced.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus MoveFile(string oldName, string newName, bool replace, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies end-of-file changes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="length">The requested end-of-file position.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus SetEndOfFile(string fileName, long length, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies allocation size changes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="length">The requested allocation size.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus SetAllocationSize(string fileName, long length, IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Denies security descriptor changes because the volume is read-only.
+    /// </summary>
+    /// <param name="fileName">The path of the file or directory.</param>
+    /// <param name="security">The security descriptor that would be applied.</param>
+    /// <param name="sections">The sections of the security descriptor to change.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
     public NtStatus SetFileSecurity(string fileName, FileSystemSecurity security, AccessControlSections sections,
         IDokanFileInfo info)
     {
         return DokanResult.AccessDenied;
     }
 
+    /// <summary>
+    /// Reports success; locking is a no-op on this read-only volume.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="offset">The byte offset of the range to lock.</param>
+    /// <param name="length">The length of the range to lock.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/>.</returns>
     public NtStatus LockFile(string fileName, long offset, long length, IDokanFileInfo info)
     {
         return DokanResult.Success;
     }
 
+    /// <summary>
+    /// Reports success; unlocking is a no-op on this read-only volume.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="offset">The byte offset of the range to unlock.</param>
+    /// <param name="length">The length of the range to unlock.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.Success"/>.</returns>
     public NtStatus UnlockFile(string fileName, long offset, long length, IDokanFileInfo info)
     {
         return DokanResult.Success;
     }
 
+    /// <summary>
+    /// Reports that alternate data streams are not supported.
+    /// </summary>
+    /// <param name="fileName">The path of the file.</param>
+    /// <param name="streams">When this method returns, an empty list of streams.</param>
+    /// <param name="info">Dokan file information for the operation.</param>
+    /// <returns><see cref="DokanResult.NotImplemented"/>.</returns>
     public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
     {
         streams = new List<FileInformation>();

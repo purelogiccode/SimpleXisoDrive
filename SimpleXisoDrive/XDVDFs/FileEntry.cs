@@ -4,20 +4,74 @@ using SimpleXisoDrive.Models;
 
 namespace SimpleXisoDrive.XDVDFs;
 
+/// <summary>
+/// Represents a single file or directory entry in the XDVDFS directory tree.
+/// </summary>
 public class FileEntry
 {
+    /// <summary>
+    /// Gets the sector containing this entry's directory record.
+    /// </summary>
     public long EntrySector { get; internal set; }
+
+    /// <summary>
+    /// The size of an XDVDFS sector in bytes.
+    /// </summary>
     public const int SectorSize = 2048;
+
+    /// <summary>
+    /// Gets the index of the left child node in the binary tree, or 0xFFFF when there is none.
+    /// </summary>
     public ushort LeftSubTree { get; internal set; }
+
+    /// <summary>
+    /// Gets the index of the right child node in the binary tree, or 0xFFFF when there is none.
+    /// </summary>
     public ushort RightSubTree { get; internal set; }
+
+    /// <summary>
+    /// Gets the sector where the file or directory data begins.
+    /// </summary>
     public uint StartSector { get; internal set; }
+
+    /// <summary>
+    /// Gets the size of the file in bytes.
+    /// </summary>
     public uint FileSize { get; internal set; }
+
+    /// <summary>
+    /// Gets the XDVDFS attributes of the entry.
+    /// </summary>
     public XisoFsFileAttributes Attributes { get; internal set; }
+
+    /// <summary>
+    /// Gets the name of the file or directory.
+    /// </summary>
     public string FileName { get; internal set; }
+
+    /// <summary>
+    /// Gets or sets the byte offset of this entry within its sector.
+    /// </summary>
     public long EntryOffset { get; set; }
-    public int EntrySize { get; internal set; } // Total size of this entry in bytes
+
+    /// <summary>
+    /// Gets the total size of this entry in bytes, including alignment padding.
+    /// </summary>
+    public int EntrySize { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the entry represents a directory.
+    /// </summary>
     public bool IsDirectory => (Attributes & XisoFsFileAttributes.Directory) != XisoFsFileAttributes.None;
+
+    /// <summary>
+    /// Gets a value indicating whether the entry has a left child node.
+    /// </summary>
     public bool HasLeftChild => LeftSubTree != 0xFFFF;
+
+    /// <summary>
+    /// Gets a value indicating whether the entry has a right child node.
+    /// </summary>
     public bool HasRightChild => RightSubTree != 0xFFFF;
 
     internal FileEntry()
@@ -25,6 +79,11 @@ public class FileEntry
         FileName = string.Empty;
     }
 
+    /// <summary>
+    /// Creates the synthetic root directory entry for the volume.
+    /// </summary>
+    /// <param name="rootDirTableSector">The sector containing the root directory table.</param>
+    /// <returns>A <see cref="FileEntry"/> representing the root directory.</returns>
     public static FileEntry CreateRootEntry(uint rootDirTableSector)
     {
         return new FileEntry
@@ -126,6 +185,11 @@ public class FileEntry
         }
     }
 
+    /// <summary>
+    /// Reads the left child entry of this node from the specified ISO stream.
+    /// </summary>
+    /// <param name="isoSt">The ISO stream to read from.</param>
+    /// <returns>The left child entry, or <see langword="null"/> when there is none.</returns>
     public FileEntry? GetLeftChild(IsoSt isoSt)
     {
         if (LeftSubTree == 0xFFFF) return null;
@@ -141,6 +205,11 @@ public class FileEntry
         return null;
     }
 
+    /// <summary>
+    /// Reads the right child entry of this node from the specified ISO stream.
+    /// </summary>
+    /// <param name="isoSt">The ISO stream to read from.</param>
+    /// <returns>The right child entry, or <see langword="null"/> when there is none.</returns>
     public FileEntry? GetRightChild(IsoSt isoSt)
     {
         if (RightSubTree == 0xFFFF) return null;
@@ -155,6 +224,12 @@ public class FileEntry
         return null;
     }
 
+    /// <summary>
+    /// Reads the first entry of this directory's directory table.
+    /// </summary>
+    /// <param name="isoSt">The ISO stream to read from.</param>
+    /// <returns>The first child entry, or <see langword="null"/> when the table cannot be read.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when this entry is not a directory.</exception>
     public FileEntry? GetFirstChild(IsoSt isoSt)
     {
         if (!IsDirectory)
@@ -165,6 +240,10 @@ public class FileEntry
         return isoSt.ReadFileEntry(StartSector, 0);
     }
 
+    /// <summary>
+    /// Maps the XDVDFS attributes to the equivalent Windows <see cref="FileAttributes"/> flags.
+    /// </summary>
+    /// <returns>The Windows attributes for this entry.</returns>
     public FileAttributes GetWindowsAttributes()
     {
         var winAttrs = FileAttributes.ReadOnly;

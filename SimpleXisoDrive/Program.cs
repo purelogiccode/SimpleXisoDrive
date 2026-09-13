@@ -5,11 +5,20 @@ using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive;
 
+/// <summary>
+/// Application entry point. Parses command-line arguments and mounts an Xbox ISO image
+/// as a read-only virtual file system using Dokan.
+/// </summary>
 internal static class Program
 {
     private static VfsContainer? _vfsContainer;
     private static readonly CancellationTokenSource CancellationTokenSource = new();
 
+    /// <summary>
+    /// Runs the application, mounting the specified ISO file or displaying usage information.
+    /// </summary>
+    /// <param name="args">The command-line arguments: an ISO path, an optional mount path, and optional flags.</param>
+    /// <returns>Zero on success; otherwise, a non-zero exit code.</returns>
     public static async Task<int> Main(string[] args)
     {
         try

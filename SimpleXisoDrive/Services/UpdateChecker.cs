@@ -7,6 +7,10 @@ using Serilog;
 
 namespace SimpleXisoDrive.Services;
 
+/// <summary>
+/// Checks the GitHub releases API for a newer version of the application and
+/// offers to open the release page in the default browser.
+/// </summary>
 public static class UpdateChecker
 {
     private const string RepoOwner = "purelogiccode";
@@ -34,6 +38,10 @@ public static class UpdateChecker
         };
     }
 
+    /// <summary>
+    /// Queries the latest release information and, when a newer version is available,
+    /// prompts the user to open the release page. Network failures are non-fatal.
+    /// </summary>
     public static async Task CheckForUpdateAsync()
     {
         try

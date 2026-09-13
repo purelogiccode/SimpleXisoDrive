@@ -8,18 +8,31 @@ namespace SimpleXisoDrive.XDVDFs;
 /// </summary>
 public class IsoSt : IDisposable
 {
-    public const int SectorSize = 2048; // XDVDFS sector size is always 2048 bytes
+    /// <summary>
+    /// The XDVDFS sector size in bytes; always 2048.
+    /// </summary>
+    public const int SectorSize = 2048;
+
     private readonly Stream _fileStream;
 
-    // Global offset for the volume (e.g. for dual-layer/hybrid discs)
+    /// <summary>
+    /// Gets or sets the global byte offset of the volume within the stream
+    /// (for example, for dual-layer or partitioned disc images).
+    /// </summary>
     public long VolumeOffset { get; set; }
 
-    // Expose the lock object for operations that need to perform multiple reads under one lock
+    /// <summary>
+    /// Gets the object used to synchronize access to the underlying stream.
+    /// </summary>
     public object LockObject { get; } = new();
 
     // Keep Reader private or internal, access should go through locked methods
     internal BinaryReader Reader { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="IsoSt"/> class and opens the specified ISO file.
+    /// </summary>
+    /// <param name="isoPath">The path to the ISO file to open.</param>
     public IsoSt(string isoPath)
     {
         // Use FileShare.ReadWrite to allow other processes (like antivirus) to open the file
@@ -121,6 +134,9 @@ public class IsoSt : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the underlying file stream.
+    /// </summary>
     public void Dispose()
     {
         try

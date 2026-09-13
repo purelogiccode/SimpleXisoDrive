@@ -16,6 +16,11 @@ public sealed class BugReportSink : ILogEventSink
     private static readonly Lock RateLimitLock = new();
     private static readonly Queue<DateTimeOffset> RecentReports = new();
 
+    /// <summary>
+    /// Processes a Serilog event, forwarding Warning and higher levels to the local
+    /// error log and the remote bug report API.
+    /// </summary>
+    /// <param name="logEvent">The Serilog event to process.</param>
     public void Emit(LogEvent logEvent)
     {
         try
