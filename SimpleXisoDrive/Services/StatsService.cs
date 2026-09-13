@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Security.Authentication;
 using System.Text.Json.Serialization;
+using Serilog;
 
 namespace SimpleXisoDrive.Services;
 
@@ -71,27 +72,27 @@ public static class StatsService
 
             if (response.IsSuccessStatusCode)
             {
-                DebugLogger.WriteLine("Stats reported successfully.");
+                Log.Debug("Stats reported successfully.");
             }
             else
             {
-                DebugLogger.WriteLine($"Stats API returned: {response.StatusCode}");
+                Log.Debug("Stats API returned: {StatusCode}", response.StatusCode);
             }
         }
         catch (TaskCanceledException)
         {
             // Timeout - stats service may not be running, ignore
-            DebugLogger.WriteLine("Stats API timeout - service may not be available.");
+            Log.Debug("Stats API timeout - service may not be available.");
         }
         catch (HttpRequestException ex)
         {
             // Connection failed - stats service may not be running, ignore
-            DebugLogger.WriteLine($"Stats API unreachable: {ex.Message}");
+            Log.Debug(ex, "Stats API unreachable");
         }
         catch (Exception ex)
         {
             // Log but don't fail startup for stats reporting issues
-            DebugLogger.WriteLine($"Failed to report stats: {ex.Message}");
+            Log.Warning(ex, "Failed to report stats");
         }
     }
 

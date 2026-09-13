@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Services;
+using Serilog;
 
 namespace SimpleXisoDrive.XDVDFs;
 
@@ -121,18 +121,18 @@ public sealed class VolumeDescriptor
             firstException = ex;
             var errorDetail = ex is EndOfStreamException ? "file too small" : ex.Message;
             errors.Add($"Sector 32 (Offset 0): {errorDetail}");
-            DebugLogger.WriteLine($"Error reading volume descriptor from sector 32 (Offset 0): {ex.Message}");
+            Log.Debug(ex, "Error reading volume descriptor from sector 32 (Offset 0)");
         }
 
         // 2. Try Sector 32, Offset GlobalPartitionOffset (GLOBAL format)
         try
         {
-            DebugLogger.WriteLine($"Checking for Global Partition at offset {GlobalPartitionOffset}...");
+            Log.Debug("Checking for Global Partition at offset {Offset}...", GlobalPartitionOffset);
             var descriptor = new VolumeDescriptor(isoSt, VolumeDescriptorSector, GlobalPartitionOffset);
             if (descriptor.Validate())
             {
                 isoSt.VolumeOffset = GlobalPartitionOffset;
-                DebugLogger.WriteLine($"Detected Global Partition at offset {GlobalPartitionOffset}");
+                Log.Debug("Detected Global Partition at offset {Offset}", GlobalPartitionOffset);
                 return descriptor;
             }
 
@@ -143,19 +143,19 @@ public sealed class VolumeDescriptor
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for global partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {GlobalPartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine(
-                $"Error reading volume descriptor from sector 32 (Offset {GlobalPartitionOffset}): {ex.Message}");
+            Log.Debug(ex, "Error reading volume descriptor from sector 32 (Offset {Offset})",
+                GlobalPartitionOffset);
         }
 
         // 3. Try Sector 32, Offset Xgd3PartitionOffset (XGD3 format)
         try
         {
-            DebugLogger.WriteLine($"Checking for XGD3 Partition at offset {Xgd3PartitionOffset}...");
+            Log.Debug("Checking for XGD3 Partition at offset {Offset}...", Xgd3PartitionOffset);
             var descriptor = new VolumeDescriptor(isoSt, VolumeDescriptorSector, Xgd3PartitionOffset);
             if (descriptor.Validate())
             {
                 isoSt.VolumeOffset = Xgd3PartitionOffset;
-                DebugLogger.WriteLine($"Detected XGD3 Partition at offset {Xgd3PartitionOffset}");
+                Log.Debug("Detected XGD3 Partition at offset {Offset}", Xgd3PartitionOffset);
                 return descriptor;
             }
 
@@ -166,19 +166,19 @@ public sealed class VolumeDescriptor
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for XGD3 partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {Xgd3PartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine(
-                $"Error reading volume descriptor from sector 32 (Offset {Xgd3PartitionOffset}): {ex.Message}");
+            Log.Debug(ex, "Error reading volume descriptor from sector 32 (Offset {Offset})",
+                Xgd3PartitionOffset);
         }
 
         // 4. Try Sector 32, Offset Xgd1PartitionOffset (XGD1 Dual Layer / Hybrid)
         try
         {
-            DebugLogger.WriteLine($"Checking for XGD1 Game Partition at offset {Xgd1PartitionOffset}...");
+            Log.Debug("Checking for XGD1 Game Partition at offset {Offset}...", Xgd1PartitionOffset);
             var descriptor = new VolumeDescriptor(isoSt, VolumeDescriptorSector, Xgd1PartitionOffset);
             if (descriptor.Validate())
             {
                 isoSt.VolumeOffset = Xgd1PartitionOffset;
-                DebugLogger.WriteLine($"Detected XGD1 Game Partition at offset {Xgd1PartitionOffset}");
+                Log.Debug("Detected XGD1 Game Partition at offset {Offset}", Xgd1PartitionOffset);
                 return descriptor;
             }
 
@@ -189,14 +189,14 @@ public sealed class VolumeDescriptor
         {
             var errorDetail = ex is EndOfStreamException ? "file too small for XGD1 partition" : ex.Message;
             errors.Add($"Sector 32 (Offset {Xgd1PartitionOffset}): {errorDetail}");
-            DebugLogger.WriteLine(
-                $"Error reading volume descriptor from sector 32 (Offset {Xgd1PartitionOffset}): {ex.Message}");
+            Log.Debug(ex, "Error reading volume descriptor from sector 32 (Offset {Offset})",
+                Xgd1PartitionOffset);
         }
 
         // 5. Try rebuilt XISO format at sector 0, Offset 0
         try
         {
-            DebugLogger.WriteLine("Checking for rebuilt XISO format at sector 0...");
+            Log.Debug("Checking for rebuilt XISO format at sector 0...");
             var descriptor = new VolumeDescriptor(isoSt, 0, 0);
             if (descriptor.Validate())
             {
@@ -210,7 +210,7 @@ public sealed class VolumeDescriptor
         {
             var errorDetail = ex is EndOfStreamException ? "file too small" : ex.Message;
             errors.Add($"Sector 0 (Offset 0): {errorDetail}");
-            DebugLogger.WriteLine($"Error reading volume descriptor from sector 0: {ex.Message}");
+            Log.Debug(ex, "Error reading volume descriptor from sector 0");
 
             if (firstException != null)
             {
@@ -244,8 +244,8 @@ public sealed class VolumeDescriptor
 
     public bool Validate()
     {
-        // DebugLogger.WriteLine($"Validating descriptor - ID1: {BitConverter.ToString(Id1)}");
-        // DebugLogger.WriteLine($"Validating descriptor - ID2: {BitConverter.ToString(Id2)}");
+        // Log.Debug($"Validating descriptor - ID1: {BitConverter.ToString(Id1)}");
+        // Log.Debug($"Validating descriptor - ID2: {BitConverter.ToString(Id2)}");
         return Id1.SequenceEqual(MagicId) && Id2.SequenceEqual(MagicId);
     }
 }

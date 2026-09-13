@@ -12,6 +12,8 @@ public static class BugReport
     private const string BugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
     private const string ApplicationName = "SimpleXisoDrive";
+    private static readonly string AppVersion =
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
     private static readonly HttpClient HttpClientInstance;
     private static readonly bool IsApiLoggingConfigured;
     private static readonly Lock FileLock = new();
@@ -47,88 +49,111 @@ public static class BugReport
         HttpClientInstance.Dispose();
     }
 
-    private static string FormatErrorMessage(Exception ex, string contextMessage)
+    /// <summary>
+    /// Builds a full bug report containing environment details, error details
+    /// and exception details, following the standard report template.
+    /// </summary>
+    public static string BuildReport(string level, string errorDetails, Exception? exception)
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-        var osDescription = RuntimeInformation.OSDescription;
-        var osArchitecture = RuntimeInformation.OSArchitecture.ToString();
-        var frameworkDescription = RuntimeInformation.FrameworkDescription;
+        var sb = new StringBuilder();
+        sb.AppendLine("=== Environment Details ===");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Application Name: {ApplicationName}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Application Version: {AppVersion}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"OS Version: {RuntimeInformation.OSDescription}");
+        sb.AppendLine(CultureInfo.InvariantCulture,
+            $"Architecture: OS: {RuntimeInformation.OSArchitecture}, Process: {RuntimeInformation.ProcessArchitecture}");
+        sb.AppendLine(CultureInfo.InvariantCulture,
+            $"Bitness: {(Environment.Is64BitProcess ? "64-bit" : "32-bit")} process on {(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")} OS");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Windows Version: {Environment.OSVersion.VersionString}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Processor Count: {Environment.ProcessorCount}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Base Directory: {BaseDirectory}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Temp Path: {Path.GetTempPath()}");
+        sb.AppendLine();
+        sb.AppendLine("=== Error Details ===");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Level: {level}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Error message: {errorDetails}");
+        sb.AppendLine();
+        sb.AppendLine("=== Exception Details ===");
 
-        var fullErrorMessage = new StringBuilder();
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Timestamp: {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Application: {ApplicationName}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Version: {version}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"OS: {osDescription}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"OS Architecture: {osArchitecture}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Framework: {frameworkDescription}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Exception Type: {ex.GetType().Name}");
-        fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Exception Message: {ex.Message}");
-        fullErrorMessage.AppendLine("\n--- Stack Trace ---");
-        fullErrorMessage.AppendLine(ex.StackTrace);
-        if (ex.InnerException != null)
+        if (exception is null)
         {
-            fullErrorMessage.AppendLine("\n--- Inner Exception ---");
-            fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.InnerException.GetType().Name}");
-            fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.InnerException.Message}");
-            fullErrorMessage.AppendLine(CultureInfo.InvariantCulture, $"Stack Trace:\n{ex.InnerException.StackTrace}");
+            sb.AppendLine("Type: None");
+            sb.AppendLine("Message: None");
+            sb.AppendLine("Source: None");
+            sb.AppendLine("StackTrace: None");
+        }
+        else
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Type: {exception.GetType().FullName}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Message: {exception.Message}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Source: {exception.Source ?? "Unknown"}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {exception.StackTrace ?? "Not available"}");
         }
 
-        fullErrorMessage.AppendLine("--------------------------------------------------\n");
-        return fullErrorMessage.ToString();
+        return sb.ToString();
     }
 
-    public static async Task LogErrorAsync(Exception? ex, string? contextMessage = null)
+    /// <summary>
+    /// Appends a full report to the local error.log file.
+    /// </summary>
+    public static void WriteLocalErrorLog(string report)
     {
-        if (ex == null)
-        {
-            ex = new ArgumentNullException(nameof(ex),
-                "BugReport.LogErrorAsync was called with a null exception object.");
-            try
-            {
-                throw ex;
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-
-        contextMessage ??= "No additional context provided.";
-
-        // Log to console immediately
-        await Console.Error.WriteLineAsync("\n--- ERROR ---");
-        await Console.Error.WriteLineAsync($"An error occurred: {ex.Message}");
-        await Console.Error.WriteLineAsync($"Details have been written to: {ErrorLogFilePath}");
-        await Console.Error.WriteLineAsync("--- END ERROR ---\n");
-
-        var logContent = FormatErrorMessage(ex, contextMessage);
-
         try
         {
             lock (FileLock)
             {
-                File.AppendAllText(ErrorLogFilePath, logContent, Encoding.UTF8);
+                File.AppendAllText(ErrorLogFilePath,
+                    report + Environment.NewLine + "--------------------------------------------------" +
+                    Environment.NewLine, Encoding.UTF8);
             }
         }
         catch (Exception writeEx)
         {
-            await Console.Error.WriteLineAsync($"Failed to write to local error log: {writeEx.Message}");
-            WriteToCriticalLog(writeEx,
-                $"Failed to write main error to '{ErrorLogFilePath}'. Original error: {ex.Message}");
+            Console.Error.WriteLine($"Failed to write to local error log: {writeEx.Message}");
+            WriteToCriticalLog(writeEx, $"Failed to write main error to '{ErrorLogFilePath}'.");
         }
+    }
 
-        if (IsApiLoggingConfigured)
+    /// <summary>
+    /// Sends a bug report to the remote BugReport API.
+    /// </summary>
+    public static async Task SendToApiAsync(string report, string stackTrace)
+    {
+        if (!IsApiLoggingConfigured) return;
+
+        try
         {
-            var sent = await SendLogToApiAsync(ex, contextMessage);
-            if (sent)
+            var payload = new
             {
-                DebugLogger.WriteLine("Error details were also sent to the remote logging service.");
-            }
-            else
-            {
-                await Console.Error.WriteLineAsync("Failed to send error details to the remote logging service.");
-            }
+                message = report,
+                applicationName = ApplicationName,
+                version = AppVersion,
+                userInfo = Environment.UserName,
+                environment = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})",
+                stackTrace
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
+            request.Headers.Add("X-API-KEY", ApiKey);
+            request.Content = httpContent;
+
+            using var response = await HttpClientInstance.SendAsync(request);
+
+            if (response.IsSuccessStatusCode) return;
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            WriteToCriticalLog(
+                new HttpRequestException(
+                    $"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
+                "Error sending log to API.");
+        }
+        catch (Exception apiEx)
+        {
+            WriteToCriticalLog(apiEx, "Exception occurred while sending log to API.");
         }
     }
 
@@ -140,16 +165,13 @@ public static class BugReport
     {
         try
         {
-            var logContent = FormatErrorMessage(ex, contextMessage);
+            var report = BuildReport("Fatal", contextMessage, ex);
 
             Console.Error.WriteLine("\n--- CRITICAL CRASH ---");
             Console.Error.WriteLine(ex.Message);
             Console.Error.WriteLine($"Details written to: {ErrorLogFilePath}");
 
-            lock (FileLock)
-            {
-                File.AppendAllText(ErrorLogFilePath, logContent, Encoding.UTF8);
-            }
+            WriteLocalErrorLog(report);
 
             // Report to API (fire-and-forget since this is a sync method)
             if (IsApiLoggingConfigured)
@@ -158,7 +180,7 @@ public static class BugReport
                 {
                     try
                     {
-                        await SendLogToApiAsync(ex, $"[FATAL] {contextMessage}");
+                        await SendToApiAsync(report, ex.ToString());
                     }
                     catch
                     {
@@ -174,69 +196,16 @@ public static class BugReport
         }
     }
 
-    private static async Task<bool> SendLogToApiAsync(Exception ex, string contextMessage)
-    {
-        if (!IsApiLoggingConfigured) return false;
-
-        try
-        {
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-            var osDescription = RuntimeInformation.OSDescription;
-            var frameworkDescription = RuntimeInformation.FrameworkDescription;
-
-            var payload = new
-            {
-                message = $"Context: {contextMessage}\nException: {ex.Message}",
-                applicationName = ApplicationName,
-                version,
-                userInfo = Environment.UserName,
-                framework = frameworkDescription,
-                environment = $"{osDescription} ({RuntimeInformation.OSArchitecture})",
-                isAdmin = CheckAccess.IsAdministrator(),
-                stackTrace = ex.ToString()
-            };
-
-            var jsonPayload = JsonSerializer.Serialize(payload);
-            var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
-            request.Headers.Add("X-API-KEY", ApiKey);
-            request.Content = httpContent;
-
-            using var response = await HttpClientInstance.SendAsync(request);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return true;
-            }
-            else
-            {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                WriteToCriticalLog(
-                    new HttpRequestException(
-                        $"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
-                    "Error sending log to API.");
-                return false;
-            }
-        }
-        catch (Exception apiEx)
-        {
-            WriteToCriticalLog(apiEx, "Exception occurred while sending log to API.");
-            return false;
-        }
-    }
-
     private static void WriteToCriticalLog(Exception ex, string contextMessage)
     {
         try
         {
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
             var criticalContent = new StringBuilder();
             criticalContent.AppendLine("--- CRITICAL LOGGING ERROR ---");
             criticalContent.AppendLine(CultureInfo.InvariantCulture,
                 $"Timestamp: {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Application: {ApplicationName}");
-            criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Version: {version}");
+            criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Version: {AppVersion}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Exception Type: {ex.GetType().Name}");
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Exception Message: {ex.Message}");

@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Services;
+using Serilog;
 using SimpleXisoDrive.XDVDFs;
 
 namespace SimpleXisoDrive;
@@ -23,7 +23,7 @@ public class VfsContainer : IDisposable
                 throw new InvalidImageException("XDVDFS magic string not found.");
             }
 
-            DebugLogger.WriteLine(volumeDescriptor.IsRebuiltXisoFormat()
+            Log.Debug(volumeDescriptor.IsRebuiltXisoFormat()
                 ? "Detected rebuilt XISO format (sector 0)"
                 : "Detected standard Xbox ISO format (sector 32)");
 
@@ -31,19 +31,21 @@ public class VfsContainer : IDisposable
             VolumeSize = (ulong)_isoSt.Reader.BaseStream.Length;
 
             var rootEntry = FileEntry.CreateRootEntry(volumeDescriptor.RootDirTableSector);
-            DebugLogger.WriteLine($"Root entry points to sector: {rootEntry.StartSector}");
+            Log.Debug("Root entry points to sector: {Sector}", rootEntry.StartSector);
             CacheEntry("\\", rootEntry);
         }
         catch (Exception ex)
         {
             _isoSt.Dispose();
 
-            // Exception is re-thrown and caught by Program.cs, which handles the API reporting.
+            // Exception is re-thrown and caught by Program.cs, which handles the UI feedback.
             if (ex is InvalidImageException)
             {
+                Log.Debug(ex, "Invalid Xbox ISO image");
                 throw;
             }
 
+            Log.Error(ex, "Failed to read Xbox ISO '{IsoPath}'", isoPath);
             throw new InvalidImageException($"Failed to read Xbox ISO: {ex.Message}", ex);
         }
     }
@@ -54,6 +56,19 @@ public class VfsContainer : IDisposable
     }
 
     public FileEntry? GetEntry(string path)
+    {
+        try
+        {
+            return GetEntryInternal(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "GetEntry failed for '{Path}'", path);
+            return null;
+        }
+    }
+
+    private FileEntry? GetEntryInternal(string path)
     {
         var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
 
@@ -98,8 +113,7 @@ public class VfsContainer : IDisposable
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Error in FindEntryInDirectory: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, $"Error in FindEntryInDirectory for target '{targetName}'");
+            Log.Error(ex, "Error in FindEntryInDirectory for target '{TargetName}'", targetName);
             return null;
         }
     }
@@ -107,7 +121,7 @@ public class VfsContainer : IDisposable
     public IEnumerable<FileEntry> GetFolderList(string path)
     {
         var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
-        DebugLogger.WriteLine($"[GetFolderList] Starting for path: '{normalizedPath}'");
+        Log.Debug("[GetFolderList] Starting for path: '{NormalizedPath}'", normalizedPath);
 
         if (string.IsNullOrEmpty(normalizedPath))
         {
@@ -117,8 +131,8 @@ public class VfsContainer : IDisposable
         // Check if we have the directory listing cached
         if (_childrenCache.TryGetValue(normalizedPath, out var cachedChildren))
         {
-            DebugLogger.WriteLine(
-                $"[GetFolderList] Using cached children for '{normalizedPath}' ({cachedChildren.Count} entries)");
+            Log.Debug("[GetFolderList] Using cached children for '{NormalizedPath}' ({Count} entries)",
+                normalizedPath, cachedChildren.Count);
             foreach (var entry in cachedChildren) yield return entry;
 
             yield break;
@@ -128,7 +142,7 @@ public class VfsContainer : IDisposable
         var dirEntry = string.Equals(normalizedPath, "\\", StringComparison.OrdinalIgnoreCase) ? _entryCache.GetValueOrDefault("\\") : GetEntry(normalizedPath);
         if (dirEntry is not { IsDirectory: true })
         {
-            DebugLogger.WriteLine($"[ERROR] Directory not found or invalid: '{normalizedPath}'");
+            Log.Debug("[GetFolderList] Directory not found or invalid: '{NormalizedPath}'", normalizedPath);
             yield break;
         }
 
@@ -147,7 +161,7 @@ public class VfsContainer : IDisposable
         }
 
         _childrenCache[normalizedPath] = children;
-        DebugLogger.WriteLine($"[GetFolderList] Cached {children.Count} children for '{normalizedPath}'");
+        Log.Debug("[GetFolderList] Cached {Count} children for '{NormalizedPath}'", children.Count, normalizedPath);
     }
 
     private List<FileEntry> GetAllEntriesFromBinaryTree(FileEntry directoryEntry)
@@ -165,8 +179,7 @@ public class VfsContainer : IDisposable
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Error traversing binary tree: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "Error traversing binary tree in GetAllEntriesFromBinaryTree");
+            Log.Error(ex, "Error traversing binary tree in GetAllEntriesFromBinaryTree");
         }
 
         return entries;
@@ -192,11 +205,9 @@ public class VfsContainer : IDisposable
             // Safety check for infinite loops
             if (++iterations > maxIterations)
             {
-                DebugLogger.WriteLine(
-                    "TraverseBinaryTreeForAll: Max iterations reached, possible corrupted tree structure");
-                _ = BugReport.LogErrorAsync(
+                Log.Error(
                     new InvalidOperationException("Max iterations reached in TraverseBinaryTreeForAll"),
-                    "Possible corrupted binary tree structure - too many nodes");
+                    "TraverseBinaryTreeForAll: Max iterations reached, possible corrupted tree structure - too many nodes");
                 break;
             }
 
@@ -242,8 +253,7 @@ public class VfsContainer : IDisposable
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Error in binary tree traversal: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "Error in binary tree traversal (TraverseBinaryTree)");
+            Log.Error(ex, "Error in binary tree traversal (TraverseBinaryTree)");
         }
 
         return null;
@@ -274,9 +284,9 @@ public class VfsContainer : IDisposable
             // Safety check for infinite loops
             if (++iterations > maxIterations)
             {
-                DebugLogger.WriteLine("SearchBinaryTree: Max iterations reached, possible corrupted tree structure");
-                _ = BugReport.LogErrorAsync(new InvalidOperationException("Max iterations reached in SearchBinaryTree"),
-                    "Possible corrupted binary tree structure - too many nodes or circular reference");
+                Log.Error(
+                    new InvalidOperationException("Max iterations reached in SearchBinaryTree"),
+                    "SearchBinaryTree: Max iterations reached, possible corrupted tree structure - too many nodes or circular reference");
                 break;
             }
 
@@ -324,14 +334,22 @@ public class VfsContainer : IDisposable
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, $"VfsContainer.ReadFile failed for {entry.FileName}");
+            Log.Error(ex, "VfsContainer.ReadFile failed for {FileName}", entry.FileName);
             return 0;
         }
     }
 
     public void Dispose()
     {
-        _isoSt.Dispose();
+        try
+        {
+            _isoSt.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "VfsContainer.Dispose failed");
+        }
+
         GC.SuppressFinalize(this);
     }
 }

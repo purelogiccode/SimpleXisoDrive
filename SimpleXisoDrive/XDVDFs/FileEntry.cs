@@ -1,6 +1,6 @@
 using System.Text;
+using Serilog;
 using SimpleXisoDrive.Models;
-using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive.XDVDFs;
 
@@ -109,14 +109,16 @@ public class FileEntry
             // Validate the entry
             if (FileSize == uint.MaxValue)
             {
-                DebugLogger.WriteLine($"Suspicious FileSize detected: {FileSize} for '{FileName}'");
+                Log.Warning("Suspicious FileSize detected: {FileSize} for '{FileName}'", FileSize, FileName);
             }
 
-            // DebugLogger.WriteLine($"Read FileEntry: '{FileName}' at sector {sector}, offset {offset} (Size: {FileSize}, EntrySize: {EntrySize}, L:{LeftSubTree}, R:{RightSubTree})");
+            // Log.Debug("Read FileEntry: '{FileName}' at sector {Sector}, offset {Offset} (Size: {FileSize}, EntrySize: {EntrySize}, L:{Left}, R:{Right})", FileName, sector, offset, FileSize, EntrySize, LeftSubTree, RightSubTree);
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Error reading FileEntry at sector {sector}, offset {offset}: {ex.Message}");
+            // Logged at Debug level because the exception is re-thrown and
+            // reported by the caller (IsoSt.ReadFileEntry)
+            Log.Debug(ex, "Error reading FileEntry at sector {Sector}, offset {Offset}", sector, offset);
             FileName = "Invalid Entry";
             FileSize = 0;
             EntrySize = 16; // Minimum aligned size
@@ -135,7 +137,7 @@ public class FileEntry
         if (childOffset != EntryOffset)
             return isoSt.ReadFileEntry(EntrySector, childOffset);
 
-        // DebugLogger.WriteLine($"Invalid self-reference in LeftSubTree for entry at sector {EntrySector}, offset {EntryOffset}");
+        // Log.Debug("Invalid self-reference in LeftSubTree for entry at sector {EntrySector}, offset {EntryOffset}", EntrySector, EntryOffset);
         return null;
     }
 
@@ -149,7 +151,7 @@ public class FileEntry
         if (childOffset != EntryOffset)
             return isoSt.ReadFileEntry(EntrySector, childOffset);
 
-        // DebugLogger.WriteLine($"Invalid self-reference in RightSubTree for entry at sector {EntrySector}, offset {EntryOffset}");
+        // Log.Debug("Invalid self-reference in RightSubTree for entry at sector {EntrySector}, offset {EntryOffset}", EntrySector, EntryOffset);
         return null;
     }
 

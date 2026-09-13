@@ -1,3 +1,5 @@
+using Serilog;
+
 namespace SimpleXisoDrive.Services;
 
 /// <summary>
@@ -22,8 +24,9 @@ public static class CheckAccess
             var principal = new System.Security.Principal.WindowsPrincipal(identity);
             return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Error(ex, "Failed to check administrator status");
             return false;
         }
     }

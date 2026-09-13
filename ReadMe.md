@@ -58,7 +58,7 @@ SimpleXisoDrive.exe <PathToIsoFile> <MountPoint> [options]
 ## Support the Project
 
 If you find this tool useful, consider supporting development:
-*   **Star the Repo:** [GitHub Repository](https://github.com/drpetersonfernandes/SimpleXisoDrive)
+*   **Star the Repo:** [GitHub Repository](https://github.com/purelogiccode/SimpleXisoDrive)
 *   **Donate:** [https://purelogiccode.com/Donate](https://purelogiccode.com/Donate)
 
 ## License

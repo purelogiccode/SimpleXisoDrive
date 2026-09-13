@@ -3,12 +3,13 @@ using System.Reflection;
 using System.Security.Authentication;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Serilog;
 
 namespace SimpleXisoDrive.Services;
 
 public static class UpdateChecker
 {
-    private const string RepoOwner = "drpetersonfernandes";
+    private const string RepoOwner = "purelogiccode";
     private const string RepoName = "SimpleXisoDrive";
     private const string LatestApiUrl = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
 
@@ -92,8 +93,9 @@ public static class UpdateChecker
         }
         catch (Exception ex)
         {
-            // Non-fatal: log and continue
-            await BugReport.LogErrorAsync(ex, "UpdateChecker.CheckForUpdateAsync");
+            // Non-fatal: transient network issues (e.g. slow connections) are expected;
+            // logged locally only, deliberately NOT forwarded to the bug report API.
+            Log.Information(ex, "Update check skipped (non-fatal)");
         }
     }
 }

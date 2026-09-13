@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Services;
+using Serilog;
 
 namespace SimpleXisoDrive.XDVDFs;
 
@@ -70,9 +70,8 @@ public class IsoSt : IDisposable
             }
             catch (Exception ex)
             {
-                DebugLogger.WriteLine($"Read error at sector {entry.StartSector}, offset {offset}: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex,
-                    $"Physical Read Failure: Sector {entry.StartSector}, Offset {offset}, File: {entry.FileName}");
+                Log.Error(ex, "Physical read failure: Sector {Sector}, Offset {Offset}, File: {FileName}",
+                    entry.StartSector, offset, entry.FileName);
                 return 0;
             }
         }
@@ -104,8 +103,7 @@ public class IsoSt : IDisposable
             }
             catch (Exception ex)
             {
-                DebugLogger.WriteLine($"Failed to read FileEntry at sector {sector}, offset {offset}: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, $"Failed to read FileEntry at sector {sector}, offset {offset}");
+                Log.Error(ex, "Failed to read FileEntry at sector {Sector}, offset {Offset}", sector, offset);
                 return null;
             }
         }
@@ -125,7 +123,15 @@ public class IsoSt : IDisposable
 
     public void Dispose()
     {
-        Reader.Dispose();
+        try
+        {
+            Reader.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "IsoSt.Dispose failed");
+        }
+
         GC.SuppressFinalize(this);
     }
 }

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using DokanNet;
-using DokanNet.Logging;
+using Serilog;
 using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive;
@@ -12,6 +12,27 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
+        try
+        {
+            LoggingSetup.ConfigureLogger();
+        }
+        catch
+        {
+            // If Serilog cannot be configured, continue with the silent logger
+        }
+
+        try
+        {
+            return await RunAsync(args);
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+
+    private static async Task<int> RunAsync(string[] args)
+    {
         // Set Green CRT theme immediately
         Console.BackgroundColor = ConsoleColor.Black;
         Console.ForegroundColor = ConsoleColor.Green;
@@ -20,35 +41,22 @@ internal static class Program
         // Hook global exception handlers immediately to catch crashes
         SetupGlobalExceptionHandlers();
 
-        DebugLogger.WriteLine("=== SimpleXisoDrive Started ===");
-        DebugLogger.WriteLine($"Arguments: {string.Join(" | ", args)}");
-        DebugLogger.WriteLine($"Working Directory: {Environment.CurrentDirectory}");
+        Log.Information("=== SimpleXisoDrive Started ===");
+        Log.Information("Arguments: {Args}", string.Join(" | ", args));
+        Log.Information("Working Directory: {WorkingDirectory}", Environment.CurrentDirectory);
 
         // Report launch statistics (fire and forget)
         StatsService.ReportLaunchAsync();
 
         if (!IsDokanInstalled())
         {
-            DebugLogger.WriteLine("Dokan is not installed. Exiting.");
-            DebugLogger.WriteLine("\nPress any key to exit.");
+            Log.Error("Dokan is not installed. Exiting.");
+            Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
             return 1;
         }
 
         await UpdateChecker.CheckForUpdateAsync();
-
-        // Clear previous debug log
-        try
-        {
-            if (File.Exists("debug.txt"))
-            {
-                File.Delete("debug.txt");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Warning: Could not clear debug log: {ex.Message}");
-        }
 
         var isDragAndDrop = false;
         var debug = false;
@@ -62,9 +70,9 @@ internal static class Program
             {
                 case 0:
                     PrintUsage();
-                    DebugLogger.WriteLine(
+                    Console.WriteLine(
                         "\nAlternatively, you can drag and drop an ISO file onto the executable to mount it automatically.");
-                    DebugLogger.WriteLine("\nPress any key to exit.");
+                    Console.WriteLine("\nPress any key to exit.");
                     Console.ReadKey();
                     return 1;
 
@@ -82,7 +90,7 @@ internal static class Program
                         Console.ForegroundColor = ConsoleColor.Green;
                         await Console.Error.WriteLineAsync("Error: Could not find an available drive letter (M-R).");
                         // For drag-and-drop, wait for a key press before exiting on error.
-                        DebugLogger.WriteLine("\nPress any key to exit.");
+                        Console.WriteLine("\nPress any key to exit.");
                         Console.ReadKey();
                         return 1;
                     }
@@ -128,12 +136,11 @@ internal static class Program
                 }
 
                 // Report this to the API so the developer knows the path was invalid
-                await BugReport.LogErrorAsync(new FileNotFoundException(errorMsg),
-                    "Mount attempt failed: File not found.");
+                Log.Error(new FileNotFoundException(errorMsg), "Mount attempt failed: File not found.");
 
                 if (!isDragAndDrop) return 1;
 
-                DebugLogger.WriteLine("\nPress any key to exit.");
+                Console.WriteLine("\nPress any key to exit.");
                 Console.ReadKey();
                 return 1;
             }
@@ -169,7 +176,7 @@ internal static class Program
                 else
                 {
                     // User pressed a key first.
-                    DebugLogger.WriteLine("\nUnmount key pressed. Unmounting...");
+                    Log.Information("Unmount key pressed. Unmounting...");
                     await CancellationTokenSource.CancelAsync();
                     await mountTask;
                 }
@@ -187,9 +194,11 @@ internal static class Program
         {
             Console.ForegroundColor = ConsoleColor.Green;
             await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+            Log.Debug(ex, "Invalid Xbox ISO image");
+
             if (!isDragAndDrop) return 1;
 
-            DebugLogger.WriteLine("\nPress any key to exit.");
+            Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
             return 1;
         }
@@ -197,10 +206,10 @@ internal static class Program
         {
             Console.ForegroundColor = ConsoleColor.Green;
             await Console.Error.WriteLineAsync($"Dokan Error: {ex.Message}");
-            await BugReport.LogErrorAsync(ex, "A Dokan-specific error occurred during mounting.");
+            Log.Error(ex, "A Dokan-specific error occurred during mounting.");
             if (!isDragAndDrop) return 1;
 
-            DebugLogger.WriteLine("\nPress any key to exit.");
+            Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
 
             return 1;
@@ -220,10 +229,10 @@ internal static class Program
             Console.Error.WriteLine("  4. Restart your computer");
             Console.Error.WriteLine("  5. Re-run SimpleXisoDrive");
 
-            await BugReport.LogErrorAsync(ex, "Unable to load dokan2.dll or its dependencies.");
+            Log.Error(ex, "Unable to load dokan2.dll or its dependencies.");
             if (!isDragAndDrop) return 1;
 
-            DebugLogger.WriteLine("\nPress any key to exit.");
+            Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
             return 1;
         }
@@ -232,7 +241,7 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Green;
             await Console.Error.WriteLineAsync($"Error: {ex.Message}");
 
-            await BugReport.LogErrorAsync(ex, "Fatal error in Main");
+            Log.Error(ex, "Fatal error in Main");
 
             // If we are in a context where the window might disappear (Drag & Drop or single arg)
             if (isDragAndDrop || args.Length <= 1)
@@ -292,7 +301,7 @@ internal static class Program
             Console.Error.WriteLine("");
             Console.Error.WriteLine($"Expected file location: {dokanDllPath}");
 
-            DebugLogger.WriteLine($"Dokan check FAILED: {dokanDllPath} not found.");
+            Log.Error("Dokan check FAILED: {DllPath} not found.", dokanDllPath);
             return false;
         }
 
@@ -301,10 +310,10 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Error.WriteLine("Warning: The Dokan driver (dokan2.sys) was not found.");
             Console.Error.WriteLine("Mounting may fail. Please reinstall Dokan if you encounter issues.");
-            DebugLogger.WriteLine($"Dokan driver warning: {dokanSysPath} not found.");
+            Log.Warning("Dokan driver warning: {SysPath} not found.", dokanSysPath);
         }
 
-        DebugLogger.WriteLine($"Dokan check passed: {dokanDllPath} found.");
+        Log.Information("Dokan check passed: {DllPath} found.", dokanDllPath);
         return true;
     }
 
@@ -324,17 +333,17 @@ internal static class Program
                 if (!usedLetters.Contains(letter))
                 {
                     var drivePath = $"{letter}:\\";
-                    DebugLogger.WriteLine($"Found available drive letter: {drivePath}");
+                    Log.Debug("Found available drive letter: {DrivePath}", drivePath);
                     return drivePath;
                 }
             }
 
-            DebugLogger.WriteLine("No available drive letters found in preferred range M-R");
+            Log.Warning("No available drive letters found in preferred range M-R");
             return null;
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Error checking drive letters: {ex.Message}");
+            Log.Error(ex, "Error checking drive letters");
             return null;
         }
     }
@@ -345,17 +354,17 @@ internal static class Program
         var exeName = mainModule != null
             ? Path.GetFileNameWithoutExtension(mainModule.FileName)
             : "SimpleXisoDrive";
-        DebugLogger.WriteLine("Mounts an Xbox ISO file as a virtual file system on Windows.");
-        DebugLogger.WriteLine("");
-        DebugLogger.WriteLine($"Usage: {exeName} <iso-file> <mount-path> [options]");
-        DebugLogger.WriteLine("");
-        DebugLogger.WriteLine("Arguments:");
-        DebugLogger.WriteLine("  <iso-file>      Path to the Xbox ISO file to mount.");
-        DebugLogger.WriteLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
-        DebugLogger.WriteLine("");
-        DebugLogger.WriteLine("Options:");
-        DebugLogger.WriteLine("  -d, --debug     Display debug Dokan output in the console window.");
-        DebugLogger.WriteLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
+        Console.WriteLine("Mounts an Xbox ISO file as a virtual file system on Windows.");
+        Console.WriteLine("");
+        Console.WriteLine($"Usage: {exeName} <iso-file> <mount-path> [options]");
+        Console.WriteLine("");
+        Console.WriteLine("Arguments:");
+        Console.WriteLine("  <iso-file>      Path to the Xbox ISO file to mount.");
+        Console.WriteLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
+        Console.WriteLine("");
+        Console.WriteLine("Options:");
+        Console.WriteLine("  -d, --debug     Display debug Dokan output in the console window.");
+        Console.WriteLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
     }
 
     private static async Task RunMount(string isoPath, string mountPath, bool debug, bool launch)
@@ -366,19 +375,19 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("WARNING: Administrator privileges are recommended for mounting drive letters.");
             Console.WriteLine("If mounting fails, try running as Administrator.");
-            DebugLogger.WriteLine("Running without administrator privileges");
+            Log.Information("Running without administrator privileges");
         }
 
         Console.CancelKeyPress += static (_, e) =>
         {
             e.Cancel = true;
-            DebugLogger.WriteLine("Ctrl+C detected. Unmounting...");
+            Log.Information("Ctrl+C detected. Unmounting...");
             CancellationTokenSource.Cancel();
         };
 
         try
         {
-            DebugLogger.WriteLine($"Attempting to mount '{isoPath}' to '{mountPath}'...");
+            Log.Information("Attempting to mount '{IsoPath}' to '{MountPath}'...", isoPath, mountPath);
 
             // Dokan fails if a drive letter has a trailing backslash (e.g. "Z:\" fails, "Z:" works)
             if (mountPath.Length == 3 && mountPath.EndsWith(":\\", StringComparison.Ordinal))
@@ -401,7 +410,7 @@ internal static class Program
                 dokanOptions |= DokanOptions.DebugMode | DokanOptions.StderrOutput;
             }
 
-            var dokan = new Dokan(new ConsoleLogger("[Dokan] "));
+            var dokan = new Dokan(new SerilogDokanLogger());
             var dokanBuilder = new DokanInstanceBuilder(dokan)
                 .ConfigureOptions(options =>
                 {
@@ -411,8 +420,8 @@ internal static class Program
 
             using var dokanInstance = dokanBuilder.Build(new XboxIsoVfsDokan(_vfsContainer));
 
-            DebugLogger.WriteLine($"Mount successful: '{isoPath}' -> '{mountPath}'");
-            DebugLogger.WriteLine("Press Ctrl+C to unmount (if run from command line).");
+            Log.Information("Mount successful: '{IsoPath}' -> '{MountPath}'", isoPath, mountPath);
+            Log.Information("Press Ctrl+C to unmount (if run from command line).");
 
             if (launch)
             {
@@ -422,8 +431,7 @@ internal static class Program
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.WriteLine($"Failed to open Windows Explorer: {ex.Message}");
-                    await BugReport.LogErrorAsync(ex, $"Failed to launch explorer at '{mountPath}'.");
+                    Log.Error(ex, "Failed to launch explorer at '{MountPath}'", mountPath);
                 }
             }
 
@@ -433,17 +441,18 @@ internal static class Program
                 await tcs.Task;
             }
 
-            DebugLogger.WriteLine("Unmount signal received. Cleaning up...");
+            Log.Information("Unmount signal received. Cleaning up...");
         }
         catch (Exception ex)
         {
-            DebugLogger.WriteLine($"Mount process failed: {ex.Message}");
-            throw; // Re-throw so Main can handle the UI/Console feedback
+            // Rethrown so Main can handle the UI/Console feedback (and reporting) in one place
+            Log.Debug(ex, "Mount process failed (rethrown)");
+            throw;
         }
         finally
         {
             _vfsContainer?.Dispose();
-            DebugLogger.WriteLine("Unmounted.");
+            Log.Information("Unmounted.");
         }
     }
 
@@ -472,17 +481,17 @@ internal static class Program
                 switch (isoFiles.Length)
                 {
                     case 1:
-                        DebugLogger.WriteLine($"Resolved directory '{isoPath}' to ISO file '{isoFiles[0]}'");
+                        Log.Debug("Resolved directory '{IsoPath}' to ISO file '{Resolved}'", isoPath, isoFiles[0]);
                         return isoFiles[0];
                     case > 1:
-                        DebugLogger.WriteLine(
-                            $"Directory '{isoPath}' contains multiple .iso files; cannot auto-resolve.");
+                        Log.Debug(
+                            "Directory '{IsoPath}' contains multiple .iso files; cannot auto-resolve.", isoPath);
                         break;
                 }
             }
             catch (Exception ex)
             {
-                DebugLogger.WriteLine($"Error scanning directory '{isoPath}' for ISO files: {ex.Message}");
+                Log.Debug(ex, "Error scanning directory '{IsoPath}' for ISO files", isoPath);
             }
         }
 
@@ -492,7 +501,7 @@ internal static class Program
             var withExtension = isoPath + ".iso";
             if (File.Exists(withExtension))
             {
-                DebugLogger.WriteLine($"Resolved '{isoPath}' to '{withExtension}'");
+                Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, withExtension);
                 return withExtension;
             }
         }
@@ -503,7 +512,7 @@ internal static class Program
             var inCurrentDir = Path.Combine(Environment.CurrentDirectory, isoPath);
             if (File.Exists(inCurrentDir))
             {
-                DebugLogger.WriteLine($"Resolved '{isoPath}' to '{inCurrentDir}'");
+                Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, inCurrentDir);
                 return inCurrentDir;
             }
 
@@ -513,7 +522,7 @@ internal static class Program
                 var inCurrentDirWithExt = inCurrentDir + ".iso";
                 if (File.Exists(inCurrentDirWithExt))
                 {
-                    DebugLogger.WriteLine($"Resolved '{isoPath}' to '{inCurrentDirWithExt}'");
+                    Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, inCurrentDirWithExt);
                     return inCurrentDirWithExt;
                 }
             }

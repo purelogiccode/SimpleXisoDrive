@@ -1,7 +1,6 @@
 ﻿using System.Security.AccessControl;
 using DokanNet;
-using DokanNet.Logging;
-using SimpleXisoDrive.Services;
+using Serilog;
 using SimpleXisoDrive.XDVDFs;
 using FileAccess = DokanNet.FileAccess;
 
@@ -10,7 +9,6 @@ namespace SimpleXisoDrive;
 public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 {
     private readonly VfsContainer _vfs = vfs;
-    private static readonly ConsoleLogger Logger = new("[VFS] ");
     private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(1);
 
     /// <summary>
@@ -25,11 +23,9 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
         catch (Exception ex)
         {
-            Logger.Error($"[BUG REPORTED] {operation} failed for '{fileName}': {ex.Message}");
+            Log.Error(ex, "Dokan operation {Operation} failed for '{FileName}'", operation, fileName);
 
-            // Fire and forget the error report so the filesystem remains responsive
-            _ = BugReport.LogErrorAsync(ex, $"Dokan Operation: {operation} | File: {fileName}");
-
+            // The Serilog BugReportSink forwards this to the API fire-and-forget
             return DokanResult.Error;
         }
     }
@@ -281,7 +277,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, "GetVolumeInformation failed");
+            Log.Error(ex, "GetVolumeInformation failed");
             return DokanResult.Error;
         }
     }
@@ -301,7 +297,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             freeBytesAvailable = 0;
             totalNumberOfBytes = 0;
             totalNumberOfFreeBytes = 0;
-            _ = BugReport.LogErrorAsync(ex, "GetDiskFreeSpace failed");
+            Log.Error(ex, "GetDiskFreeSpace failed");
             return DokanResult.Error;
         }
     }
@@ -317,12 +313,28 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 
     public NtStatus Mounted(string mountPoint, IDokanFileInfo info)
     {
-        return DokanResult.Success;
+        try
+        {
+            return DokanResult.Success;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Mounted callback failed for '{MountPoint}'", mountPoint);
+            return DokanResult.Error;
+        }
     }
 
     public NtStatus Unmounted(IDokanFileInfo info)
     {
-        return DokanResult.Success;
+        try
+        {
+            return DokanResult.Success;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Unmounted callback failed");
+            return DokanResult.Error;
+        }
     }
 
     public NtStatus WriteFile(string fileName, byte[] buffer, out int bytesWritten, long offset, IDokanFileInfo info)
