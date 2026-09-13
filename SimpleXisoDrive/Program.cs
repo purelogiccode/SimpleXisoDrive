@@ -6,8 +6,8 @@ using SimpleXisoDrive.Services;
 namespace SimpleXisoDrive;
 
 /// <summary>
-/// Application entry point. Parses command-line arguments and mounts an Xbox ISO image
-/// as a read-only virtual file system using Dokan.
+/// Application entry point. Parses command-line arguments and mounts an Xbox ISO/XISO or
+/// ZArchive (.zar) image as a read-only virtual file system using Dokan.
 /// </summary>
 internal static class Program
 {
@@ -15,9 +15,9 @@ internal static class Program
     private static readonly CancellationTokenSource CancellationTokenSource = new();
 
     /// <summary>
-    /// Runs the application, mounting the specified ISO file or displaying usage information.
+    /// Runs the application, mounting the specified image file or displaying usage information.
     /// </summary>
-    /// <param name="args">The command-line arguments: an ISO path, an optional mount path, and optional flags.</param>
+    /// <param name="args">The command-line arguments: an image path, an optional mount path, and optional flags.</param>
     /// <returns>Zero on success; otherwise, a non-zero exit code.</returns>
     public static async Task<int> Main(string[] args)
     {
@@ -80,7 +80,7 @@ internal static class Program
                 case 0:
                     PrintUsage();
                     Console.WriteLine(
-                        "\nAlternatively, you can drag and drop an ISO file onto the executable to mount it automatically.");
+                        "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
                     Console.WriteLine("\nPress any key to exit.");
                     Console.ReadKey();
                     return 1;
@@ -117,25 +117,25 @@ internal static class Program
                     break;
             }
 
-            // Try to resolve the ISO path - handle cases where user provides path without .iso extension
-            var resolvedIsoPath = ResolveIsoPath(isoPath);
+            // Try to resolve the image path - handle cases where the user provides a path without an extension
+            var resolvedIsoPath = ResolveImagePath(isoPath);
             if (resolvedIsoPath == null)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                var errorMsg = $"ISO file not found at '{isoPath}'";
+                var errorMsg = $"Image file not found at '{isoPath}'";
                 await Console.Error.WriteLineAsync($"Error: {errorMsg}");
 
                 // Add hints for common mistakes
                 if (Directory.Exists(isoPath))
                 {
                     await Console.Error.WriteLineAsync(
-                        "Hint: The specified path is a directory. Please provide the path to a specific .iso file.");
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso or .zar file.");
                 }
 
-                if (!isoPath.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{isoPath}.iso' but that wasn't found either.");
+                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso' and '{isoPath}.zar' but none were found.");
                 }
 
                 if (args.Length > 2 && !isoPath.Contains(' '))
@@ -363,12 +363,12 @@ internal static class Program
         var exeName = mainModule != null
             ? Path.GetFileNameWithoutExtension(mainModule.FileName)
             : "SimpleXisoDrive";
-        Console.WriteLine("Mounts an Xbox ISO file as a virtual file system on Windows.");
+        Console.WriteLine("Mounts an Xbox ISO/XISO (.iso, .xiso) or ZArchive (.zar) file as a virtual file system on Windows.");
         Console.WriteLine("");
-        Console.WriteLine($"Usage: {exeName} <iso-file> <mount-path> [options]");
+        Console.WriteLine($"Usage: {exeName} <image-file> <mount-path> [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
-        Console.WriteLine("  <iso-file>      Path to the Xbox ISO file to mount.");
+        Console.WriteLine("  <image-file>    Path to the Xbox image (.iso, .xiso) or ZArchive (.zar) file to mount.");
         Console.WriteLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
         Console.WriteLine("");
         Console.WriteLine("Options:");
@@ -466,78 +466,117 @@ internal static class Program
     }
 
     /// <summary>
-    /// Resolves the ISO file path, handling cases where the user provides a path without the .iso extension.
-    /// Tries multiple strategies to find the file:
+    /// Resolves the image file path, handling cases where the user provides a path without an
+    /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>) and ZArchive
+    /// (<c>.zar</c>) files. Tries multiple strategies to find the file:
     /// 1. Return original path if file exists
-    /// 2. If path is a directory containing exactly one .iso file, resolve to it
-    /// 3. If no extension, try appending .iso
+    /// 2. If path is a directory containing exactly one image file, resolve to it
+    /// 3. If no extension, try appending each supported extension
     /// 4. If just a filename, try looking in current directory
     /// </summary>
-    internal static string? ResolveIsoPath(string isoPath)
+    internal static string? ResolveImagePath(string imagePath)
     {
         // 1. Check if the file exists as-is
-        if (File.Exists(isoPath))
+        if (File.Exists(imagePath))
         {
-            return isoPath;
+            return imagePath;
         }
 
-        // 2. If the path is a directory, look for a single .iso file inside it
-        if (Directory.Exists(isoPath))
+        // 2. If the path is a directory, look for a single image file inside it
+        if (Directory.Exists(imagePath))
         {
             try
             {
-                var isoFiles = Directory.GetFiles(isoPath, "*.iso", SearchOption.TopDirectoryOnly);
-                switch (isoFiles.Length)
+                var imageFiles = FindImageFiles(imagePath);
+                switch (imageFiles.Count)
                 {
                     case 1:
-                        Log.Debug("Resolved directory '{IsoPath}' to ISO file '{Resolved}'", isoPath, isoFiles[0]);
-                        return isoFiles[0];
+                        Log.Debug("Resolved directory '{ImagePath}' to image file '{Resolved}'", imagePath,
+                            imageFiles[0]);
+                        return imageFiles[0];
                     case > 1:
                         Log.Debug(
-                            "Directory '{IsoPath}' contains multiple .iso files; cannot auto-resolve.", isoPath);
+                            "Directory '{ImagePath}' contains multiple image files; cannot auto-resolve.", imagePath);
                         break;
                 }
             }
             catch (Exception ex)
             {
-                Log.Debug(ex, "Error scanning directory '{IsoPath}' for ISO files", isoPath);
+                Log.Debug(ex, "Error scanning directory '{ImagePath}' for image files", imagePath);
             }
         }
 
-        // 3. If no extension provided, try appending .iso
-        if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
+        // 3. If no extension provided, try appending each supported extension
+        if (string.IsNullOrEmpty(Path.GetExtension(imagePath)))
         {
-            var withExtension = isoPath + ".iso";
-            if (File.Exists(withExtension))
+            foreach (var candidate in EnumerateExtensionCandidates(imagePath))
             {
-                Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, withExtension);
-                return withExtension;
+                if (File.Exists(candidate))
+                {
+                    Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
+                    return candidate;
+                }
             }
         }
 
         // 4. If it's just a filename (no path), try looking in current directory
-        if (!isoPath.Contains(Path.DirectorySeparatorChar) && !isoPath.Contains(Path.AltDirectorySeparatorChar))
+        if (!imagePath.Contains(Path.DirectorySeparatorChar) &&
+            !imagePath.Contains(Path.AltDirectorySeparatorChar))
         {
-            var inCurrentDir = Path.Combine(Environment.CurrentDirectory, isoPath);
+            var inCurrentDir = Path.Combine(Environment.CurrentDirectory, imagePath);
             if (File.Exists(inCurrentDir))
             {
-                Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, inCurrentDir);
+                Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, inCurrentDir);
                 return inCurrentDir;
             }
 
-            // Also try with .iso extension in current directory
-            if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
+            // Also try each supported extension in the current directory
+            if (string.IsNullOrEmpty(Path.GetExtension(imagePath)))
             {
-                var inCurrentDirWithExt = inCurrentDir + ".iso";
-                if (File.Exists(inCurrentDirWithExt))
+                foreach (var candidate in EnumerateExtensionCandidates(inCurrentDir))
                 {
-                    Log.Debug("Resolved '{IsoPath}' to '{Resolved}'", isoPath, inCurrentDirWithExt);
-                    return inCurrentDirWithExt;
+                    if (File.Exists(candidate))
+                    {
+                        Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
+                        return candidate;
+                    }
                 }
             }
         }
 
         // File not found
         return null;
+    }
+
+    /// <summary>
+    /// The file extensions the resolver recognizes, in preference order.
+    /// </summary>
+    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".zar"];
+
+    private static List<string> FindImageFiles(string directory)
+    {
+        var imageFiles = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var extension in ImageExtensions)
+        {
+            foreach (var file in Directory.GetFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly))
+            {
+                if (seen.Add(file))
+                {
+                    imageFiles.Add(file);
+                }
+            }
+        }
+
+        return imageFiles;
+    }
+
+    private static IEnumerable<string> EnumerateExtensionCandidates(string path)
+    {
+        foreach (var extension in ImageExtensions)
+        {
+            yield return path + extension;
+        }
     }
 }

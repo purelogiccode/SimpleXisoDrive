@@ -1,7 +1,7 @@
 # Getting Started
 
-This page walks through the two supported ways to mount an Xbox ISO image: drag-and-drop and the
-command line.
+This page walks through the two supported ways to mount an Xbox image: drag-and-drop and the
+command line. Both Xbox ISO/XISO images and ZArchive (`.zar`) files are supported.
 
 Before you begin, make sure [Dokan and the .NET runtime are installed](Installation).
 
@@ -19,9 +19,10 @@ Every run follows the same sequence:
 5. Arguments are parsed:
    - **no arguments** - usage is printed and the process waits for a key;
    - **one argument** - treated as a drag-and-drop mount (automatic drive letter, Explorer opens);
-   - **two or more arguments** - ISO path followed by mount point and optional flags.
-6. The ISO path is resolved (see [path resolution](Command-Line-Reference#iso-path-resolution)).
-7. The ISO is opened, the volume descriptor is validated, and the Dokan file system is mounted.
+   - **two or more arguments** - image path followed by mount point and optional flags.
+6. The image path is resolved (see [path resolution](Command-Line-Reference#image-path-resolution)).
+7. The image is opened, validated, and the Dokan file system is mounted. For `.zar` files the
+   archive tree (or a single embedded XISO image) is exposed.
 8. The console remains open until the volume is unmounted.
 
 ---
@@ -30,20 +31,20 @@ Every run follows the same sequence:
 
 This is the fastest way to mount an image and requires no typing.
 
-1. Locate an Xbox ISO file in File Explorer.
-2. Drag the `.iso` file and drop it onto `SimpleXisoDrive.exe`.
+1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`) or ZArchive (`.zar`) file in File Explorer.
+2. Drag the file and drop it onto `SimpleXisoDrive.exe`.
 3. A console window opens. The application:
    - validates the path,
    - chooses the first free drive letter from `M:` through `R:`,
    - mounts the image read-only,
    - opens Windows Explorer at the new drive.
 4. Use the files as you would from any read-only drive. Copying files out is allowed; writing to
-   the mounted volume is not.
+   the mounted volume is not. ZArchive contents are decompressed on demand.
 5. **To unmount:** click the console window and press any key. Alternatively close the console
    window, or press `Ctrl+C`.
 
-If the ISO path is invalid, the console prints the error, a set of hints, and waits for a key press
-before closing so the message is not lost.
+If the image path is invalid, the console prints the error, a set of hints, and waits for a key
+press before closing so the message is not lost.
 
 > Drag-and-drop always launches Explorer. If you do not want Explorer to open, use the
 > [command line](Command-Line-Reference) instead.
@@ -55,7 +56,7 @@ before closing so the message is not lost.
 Open **Windows Terminal**, **PowerShell**, or **Command Prompt** and run:
 
 ```shell
-SimpleXisoDrive.exe <PathToIsoFile> <MountPoint> [options]
+SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 ```
 
 ### Mount to a drive letter
@@ -66,6 +67,15 @@ SimpleXisoDrive.exe "D:\Games\Halo.iso" Z:
 
 The image becomes available as drive `Z:`. A trailing backslash (`Z:\`) is accepted as well; the
 application removes it because the Dokan driver expects the form without it.
+
+### Mount a ZArchive
+
+A `.zar` archive is mounted exactly like an ISO. The stored game tree appears at the root of the
+drive; if the archive wraps a single XISO image, the image's contents are shown instead:
+
+```shell
+SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
+```
 
 ### Mount into an NTFS folder
 
@@ -99,7 +109,7 @@ SimpleXisoDrive.exe "D:\Games\Halo.iso" Z: -d -l
 
 ### Let the application choose a drive letter
 
-If you pass only the ISO path, the application behaves like drag-and-drop:
+If you pass only the image path, the application behaves like drag-and-drop:
 
 ```shell
 SimpleXisoDrive.exe "D:\Games\Halo.iso"
@@ -144,7 +154,7 @@ Expected console output (simplified):
 ```
 
 Windows Explorer opens at `P:\`, which shows the contents of the disc under the volume label
-`XBOX_ISO`.
+`XBOX_ISO` (ISO/XISO) or `XBOX_ZAR` (ZArchive).
 
 ---
 

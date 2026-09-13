@@ -17,6 +17,13 @@ history.
 
 ## Unreleased (after 1.2.0)
 
+- Added ZArchive (`.zar`) mounting: directory-tree archives expose their game files directly, and
+  archives containing a single embedded XISO image mount that image — all with on-demand zstd block
+  decompression and no extraction to disk.
+- Introduced the `IVfsVolume`/`IVfsEntry` abstraction with `XisoVfsVolume`, `ZarVfsVolume`,
+  `ZarNodeStream`, and `VfsVolumeFactory`; `VfsContainer` is now a facade over the selected volume.
+- Path resolution now recognizes `.iso`, `.xiso`, and `.zar`, and a renamed ZArchive still mounts.
+- Added tests for ZAR volumes, embedded XISO images, format detection, and the extended resolver.
 - Integrated Serilog logging with console and rolling file sinks.
 - Enriched bug reports with environment details (OS, architecture, bitness, paths).
 - Added regex match timeouts for wildcard searches and version parsing.

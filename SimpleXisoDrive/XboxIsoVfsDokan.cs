@@ -1,7 +1,7 @@
 ﻿using System.Security.AccessControl;
 using DokanNet;
 using Serilog;
-using SimpleXisoDrive.XDVDFs;
+using SimpleXisoDrive.Vfs;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive;
@@ -120,16 +120,16 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         var internalBytesRead = 0;
         var result = ExecuteWithReporting(nameof(ReadFile), fileName, () =>
         {
-            if (info.Context is not FileEntry entry)
+            if (info.Context is not IVfsEntry entry)
             {
-                entry = _vfs.GetEntry(fileName) ?? throw new InvalidOperationException("FileEntry missing");
+                entry = _vfs.GetEntry(fileName) ?? throw new InvalidOperationException("File entry missing");
                 info.Context = entry;
             }
 
             if (entry.IsDirectory) return DokanResult.InvalidHandle;
-            if (offset >= entry.FileSize) return DokanResult.Success;
+            if (offset >= entry.Size) return DokanResult.Success;
 
-            var remainingBytes = entry.FileSize - offset;
+            var remainingBytes = entry.Size - offset;
             var bytesToRead = (int)Math.Min(buffer.Length, remainingBytes);
 
             if (bytesToRead > 0)
@@ -159,14 +159,14 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var path = NormalizePath(fileName);
 
             // Safely get entry from context or lookup in VFS
-            FileEntry? entry = null;
+            IVfsEntry? entry = null;
             try
             {
-                entry = info.Context as FileEntry;
+                entry = info.Context as IVfsEntry;
             }
             catch
             {
-                // Context is not a FileEntry, will try lookup
+                // Context is not a file entry, will try lookup
             }
 
             entry ??= _vfs.GetEntry(path);
@@ -187,7 +187,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
                 CreationTime = _vfs.VolumeCreationTime,
                 LastAccessTime = _vfs.VolumeCreationTime,
                 LastWriteTime = _vfs.VolumeCreationTime,
-                Length = entry.IsDirectory ? 0 : entry.FileSize
+                Length = entry.IsDirectory ? 0 : entry.Size
             };
 
             return DokanResult.Success;
@@ -239,7 +239,7 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
                     CreationTime = _vfs.VolumeCreationTime,
                     LastAccessTime = _vfs.VolumeCreationTime,
                     LastWriteTime = _vfs.VolumeCreationTime,
-                    Length = entry.FileSize
+                    Length = entry.Size
                 });
             }
 
@@ -328,8 +328,8 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features,
         out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
     {
-        volumeLabel = "XBOX_ISO";
-        fileSystemName = "XDVDFS";
+        volumeLabel = _vfs.VolumeLabel;
+        fileSystemName = _vfs.FileSystemName;
         maximumComponentLength = 255;
         features = FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.CasePreservedNames |
                    FileSystemFeatures.UnicodeOnDisk;

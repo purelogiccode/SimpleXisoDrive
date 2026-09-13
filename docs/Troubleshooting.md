@@ -90,18 +90,18 @@ administrator**.
 
 ---
 
-## ISO path problems
+## Image path problems
 
-### "Error: ISO file not found at '<path>'"
+### "Error: Image file not found at '<path>'"
 
 The resolver tried all four strategies (see
-[Command-Line Reference](Command-Line-Reference#iso-path-resolution)) and failed. Additional hints
+[Command-Line Reference](Command-Line-Reference#image-path-resolution)) and failed. Additional hints
 are printed when applicable:
 
 | Hint | Meaning |
 | --- | --- |
-| "The specified path is a directory..." | You passed a folder with zero or multiple `.iso` files. Point at a file, or ensure the folder contains exactly one ISO. |
-| "Tried looking for '<path>.iso'..." | The extensionless variant also does not exist. Check the file name. |
+| "The specified path is a directory..." | You passed a folder with zero or multiple image files. Point at a file, or ensure the folder contains exactly one `.iso`, `.xiso` or `.zar`. |
+| "Tried looking for '<path>.iso', '<path>.xiso' and '<path>.zar'..." | The extensionless variant also does not exist. Check the file name. |
 | "If your file path contains spaces..." | Quote the path: `"D:\My Games\Halo.iso"` |
 
 Note that the failure is also logged as a `FileNotFoundException` for diagnostics.
@@ -143,6 +143,26 @@ Tried the following locations:
 Use the listed reasons to tell corruption ("file too small") apart from a wrong format ("magic ID
 mismatch"). See [XDVDFS Format](XDVDFS-Format) for the supported layouts.
 
+### "Error: '<path>' is not a valid ZArchive (.zar) file."
+
+The file has the `.zar` extension (or was detected as an archive) but its footer, name table, or file
+tree failed validation. Common causes:
+
+1. The file is **corrupt or incomplete** (an interrupted download or copy).
+2. It is **not a ZArchive** at all (a renamed `.iso`, `.zip`, or other container).
+3. It was produced by a **newer/unsupported ZArchive version** (the reader supports ZArchive 0.1.2).
+
+To verify the source, list the archive with a ZArchive tool such as `zarchive.exe`. If the archive is
+valid but mounts as a single `.iso` file, it uses the embedded-image layout and should have been
+detected as an XDVDFS image instead.
+
+### "Failed to read ZArchive: ..." or unreadable files inside a mounted ZAR
+
+ZArchiveSharp decompresses 64 KiB blocks on demand and keeps a small cache. A block that fails to
+decode causes a short read for that file (the mounted volume stays usable). If only some files are
+affected, the archive is likely corrupt; re-create it from the original ISO. Empty-named and
+over-long (`>= 0x80` character) ZAR entries are skipped by the underlying format reader.
+
 ### "Error: Invalid Entry" or unusual directory results
 
 Some corrupt entries are logged and skipped. Look for warnings such as:
@@ -179,13 +199,16 @@ image if you suspect corruption.
 
 ### Performance feels slow for very large images
 
-Reads are streamed directly from the ISO; performance depends on disk speed and fragmentation. Mount
-to a local drive for best results; network shares and external USB drives are slower.
+Reads are streamed directly from the image; performance depends on disk speed and fragmentation. Mount
+to a local drive for best results; network shares and external USB drives are slower. ZArchive reads
+additionally decompress each 64 KiB block on first access and cache the most recent blocks, so the
+first pass over a `.zar` is CPU-bound while repeated reads of the same region are fast.
 
 ### Antivirus interferes with mounting or reading
 
-The application opens the ISO with `FileShare.ReadWrite` specifically to coexist with scanners. If a
-scanner still locks the file, add an exclusion for the ISO folder or the application.
+The application opens the ISO or ZAR with `FileShare.ReadWrite` specifically to coexist with
+scanners. If a scanner still locks the file, add an exclusion for the image folder or the
+application.
 
 ### The update prompt appears on every start
 
@@ -202,7 +225,7 @@ Include:
 2. The complete console output.
 3. The newest file in `logs\`.
 4. `error.log` (and `critical_error.log` if present).
-5. The ISO size and how it was produced (dump tool, format variant).
+5. The image size and how it was produced (dump tool, format variant, and for `.zar` the packer used).
 
 Remember that warning-level logs may already have been submitted automatically; see
 [Privacy and Networking](Privacy-and-Networking).

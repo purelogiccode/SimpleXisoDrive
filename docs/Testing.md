@@ -1,7 +1,7 @@
 # Testing
 
-SimpleXisoDrive has an xUnit test project covering the parsing, file system, and path-resolution
-logic. The tests run without Dokan installed and without any real ISO file.
+SimpleXisoDrive has an xUnit test project covering the parsing, file system, archive, and
+path-resolution logic. The tests run without Dokan installed and without any real image file.
 
 ---
 
@@ -14,7 +14,7 @@ logic. The tests run without Dokan installed and without any real ISO file.
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 72 (version 1.2.0) |
+| Test count | 93 (version 1.3.0) |
 
 The application exposes internals to the test project through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, which allows tests to use the internal `IsoSt(Stream)` constructor
@@ -41,7 +41,7 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 72, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
+A healthy run reports `Passed: 93, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
 
 ---
 
@@ -52,7 +52,10 @@ A healthy run reports `Passed: 72, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
 | `FileEntryTests` | Directory entry parsing and attribute mapping | Root entry defaults, `IsDirectory`, child-pointer sentinels, `ReadInternal` for files/directories/empty names, entry-size padding, Windows attribute mapping |
 | `IsoStTests` | Stream access layer | Constructor behavior, `VolumeOffset`, sector size, `ExecuteLocked`, offset-based reads, reads past EOF, entry reads, disposal |
 | `VolumeDescriptorTests` | Descriptor discovery and validation | Magic validation, sector 0 vs sector 32 detection, all `ReadFrom` strategies, invalid FILETIME handling, diagnostic messages |
-| `ResolveIsoPathTests` | CLI path resolution | Existing file, extension appending, directory with exactly one ISO, multiple/zero ISOs, current-directory lookup |
+| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.zar`), directory with exactly one image, multiple/zero images, current-directory lookup |
+| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount, renamed `.zar` fallback, invalid archive errors, plain ISO mount |
+| `ZarVfsVolumeTests` | ZArchive volume | Tree listing, case-insensitive nested lookup, file reads at offsets, directory reads, volume size, invalid archives |
+| `TestImageFactory` | Shared test fixtures | Minimal rebuilt-XISO image builder with a root file entry |
 | `XisoFsFileAttributesTests` | Attribute flag values | Individual values, flag combinations, independence checks |
 | `InvalidImageExceptionTests` | Exception contract | Message and inner exception constructors, inheritance, catchability |
 
@@ -60,7 +63,10 @@ A healthy run reports `Passed: 72, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
 
 - **In-memory images**: tests build byte arrays for volume descriptors and directory entries and wrap
   them in `MemoryStream`, using the internal `IsoSt(Stream)` constructor.
-- **Temporary files**: `ResolveIsoPathTests` creates and cleans up temp files/directories and
+- **Real archives**: `ZarVfsVolumeTests`/`VfsContainerTests` pack small trees and embedded XISO
+  images with `ZArchiveWriter` into temporary `.zar` files, so the real reader (including zstd
+  decompression) is exercised end to end.
+- **Temporary files**: `ResolveImagePathTests` creates and cleans up temp files/directories and
   temporarily changes `Environment.CurrentDirectory`.
 - **No driver dependency**: nothing in the test suite requires Dokan, a mounted volume, or admin
   rights.

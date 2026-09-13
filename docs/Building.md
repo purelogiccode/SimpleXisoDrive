@@ -105,9 +105,9 @@ The version is defined in two places and both must be updated together:
 | `SimpleXisoDrive/SimpleXisoDrive.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 
-The current version is **1.2.0**. The update checker parses the three-part (`major.minor.patch`)
+The current version is **1.3.0**. The update checker parses the three-part (`major.minor.patch`)
 portion of GitHub release tags, so release tags should follow that pattern (for example,
-`release_1.2.0`).
+`release_1.3.0`).
 
 ---
 

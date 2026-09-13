@@ -37,7 +37,7 @@ volume descriptor stores the volume creation time as a FILETIME.
 
 **FileEntry**
 The in-memory representation of one XDVDFS directory entry: child pointers, data location, size,
-attributes, and name. See [XDVDFS Format](XDVDFS-Format).
+attributes, and name. Implements `IVfsEntry`. See [XDVDFS Format](XDVDFS-Format).
 
 **GLOBAL partition**
 One of the supported disc layout offsets (`0x0FD90000`) at which the volume descriptor may be found
@@ -107,8 +107,9 @@ The global byte offset applied to every stream read so the parser can ignore par
 the game partition.
 
 **VFS (Virtual File System)**
-The abstraction layer (`VfsContainer`) that resolves paths, caches entries, and serves file data to
-the Dokan operation layer.
+The abstraction layer that resolves paths, caches entries, and serves file data to the Dokan
+operation layer. `VfsContainer` is the facade; the actual storage is an `IVfsVolume` implementation
+(`XisoVfsVolume` for XDVDFS images, `ZarVfsVolume` for ZArchive trees).
 
 **XGD1 / XGD3**
 Xbox Game Disc layout variants. SimpleXisoDrive probes their known partition offsets when looking for
@@ -121,3 +122,8 @@ descriptor at sector 0.
 **XDVDFS**
 Xbox Disc Video File System, the file system used on original Xbox game discs. See
 [XDVDFS Format](XDVDFS-Format).
+
+**ZArchive / ZAR**
+A compressed archive format (`.zar`, ZArchive 0.1.2) that stores a directory tree with per-block
+zstd compression. SimpleXisoDrive mounts either the stored game tree or a single embedded XISO
+image. See [Virtual File System](Virtual-File-System#zarchive-volumes).

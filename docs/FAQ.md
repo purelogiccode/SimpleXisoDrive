@@ -6,18 +6,26 @@ Short answers to frequently asked questions.
 
 ### What is SimpleXisoDrive?
 
-A Windows utility that mounts original Xbox ISO images as read-only virtual drives or folder mount
-points, so their contents can be browsed in Explorer or copied with normal tools.
+A Windows utility that mounts original Xbox ISO/XISO images and ZArchive (`.zar`) files as read-only
+virtual drives or folder mount points, so their contents can be browsed in Explorer or copied with
+normal tools.
 
 ### What is an XISO?
 
 "XISO" commonly refers to an Xbox disc image in the XDVDFS layout. SimpleXisoDrive supports both
 standard dumps (descriptor at sector 32) and rebuilt images (descriptor at sector 0).
 
-### Does the application modify my ISO?
+### What is a ZAR, and can I mount one?
 
-No. The image is opened with read access only, and every mutating file system operation is denied.
-Dokan is also configured with write protection.
+A `.zar` file is a ZArchive: a directory tree stored with per-block zstd compression (used by the
+scene to compress dumped game files). SimpleXisoDrive mounts the archived tree directly, or — when
+the archive contains a single embedded XISO image — the image's contents. No extraction to disk is
+performed; blocks are decompressed on demand.
+
+### Does the application modify my ISO or ZAR?
+
+No. The image or archive is opened with read access only, and every mutating file system operation is
+denied. Dokan is also configured with write protection.
 
 ### Why can I not write to the mounted drive?
 
@@ -45,7 +53,10 @@ and mount point. Each instance uses its own `VfsContainer`.
 
 ### Does it support Xbox 360 or Xbox One images?
 
-No. Only the original Xbox XDVDFS format is supported. Xbox 360 images use different file systems.
+ISO mounting is limited to the original Xbox XDVDFS format; Xbox 360 and Xbox One discs use different
+file systems and are not parsed. ZArchive mounting is format-agnostic, though: any `.zar` directory
+tree (including one packed from Xbox 360 game files) is exposed as-is. If a `.zar` contains a raw
+Xbox 360 ISO as a single file, that file is shown but its internal file system is not parsed.
 
 ### What are XGD1, XGD3, and GLOBAL partitions?
 

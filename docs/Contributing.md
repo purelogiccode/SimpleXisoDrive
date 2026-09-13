@@ -21,14 +21,14 @@ Repository: <https://github.com/purelogiccode/SimpleXisoDrive>
 
 Include as much of the following as possible:
 
-1. Application version (shown in logs; currently 1.2.0).
+1. Application version (shown in logs; currently 1.3.0).
 2. Windows version and architecture (x64/ARM64).
 3. Dokan version installed.
 4. The exact command line used.
 5. The complete console output.
 6. The newest `logs\simplexisodrive-*.log` file.
 7. `error.log` and, if present, `critical_error.log`.
-8. The ISO's size and origin (dump tool and layout, if known).
+8. The image's size and origin (dump tool, format, and layout/packer, if known).
 
 Never attach copyrighted game data; a description of the failure and log excerpt is enough.
 

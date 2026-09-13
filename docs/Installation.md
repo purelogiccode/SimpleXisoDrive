@@ -13,10 +13,10 @@ This page describes everything required to run SimpleXisoDrive on Windows.
 | Runtime | .NET 10.0 Desktop Runtime (unless using a self-contained build) |
 | Driver | Dokan user-mode file system library 2.x (`dokan2.dll`) |
 | Privileges | Administrator recommended (required by most systems for drive letter mounts) |
-| Disk usage | A few MB for the application; the ISO is streamed, not copied |
+| Disk usage | A few MB for the application; images are streamed, not copied |
 
 SimpleXisoDrive does not require a GPU, does not install a service of its own, and does not modify
-the ISO images it opens.
+the images it opens.
 
 ---
 
@@ -103,8 +103,8 @@ SimpleXisoDrive.exe
 ```
 
 With no arguments the application prints its usage information and a reminder that you can drag and
-drop an ISO file onto the executable. The console uses a green-on-black theme and remains open until
-you press a key.
+drop an ISO, XISO or ZAR file onto the executable. The console uses a green-on-black theme and
+remains open until you press a key.
 
 For a first real mount:
 

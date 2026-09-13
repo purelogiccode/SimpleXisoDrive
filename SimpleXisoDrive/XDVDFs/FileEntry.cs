@@ -1,13 +1,14 @@
 using System.Text;
 using Serilog;
 using SimpleXisoDrive.Models;
+using SimpleXisoDrive.Vfs;
 
 namespace SimpleXisoDrive.XDVDFs;
 
 /// <summary>
 /// Represents a single file or directory entry in the XDVDFS directory tree.
 /// </summary>
-public class FileEntry
+public class FileEntry : IVfsEntry
 {
     /// <summary>
     /// Gets the sector containing this entry's directory record.
@@ -48,6 +49,9 @@ public class FileEntry
     /// Gets the name of the file or directory.
     /// </summary>
     public string FileName { get; internal set; }
+
+    /// <inheritdoc />
+    public long Size => FileSize;
 
     /// <summary>
     /// Gets or sets the byte offset of this entry within its sector.
