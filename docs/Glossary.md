@@ -10,6 +10,11 @@ Definitions of terms used throughout the documentation and the source code.
 A diagnostic document containing environment details, the error message, and exception details,
 written to `error.log` and optionally submitted to the developer API. See [Services](Services).
 
+**CISO**
+A compressed ISO container (`.cso`) that stores the image with block compression. SimpleXisoDrive
+decompresses it on the fly; split sets use numbered parts (`game.1.cso`, `game.2.cso`, …) and are
+mounted from the first part. See [XDVDFS Format](XDVDFS-Format).
+
 **Dokan**
 A Windows user-mode file system framework and kernel driver that lets applications expose virtual
 file systems without writing a kernel driver. SimpleXisoDrive uses Dokan 2.x. See

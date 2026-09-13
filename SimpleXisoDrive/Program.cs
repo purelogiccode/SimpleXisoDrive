@@ -30,6 +30,9 @@ internal static class Program
             // If Serilog cannot be configured, continue with the silent logger
         }
 
+        // Decrypt the API key up front so the first report never pays for it.
+        ApiKeyProvider.Preload();
+
         try
         {
             return await RunAsync(args);
@@ -61,7 +64,7 @@ internal static class Program
         {
             Log.Error("Dokan is not installed. Exiting.");
             Console.WriteLine("\nPress any key to exit.");
-            Console.ReadKey();
+            await ConsoleKeyPress.WaitAsync();
             return 1;
         }
 
@@ -82,7 +85,7 @@ internal static class Program
                     Console.WriteLine(
                         "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
                     Console.WriteLine("\nPress any key to exit.");
-                    Console.ReadKey();
+                    await ConsoleKeyPress.WaitAsync();
                     return 1;
 
                 case 1:
@@ -100,7 +103,7 @@ internal static class Program
                         await Console.Error.WriteLineAsync("Error: Could not find an available drive letter (M-R).");
                         // For drag-and-drop, wait for a key press before exiting on error.
                         Console.WriteLine("\nPress any key to exit.");
-                        Console.ReadKey();
+                        await ConsoleKeyPress.WaitAsync();
                         return 1;
                     }
 
@@ -135,7 +138,7 @@ internal static class Program
                 if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso' and '{isoPath}.zar' but none were found.");
+                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso', '{isoPath}.cso' and '{isoPath}.zar' but none were found.");
                 }
 
                 if (args.Length > 2 && !isoPath.Contains(' '))
@@ -150,7 +153,7 @@ internal static class Program
                 if (!isDragAndDrop) return 1;
 
                 Console.WriteLine("\nPress any key to exit.");
-                Console.ReadKey();
+                await ConsoleKeyPress.WaitAsync();
                 return 1;
             }
 
@@ -162,17 +165,7 @@ internal static class Program
                 var mountTask = RunMount(isoPath, mountPath, debug, launch);
 
                 // Wait for either the mount to fail OR the user to press a key
-                var keyPressTask = Task.Run(static () =>
-                {
-                    try
-                    {
-                        return Console.ReadKey(true);
-                    }
-                    catch
-                    {
-                        return default;
-                    }
-                });
+                var keyPressTask = ConsoleKeyPress.WaitAsync();
 
                 var completedTask = await Task.WhenAny(mountTask, keyPressTask);
 
@@ -208,7 +201,7 @@ internal static class Program
             if (!isDragAndDrop) return 1;
 
             Console.WriteLine("\nPress any key to exit.");
-            Console.ReadKey();
+            await ConsoleKeyPress.WaitAsync();
             return 1;
         }
         catch (DokanException ex)
@@ -219,7 +212,7 @@ internal static class Program
             if (!isDragAndDrop) return 1;
 
             Console.WriteLine("\nPress any key to exit.");
-            Console.ReadKey();
+            await ConsoleKeyPress.WaitAsync();
 
             return 1;
         }
@@ -242,7 +235,7 @@ internal static class Program
             if (!isDragAndDrop) return 1;
 
             Console.WriteLine("\nPress any key to exit.");
-            Console.ReadKey();
+            await ConsoleKeyPress.WaitAsync();
             return 1;
         }
         catch (Exception ex)
@@ -256,7 +249,7 @@ internal static class Program
             if (isDragAndDrop || args.Length <= 1)
             {
                 Console.WriteLine("\nPress any key to exit.");
-                Console.ReadKey();
+                await ConsoleKeyPress.WaitAsync();
             }
 
             return 1;
@@ -467,8 +460,9 @@ internal static class Program
 
     /// <summary>
     /// Resolves the image file path, handling cases where the user provides a path without an
-    /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>) and ZArchive
-    /// (<c>.zar</c>) files. Tries multiple strategies to find the file:
+    /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>), CISO-compressed
+    /// images (<c>.cso</c>, including split <c>.1.cso</c> sets) and ZArchive (<c>.zar</c>)
+    /// files. Tries multiple strategies to find the file:
     /// 1. Return original path if file exists
     /// 2. If path is a directory containing exactly one image file, resolve to it
     /// 3. If no extension, try appending each supported extension
@@ -551,7 +545,7 @@ internal static class Program
     /// <summary>
     /// The file extensions the resolver recognizes, in preference order.
     /// </summary>
-    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".zar"];
+    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".cso", ".zar"];
 
     private static List<string> FindImageFiles(string directory)
     {
@@ -562,6 +556,13 @@ internal static class Program
         {
             foreach (var file in Directory.GetFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly))
             {
+                // A split CISO set (game.1.cso, game.2.cso, ...) is one image; the
+                // entry point is the first part, so continuation parts are ignored.
+                if (string.Equals(extension, ".cso", StringComparison.OrdinalIgnoreCase) && IsCsoContinuationPart(file))
+                {
+                    continue;
+                }
+
                 if (seen.Add(file))
                 {
                     imageFiles.Add(file);
@@ -570,6 +571,18 @@ internal static class Program
         }
 
         return imageFiles;
+    }
+
+    private static bool IsCsoContinuationPart(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var separator = name.LastIndexOf('.');
+        if (separator < 0 || separator == name.Length - 1)
+        {
+            return false;
+        }
+
+        return int.TryParse(name.AsSpan(separator + 1), System.Globalization.CultureInfo.InvariantCulture, out var part) && part >= 2;
     }
 
     private static IEnumerable<string> EnumerateExtensionCandidates(string path)

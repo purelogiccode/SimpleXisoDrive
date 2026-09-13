@@ -97,6 +97,63 @@ public class ResolveImagePathTests
     }
 
     [Fact]
+    public void AppendsCsoExtensionWhenOnlyCsoExists()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.cso");
+        File.WriteAllText(tempFile, string.Empty);
+        try
+        {
+            var pathWithoutExtension = tempFile[..^4]; // Remove ".cso"
+            var result = Program.ResolveImagePath(pathWithoutExtension);
+            Assert.Equal(tempFile, result);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ResolvesDirectoryContainingSplitCsoSet()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var firstPart = Path.Combine(tempDir, "game.1.cso");
+        File.WriteAllText(firstPart, string.Empty);
+        File.WriteAllText(Path.Combine(tempDir, "game.2.cso"), string.Empty);
+        File.WriteAllText(Path.Combine(tempDir, "game.3.cso"), string.Empty);
+
+        try
+        {
+            var result = Program.ResolveImagePath(tempDir);
+            Assert.Equal(firstPart, result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void ReturnsNullWhenDirectoryContainsIsoAndCso()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, "game.iso"), string.Empty);
+        File.WriteAllText(Path.Combine(tempDir, "other.cso"), string.Empty);
+
+        try
+        {
+            var result = Program.ResolveImagePath(tempDir);
+            Assert.Null(result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void ResolvesFilenameInCurrentDirectoryWhenFileExists()
     {
         var originalDir = Environment.CurrentDirectory;

@@ -16,9 +16,6 @@ public static class StatsService
     private const string StatsApiBaseUrl = "https://www.purelogiccode.com";
     private const string StatsEndpoint = "/ApplicationStats/stats";
 
-    // API Key for authentication - this should match the SecretKey in ApplicationStats appsettings.json
-    private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
-
     // Application identifier for this app
     private const string ApplicationId = "simplexisodrive";
 
@@ -55,7 +52,7 @@ public static class StatsService
         try
         {
             // Get current version from assembly
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.1.0";
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
 
             var request = new StatsRequest
             {
@@ -64,9 +61,10 @@ public static class StatsService
             };
 
             // Set authorization header
-            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiKey);
+            Http.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", ApiKeyProvider.ApiKey);
 
-            var response = await Http.PostAsJsonAsync(
+            using var response = await Http.PostAsJsonAsync(
                 $"{StatsApiBaseUrl}{StatsEndpoint}",
                 request);
 
@@ -91,8 +89,8 @@ public static class StatsService
         }
         catch (Exception ex)
         {
-            // Log but don't fail startup for stats reporting issues
-            Log.Warning(ex, "Failed to report stats");
+            // Advisory only: log locally at Debug so the bug report sink stays out of it.
+            Log.Debug(ex, "Stats reporting skipped (non-fatal)");
         }
     }
 

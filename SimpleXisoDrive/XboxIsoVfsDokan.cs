@@ -99,8 +99,6 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             {
                 FileMode.CreateNew => DokanResult.AlreadyExists,
                 FileMode.Create or FileMode.Truncate => DokanResult.AccessDenied,
-                FileMode.Open when entry.IsDirectory && !info.IsDirectory => DokanResult.PathNotFound,
-                FileMode.Open when !entry.IsDirectory && info.IsDirectory => DokanResult.NotADirectory,
                 _ => DokanResult.Success
             };
         });

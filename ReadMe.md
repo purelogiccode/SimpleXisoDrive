@@ -1,15 +1,17 @@
 # Simple Xiso Drive for Windows
 
-Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`) and ZArchive (`.zar`) files as virtual drives or NTFS directory mount points. Built on the DokanNet library, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from Windows Explorer.
+[![CI](https://github.com/purelogiccode/SimpleXisoDrive/actions/workflows/ci.yml/badge.svg)](https://github.com/purelogiccode/SimpleXisoDrive/actions/workflows/ci.yml)
+
+Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`) and ZArchive (`.zar`) files as virtual drives or NTFS directory mount points. Built on the DokanNet library, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from Windows Explorer.
 
 The application is designed for extreme memory efficiency and now supports both **Windows x64** and **Windows ARM64** architectures.
 
 ## Features
 
 *   **Multi-Architecture Support:** Native executables for `win-x64` and `win-arm64`.
-*   **Broad Format Support:** Handles standard Xbox ISO dumps (Sector 32), rebuilt "XISO" formats (Sector 0), and Dual-Layer/Hybrid discs (Game Partition offsets).
+*   **Broad Format Support:** Handles standard Xbox ISO dumps (Sector 32), rebuilt "XISO" formats (Sector 0), Dual-Layer/Hybrid discs (Game Partition offsets), and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
 *   **ZArchive Support:** Mounts `.zar` archives directly — either the archived game tree or a single embedded XISO image — with on-demand zstd decompression (no extraction or temp files).
-*   **Zero-Config Mounting:** Drag-and-drop an ISO or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
+*   **Zero-Config Mounting:** Drag-and-drop an ISO, CISO or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **NTFS Integration:** Mount ISOs as drive letters (e.g., `Z:`) or into empty NTFS folders.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
 *   **Update Checker:** Automatically checks for newer versions on GitHub to ensure you have the latest compatibility fixes.
@@ -17,7 +19,7 @@ The application is designed for extreme memory efficiency and now supports both 
 
 ## Prerequisites
 
-1.  **.NET Runtime:** Requires the **.NET 10.0 Desktop Runtime**.
+1.  **.NET Runtime:** Requires the **.NET 10.0 Runtime** (the base runtime; the Desktop Runtime is not required).
 2.  **Dokan Library:** You must install the Dokan user-mode file system library (version 2.x.x).
     *   Download: [https://github.com/dokan-dev/dokany/releases](https://github.com/dokan-dev/dokany/releases).
 
@@ -30,6 +32,8 @@ project wiki:
 *   [Getting Started](docs/Getting-Started.md) - your first mount, drag-and-drop, unmounting.
 *   [Command-Line Reference](docs/Command-Line-Reference.md) - arguments, options, exit codes.
 *   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.
+*   [Building](docs/Building.md) - build, test, and the CI/release workflow.
+*   [What's New](WhatsNew.md) - release highlights.
 *   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
 *   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
 *   [Privacy and Networking](docs/Privacy-and-Networking.md) - telemetry, endpoints, offline use.
@@ -37,7 +41,7 @@ project wiki:
 ## How to Use
 
 ### 1. Drag-and-Drop (Easiest)
-*   Drag your `.iso`, `.xiso` or `.zar` file and drop it onto `SimpleXisoDrive.exe` (or `SimpleXisoDrive_arm64.exe`).
+*   Drag your `.iso`, `.xiso`, `.cso` or `.zar` file and drop it onto `SimpleXisoDrive.exe`.
 *   The app will automatically find an available drive letter, mount the image, and open Windows Explorer.
 *   **To Unmount:** Return to the console window and press any key.
 

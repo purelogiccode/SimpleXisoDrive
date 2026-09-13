@@ -172,15 +172,15 @@ Supported:
 - standard original Xbox game ISOs with the descriptor at sector 32;
 - rebuilt XISO images with the descriptor at sector 0;
 - dual-layer and hybrid dumps using the XGD1/XGD2-hybrid game partition offsets;
-- XGD3 and GLOBAL partition layouts.
+- XGD3 and GLOBAL partition layouts;
+- CISO-compressed images (`.cso`), including split `.1.cso` part sets, decompressed on the fly.
 
 Not supported:
 
 - writing, renaming, deleting, or metadata changes of any kind;
 - non-XDVDFS disc layouts and non-Xbox ISO formats;
 - encrypted or Redump-style images that have not been converted to XISO;
-- audio/video partition content (only the game partition file system is exposed);
-- split or compressed image containers (the `.iso` must be a single file).
+- audio/video partition content (only the game partition file system is exposed).
 
 If an image fails to mount, the error states that the file is not a valid Xbox ISO/XISO image and
 carries XISOSharp's diagnostic as the inner exception. See [Troubleshooting](Troubleshooting).

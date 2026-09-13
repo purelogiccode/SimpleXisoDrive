@@ -78,8 +78,9 @@ The report body also includes:
 
 ### Authentication
 
-Both API endpoints require an API key that is compiled into the client. The key authorizes the
-application to submit reports; it is not a user credential.
+Both API endpoints require an API key. The key is not stored in plain text: it is double-encrypted
+in the binary (AES-256-CBC over a SHA-256 XOR layer) and decrypted once at startup by
+`ApiKeyProvider`. The key authorizes the application to submit reports; it is not a user credential.
 
 ---
 

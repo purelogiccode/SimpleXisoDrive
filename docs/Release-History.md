@@ -5,7 +5,7 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
-| Unreleased | `master` | 2026-09-12 |
+| Unreleased | `master` | 2026-09-13 |
 | 1.2.0 | `release_1.2.0` | 2026-06-21 |
 | 1.1.0 | `release_1.1.0` | 2026-04-12 |
 | 1.0.3 | `release_1.0.3` | 2026-02-13 |
@@ -27,8 +27,26 @@ history.
   (`TryGetDirEntry`), canonical names (`TryGetNodeName`), computed volume size
   (`TotalUncompressedSize`), seekable entry streams (`OpenRead`), shared-read opens, and typed
   `ZArchiveOpenFailure` reasons surfaced in errors.
-- Path resolution now recognizes `.iso`, `.xiso`, and `.zar`, and a renamed ZArchive still mounts.
+- Migrated all XDVDFS parsing to XISOSharp 1.2.0: path images use a keep-open `XisoExplorer` and
+  embedded images use the `XisoReader` stream APIs (including rebuilt sector-0 images). The in-repo
+  parser (`IsoSt`, `VolumeDescriptor`, `FileEntry`, `XisoFsFileAttributes`) was removed.
+- Path resolution now recognizes `.iso`, `.xiso`, `.cso` (single or split `.1.cso` sets), and
+  `.zar`, and a renamed ZArchive still mounts.
+- Added GitHub Actions CI: every push/pull request builds and tests on Windows and uploads TRX and
+  coverage artifacts; the `release_*` workflow verifies the tag against `AssemblyVersion`, packages
+  framework-dependent single-file `win-x64`/`win-arm64` zips, and creates the GitHub release.
+- Expanded the test suite from 43 to 89 tests, covering XISO directory trees and reads, the Dokan
+  operation layer, stream-backed embedded images, parallel reads, resolver CISO cases, and API key
+  decryption.
 - Added tests for ZAR volumes, embedded XISO images, format detection, and the extended resolver.
+- Hardened error handling: locked or unreadable images surface real I/O errors instead of "invalid
+  image", ZArchive open failures keep their type (missing/denied/read error vs bad format), and the
+  embedded-ISO probe no longer leaks the archive reader on an unexpected error.
+- The API key for the bug report and stats endpoints is no longer stored in plain text: it is
+  double-encrypted in the assembly (AES-256-CBC over a SHA-256 XOR layer) and decrypted once at
+  startup.
+- Fixed a console race where the drag-and-drop key watcher could swallow the key press meant for an
+  error prompt.
 - Integrated Serilog logging with console and rolling file sinks.
 - Enriched bug reports with environment details (OS, architecture, bitness, paths).
 - Added regex match timeouts for wildcard searches and version parsing.

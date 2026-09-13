@@ -16,7 +16,7 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
+| `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
 | `<mount-path>` | No | Drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`. Required when options are supplied. |
 | `[options...]` | No | Zero or more option flags. All arguments after the mount path are scanned for options. |
 
@@ -70,8 +70,8 @@ in order and stops at the first match:
 | Order | Rule | Example |
 | --- | --- | --- |
 | 1 | If the path exists as given, use it. | `D:\Games\Halo.iso` |
-| 2 | If the path is a directory that contains exactly one image file (`.iso`, `.xiso` or `.zar`), use that file. | `D:\Games` becomes `D:\Games\Halo.iso` |
-| 3 | If the path has no extension, try each supported extension in preference order (`.iso`, `.xiso`, `.zar`). | `D:\Games\Halo` becomes `D:\Games\Halo.iso` |
+| 2 | If the path is a directory that contains exactly one image file (`.iso`, `.xiso`, `.cso` or `.zar`), use that file. A split CISO set (`game.1.cso`, `game.2.cso`, …) counts as one image and resolves to its first part. | `D:\Games` becomes `D:\Games\Halo.iso` |
+| 3 | If the path has no extension, try each supported extension in preference order (`.iso`, `.xiso`, `.cso`, `.zar`). | `D:\Games\Halo` becomes `D:\Games\Halo.iso` |
 | 4 | If the path is a bare filename (no directory separator), look in the current working directory, first as given and then with each supported extension appended. | `Halo` becomes `<cwd>\Halo.iso` |
 
 If none of the strategies match, the error output includes contextual hints:
@@ -150,6 +150,9 @@ SimpleXisoDrive.exe "D:\Games\Halo" Z:
 
 # Mount a ZArchive the same way
 SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
+
+# Mount a CISO image (single .cso or the first part of a split set)
+SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
 
 # Mount the only image file in a directory
 SimpleXisoDrive.exe "D:\Games\HaloCollection" Z:

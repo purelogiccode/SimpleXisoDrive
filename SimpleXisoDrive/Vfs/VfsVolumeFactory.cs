@@ -45,10 +45,7 @@ internal static class VfsVolumeFactory
 
     private static IVfsVolume OpenZar(string archivePath)
     {
-        var reader = ZarVfsVolume.TryOpenArchive(archivePath, out var failure) ?? throw new InvalidImageException(
-            $"'{archivePath}' is not a valid ZArchive (.zar) file ({failure}).");
-
-        return OpenZar(reader, archivePath);
+        return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(archivePath), archivePath);
     }
 
     /// <summary>
@@ -68,17 +65,29 @@ internal static class VfsVolumeFactory
     /// <summary>
     /// Detects the single-embedded-XISO layout (used for lossless Redump rebuilds):
     /// exactly one file at the archive root whose data validates as an XDVDFS image.
-    /// When the probe fails the reader stays open for the directory-tree view.
+    /// When the probe fails the reader stays open for the directory-tree view; when the
+    /// probe itself errors, the reader is disposed with the failure.
     /// </summary>
     private static bool TryMountEmbeddedXiso(ZArchiveReader reader, string archivePath, out IVfsVolume volume)
     {
         volume = null!;
 
-        if (reader.GetDirEntryCount(ZArchiveReader.RootNode) != 1 ||
-            !reader.TryGetDirEntry(ZArchiveReader.RootNode, 0, out var node, out var only) ||
-            !only.IsFile)
+        uint node;
+        try
         {
-            return false;
+            if (reader.GetDirEntryCount(ZArchiveReader.RootNode) != 1 ||
+                !reader.TryGetDirEntry(ZArchiveReader.RootNode, 0, out node, out var only) ||
+                !only.IsFile)
+            {
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            // The tree cannot be read either; the reader is dead weight now.
+            reader.Dispose();
+            Log.Debug(ex, "'{ArchivePath}' root entry could not be read", archivePath);
+            throw;
         }
 
         try
@@ -95,6 +104,13 @@ internal static class VfsVolumeFactory
         {
             Log.Debug(ex, "'{ArchivePath}' does not embed an Xbox ISO image", archivePath);
             return false;
+        }
+        catch (Exception ex)
+        {
+            // The probe failed before ownership transferred: never leak the reader.
+            reader.Dispose();
+            Log.Debug(ex, "'{ArchivePath}' could not be opened for the embedded-ISO probe", archivePath);
+            throw;
         }
     }
 

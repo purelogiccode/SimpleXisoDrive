@@ -10,7 +10,7 @@ This page describes everything required to run SimpleXisoDrive on Windows.
 | --- | --- |
 | Operating system | Windows 10 or Windows 11 (x64 or ARM64) |
 | Architecture | `x64` or `ARM64` |
-| Runtime | .NET 10.0 Desktop Runtime (unless using a self-contained build) |
+| Runtime | .NET 10.0 Runtime (base runtime; self-contained builds bundle it) |
 | Driver | Dokan user-mode file system library 2.x (`dokan2.dll`) |
 | Privileges | Administrator recommended (required by most systems for drive letter mounts) |
 | Disk usage | A few MB for the application; images are streamed, not copied |
@@ -48,10 +48,11 @@ For more detail about Dokan, see the [official documentation](https://github.com
 
 ## Step 2 - Install the .NET runtime
 
-Framework-dependent builds require the **.NET 10.0 Desktop Runtime**.
+Framework-dependent builds require the **.NET 10.0 Runtime** (the base runtime; the Desktop
+Runtime also works but is not required).
 
 1. Download the runtime from <https://dotnet.microsoft.com/download/dotnet/10.0>.
-2. Choose the **Desktop Runtime** for your architecture (`x64` or `ARM64`).
+2. Choose the **.NET Runtime** for your architecture (`x64` or `ARM64`).
 3. Install it.
 
 Self-contained release builds bundle the runtime and do not require this step. If a release archive
@@ -63,7 +64,7 @@ To verify an installed runtime:
 dotnet --list-runtimes
 ```
 
-Look for an entry such as `Microsoft.WindowsDesktop.App 10.x.x`.
+Look for an entry such as `Microsoft.NETCore.App 10.x.x`.
 
 ---
 

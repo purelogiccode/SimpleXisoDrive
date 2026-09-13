@@ -53,8 +53,8 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 - **Read-only by design** - the ISO or ZAR is never modified, and write, delete, rename, attribute,
   and timestamp operations are denied.
 - **Broad Xbox format support** - standard Xbox ISO dumps (volume descriptor at sector 32),
-  rebuilt XISO images (sector 0), and dual-layer/hybrid dumps using the XGD1, XGD3, and GLOBAL
-  partition offsets.
+  rebuilt XISO images (sector 0), dual-layer/hybrid dumps using the XGD1, XGD3, and GLOBAL
+  partition offsets, and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
 - **ZArchive support** - `.zar` archives mount directly: either the stored game tree or a single
   embedded XISO image, streamed through the pure-C# zstd block decoder.
 - **Zero-config drag-and-drop** - drop an image onto the executable and it automatically picks a
@@ -81,7 +81,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Access mode | Read-only |
 | Volume label | `XBOX_ISO` (ISO) / `XBOX_ZAR` (ZArchive) |
 | File system name | `XDVDFS` (ISO) / `ZARCHIVE` (ZArchive) |
-| Prerequisites | Dokan 2.x, .NET 10 Desktop Runtime |
+| Prerequisites | Dokan 2.x, .NET 10 Runtime |
 | License | GPL-3.0 |
 | Repository | <https://github.com/purelogiccode/SimpleXisoDrive> |
 
@@ -89,13 +89,16 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 
 ```shell
 # Mount an ISO to the first free drive letter (M: through R:) and open Explorer
-SimpleXisoDrive.exe "D:\Games\Halo.iso" -l
+SimpleXisoDrive.exe "D:\Games\Halo.iso"
 
 # Mount an ISO to drive Z:
 SimpleXisoDrive.exe "D:\Games\Halo.iso" Z:
 
 # Mount a ZArchive the same way
 SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
+
+# Mount a CISO image (single or split .1.cso part set)
+SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
 
 # Mount an ISO into an empty NTFS folder
 SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
@@ -104,7 +107,7 @@ SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
 SimpleXisoDrive.exe "D:\Games\Halo.iso" Z: --debug
 ```
 
-The simplest path of all is to drag and drop an `.iso`, `.xiso` or `.zar` file onto
+The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso` or `.zar` file onto
 `SimpleXisoDrive.exe`.
 
 ## Support the project

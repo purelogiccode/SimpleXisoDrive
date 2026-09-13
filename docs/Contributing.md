@@ -97,6 +97,10 @@ dotnet build CSharp_SimpleXisoDrive.sln -c Release
 dotnet test CSharp_SimpleXisoDrive.sln -c Release
 ```
 
+The same commands run in GitHub Actions on every push and pull request
+(`.github/workflows/ci.yml`), and the release workflow re-runs the suite before packaging a
+`release_*` tag. See [Building](Building#continuous-integration).
+
 ---
 
 ## Pull request checklist

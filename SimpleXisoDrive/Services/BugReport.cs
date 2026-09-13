@@ -12,7 +12,6 @@ namespace SimpleXisoDrive.Services;
 /// </summary>
 public static class BugReport
 {
-    private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
     private const string BugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
     private const string ApplicationName = "SimpleXisoDrive";
@@ -34,8 +33,8 @@ public static class BugReport
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        // API logging is configured if the key and URL are present.
-        IsApiLoggingConfigured = !string.IsNullOrWhiteSpace(ApiKey) &&
+        // API logging is configured if the key can be decrypted and the URL is present.
+        IsApiLoggingConfigured = !string.IsNullOrWhiteSpace(ApiKeyProvider.ApiKey) &&
                                  !string.IsNullOrWhiteSpace(BugReportApiUrl);
 
         // Register for process exit to properly dispose HttpClient
@@ -142,7 +141,7 @@ public static class BugReport
             var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
             var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
-            request.Headers.Add("X-API-KEY", ApiKey);
+            request.Headers.Add("X-API-KEY", ApiKeyProvider.ApiKey);
             request.Content = httpContent;
 
             using var response = await HttpClientInstance.SendAsync(request);

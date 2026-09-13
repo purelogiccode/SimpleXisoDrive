@@ -70,6 +70,7 @@ flowchart TD
 | Service | Responsibility |
 | --- | --- |
 | `LoggingSetup` | Builds the global Serilog logger (console + rolling file + bug report sink). |
+| `ApiKeyProvider` | Decrypts the double-encrypted API key once at startup for the bug report and stats services. |
 | `BugReport` | Builds bug reports, writes `error.log`, sends reports to the remote API, writes `critical_error.log` as a last resort. |
 | `BugReportSink` | Serilog sink that forwards Warning and higher events to `BugReport`, with rate limiting. |
 | `CheckAccess` | Queries whether the current process has administrator rights. |

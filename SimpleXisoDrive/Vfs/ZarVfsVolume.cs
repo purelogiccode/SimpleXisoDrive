@@ -33,10 +33,7 @@ public sealed class ZarVfsVolume : IVfsVolume
     /// <param name="archivePath">The path to the ZArchive (<c>.zar</c>) file to open.</param>
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid ZArchive.</exception>
     public ZarVfsVolume(string archivePath)
-        : this(
-            TryOpenArchive(archivePath, out var failure) ?? throw new InvalidImageException(
-                $"'{archivePath}' is not a valid ZArchive (.zar) file ({failure})."),
-            archivePath)
+        : this(OpenArchiveOrThrow(archivePath), archivePath)
     {
     }
 
@@ -52,6 +49,37 @@ public sealed class ZarVfsVolume : IVfsVolume
             archivePath,
             new ZArchiveReaderOptions { FileShare = FileShare.ReadWrite },
             out failure);
+    }
+
+    /// <summary>
+    /// Opens a ZArchive or throws an exception matching the failure: I/O failures keep
+    /// their natural type (file not found, access denied, read error) and only format
+    /// failures surface as <see cref="InvalidImageException"/>.
+    /// </summary>
+    /// <param name="archivePath">The path to the ZArchive (<c>.zar</c>) file to open.</param>
+    /// <returns>The opened archive reader.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="IOException">Thrown when the file cannot be read.</exception>
+    /// <exception cref="ArgumentException">Thrown when the path is invalid.</exception>
+    /// <exception cref="InvalidImageException">Thrown when the file is not a valid ZArchive.</exception>
+    internal static ZArchiveReader OpenArchiveOrThrow(string archivePath)
+    {
+        var reader = TryOpenArchive(archivePath, out var failure);
+        if (reader is not null)
+        {
+            return reader;
+        }
+
+        throw failure switch
+        {
+            ZArchiveOpenFailure.FileNotFound =>
+                new FileNotFoundException($"ZArchive file not found: '{archivePath}'.", archivePath),
+            ZArchiveOpenFailure.AccessDenied or ZArchiveOpenFailure.ReadError =>
+                new IOException($"Cannot read ZArchive '{archivePath}' ({failure})."),
+            ZArchiveOpenFailure.InvalidPath =>
+                new ArgumentException($"Invalid ZArchive path '{archivePath}' ({failure}).", nameof(archivePath)),
+            _ => new InvalidImageException($"'{archivePath}' is not a valid ZArchive (.zar) file ({failure}).")
+        };
     }
 
     /// <summary>

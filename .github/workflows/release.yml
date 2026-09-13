@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    # Release tags: release_1.3.0 (the update checker parses the three-part version).
+    tags: ['release_*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to package (for example 1.3.0)
+        required: true
+        type: string
+
+# The tag run creates the GitHub release with the packaged zips.
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  verify:
+    name: verify version and tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve and verify version
+        id: version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+          } else {
+            $version = '${{ github.ref_name }}' -replace '^release_', ''
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid version '$version'. Use a three-part version such as 1.3.0."
+          }
+
+          [xml]$project = Get-Content -LiteralPath SimpleXisoDrive/SimpleXisoDrive.csproj
+          $assemblyVersion = $project.Project.PropertyGroup.AssemblyVersion | Select-Object -First 1
+          if ($assemblyVersion -ne $version) {
+            throw "Version mismatch: '$version' does not match <AssemblyVersion> '$assemblyVersion' in SimpleXisoDrive.csproj."
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Setup .NET
+        # 10.0.x, not `global-json-file`: the repo pins `10.0.0` with
+        # rollForward latestMajor, which setup-dotnet cannot resolve.
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Restore
+        run: dotnet restore CSharp_SimpleXisoDrive.sln
+
+      - name: Build
+        run: dotnet build CSharp_SimpleXisoDrive.sln --no-restore --configuration Release
+
+      - name: Test
+        run: >-
+          dotnet test CSharp_SimpleXisoDrive.sln
+          --no-build --configuration Release
+          --blame-hang-timeout 15m
+          --blame-hang-dump-type none
+
+  package:
+    name: package ${{ matrix.rid }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: verify
+    strategy:
+      # Package every runtime even when one fails; the release job waits for all.
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Publish
+        # Framework-dependent single-file executable, matching the local release
+        # bundles: one SimpleXisoDrive.exe per zip, no runtime included.
+        run: >-
+          dotnet publish SimpleXisoDrive/SimpleXisoDrive.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          --self-contained false
+          -p:PublishSingleFile=true
+          --output publish/${{ matrix.rid }}
+
+      - name: Package release zip
+        shell: pwsh
+        run: |
+          $zip = "release_${{ needs.verify.outputs.version }}_${{ matrix.rid }}.zip"
+          Compress-Archive -Path "publish/${{ matrix.rid }}/SimpleXisoDrive.exe" -DestinationPath $zip -Force
+          Get-Item -LiteralPath $zip | Select-Object Name, Length
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: release_*.zip
+          if-no-files-found: error
+
+  github-release:
+    name: create GitHub release
+    # Manual runs stop at packaged artifacts; only a tag creates the release.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [verify, package]
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: assets
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          --title "SimpleXisoDrive ${VERSION}"
+          --generate-notes
+          assets/release_*.zip

@@ -37,11 +37,21 @@ All paths are relative to the directory containing `SimpleXisoDrive.exe`.
 ```text
 [HH:mm:ss INF] === SimpleXisoDrive Started ===
 [HH:mm:ss INF] Arguments: D:\Games\Halo.iso | Z: | -l
-[HH:mm:ss DBG] Detected standard Xbox ISO format (sector 32)
+[HH:mm:ss DBG] Resolved 'D:\Games\Halo' to 'D:\Games\Halo.iso'
 [HH:mm:ss INF] Mount successful: 'D:\Games\Halo.iso' -> 'Z:'
 [HH:mm:ss INF] Unmount signal received. Cleaning up...
 [HH:mm:ss INF] Unmounted.
 ```
+
+---
+
+## ApiKeyProvider
+
+`ApiKeyProvider` supplies the shared API key for the bug report and stats endpoints. The key is
+never stored in plain text: two independent layers protect it in the assembly (an AES-256-CBC
+outer layer over a SHA-256 XOR inner layer), and `Preload()` decrypts it once during startup.
+Decryption failures are logged at Error level and disable remote reporting without affecting the
+mount.
 
 ---
 
@@ -158,7 +168,7 @@ blocks startup.
 | Authentication | `Bearer` token header |
 | Payload | `{ "applicationId": "simplexisodrive", "version": "<assembly version>" }` |
 | Timeout | 10 seconds |
-| Failure handling | Timeouts, connection failures, and other errors are logged at Debug/Warning level and ignored |
+| Failure handling | Timeouts, connection failures, and other errors are logged at Debug level and ignored (never forwarded to the bug report API) |
 
 No user, machine, or file information is included in this request.
 

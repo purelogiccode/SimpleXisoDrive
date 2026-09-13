@@ -63,8 +63,7 @@ public sealed class XisoVfsVolume : IVfsVolume
                 Share = FileShare.ReadWrite,
             });
         }
-        catch (Exception ex) when ((ex is IOException and not (FileNotFoundException or DirectoryNotFoundException))
-                                   || ex is InvalidDataException)
+        catch (Exception ex) when (ex is XisoFormatException or InvalidDataException or EndOfStreamException)
         {
             Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", isoPath);
             throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
@@ -91,7 +90,7 @@ public sealed class XisoVfsVolume : IVfsVolume
         {
             _volume = XisoReader.GetVolumeInfo(stream, displayName);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             DisposeStream(stream);
             Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", displayName);

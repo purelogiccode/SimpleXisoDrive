@@ -122,10 +122,12 @@ The file exists but no valid volume descriptor could be found. The most common r
 1. It is a **PC ISO**, not an Xbox disc image.
 2. It is an **encrypted/Redump-style image** that must be converted to XISO first.
 3. It is a **corrupted or incomplete** download.
-4. It uses an **unsupported variant** (for example, a container format rather than a raw ISO).
+4. It uses an **unsupported layout** (for example, an Xbox 360/One file system rather than original-Xbox XDVDFS).
 
-XISOSharp's underlying diagnostic (the probed locations and their failure reasons) is attached as the
-inner exception and written to the log file for support.
+CISO-compressed images (`.cso`, including split `.1.cso` part sets) are supported and decompressed
+on the fly, so they do not need to be extracted first. XISOSharp's underlying diagnostic (the probed
+locations and their failure reasons) is attached as the inner exception and written to the log file
+for support.
 
 ### "Error: XDVDFS magic string not found."
 

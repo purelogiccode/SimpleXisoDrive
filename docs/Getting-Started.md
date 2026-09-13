@@ -1,7 +1,8 @@
 # Getting Started
 
 This page walks through the two supported ways to mount an Xbox image: drag-and-drop and the
-command line. Both Xbox ISO/XISO images and ZArchive (`.zar`) files are supported.
+command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`) and ZArchive
+(`.zar`) files are supported.
 
 Before you begin, make sure [Dokan and the .NET runtime are installed](Installation).
 
@@ -31,7 +32,7 @@ Every run follows the same sequence:
 
 This is the fastest way to mount an image and requires no typing.
 
-1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`) or ZArchive (`.zar`) file in File Explorer.
+1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`) or ZArchive (`.zar`) file in File Explorer.
 2. Drag the file and drop it onto `SimpleXisoDrive.exe`.
 3. A console window opens. The application:
    - validates the path,
