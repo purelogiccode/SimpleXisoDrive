@@ -147,7 +147,5 @@ public class IsoSt : IDisposable
         {
             Log.Error(ex, "IsoSt.Dispose failed");
         }
-
-        GC.SuppressFinalize(this);
     }
 }
