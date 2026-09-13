@@ -20,6 +20,19 @@ The application is designed for extreme memory efficiency and now supports both 
 2.  **Dokan Library:** You must install the Dokan user-mode file system library (version 2.x.x).
     *   Download: [https://github.com/dokan-dev/dokany/releases](https://github.com/dokan-dev/dokany/releases).
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs`](docs/Home.md) folder and mirrors the
+project wiki:
+
+*   [Installation](docs/Installation.md) - requirements, Dokan setup, installing and upgrading.
+*   [Getting Started](docs/Getting-Started.md) - your first mount, drag-and-drop, unmounting.
+*   [Command-Line Reference](docs/Command-Line-Reference.md) - arguments, options, exit codes.
+*   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.
+*   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
+*   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
+*   [Privacy and Networking](docs/Privacy-and-Networking.md) - telemetry, endpoints, offline use.
+
 ## How to Use
 
 ### 1. Drag-and-Drop (Easiest)
