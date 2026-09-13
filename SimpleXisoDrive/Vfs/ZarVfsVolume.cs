@@ -11,9 +11,6 @@ namespace SimpleXisoDrive.Vfs;
 /// </summary>
 public sealed class ZarVfsVolume : IVfsVolume
 {
-    /// <summary>Safety limit against crafted directory counts when enumerating children.</summary>
-    private const int MaxEntriesPerDirectory = 100000;
-
     private readonly ZArchiveReader _reader;
     private readonly ConcurrentDictionary<string, ZarEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
@@ -37,28 +34,24 @@ public sealed class ZarVfsVolume : IVfsVolume
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid ZArchive.</exception>
     public ZarVfsVolume(string archivePath)
         : this(
-            TryOpenArchive(archivePath) ?? throw new InvalidImageException(
-                $"'{archivePath}' is not a valid ZArchive (.zar) file."),
+            TryOpenArchive(archivePath, out var failure) ?? throw new InvalidImageException(
+                $"'{archivePath}' is not a valid ZArchive (.zar) file ({failure})."),
             archivePath)
     {
     }
 
     /// <summary>
     /// Opens a ZArchive with <see cref="FileShare.ReadWrite"/> so that scanners and indexing
-    /// tools can keep the file open while it is mounted. Returns <see langword="null"/> when the
-    /// file cannot be opened or is not a valid archive; the failed stream is disposed by the reader.
+    /// tools can keep the file open while it is mounted. Returns <see langword="null"/> when
+    /// the file cannot be opened or is not a valid archive;
+    /// <paramref name="failure"/> carries the specific reason.
     /// </summary>
-    internal static ZArchiveReader? TryOpenArchive(string archivePath)
+    internal static ZArchiveReader? TryOpenArchive(string archivePath, out ZArchiveOpenFailure failure)
     {
-        try
-        {
-            var stream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return ZArchiveReader.TryOpen(stream, leaveOpen: false);
-        }
-        catch
-        {
-            return null;
-        }
+        return ZArchiveReader.TryOpen(
+            archivePath,
+            new ZArchiveReaderOptions { FileShare = FileShare.ReadWrite },
+            out failure);
     }
 
     /// <summary>
@@ -72,9 +65,10 @@ public sealed class ZarVfsVolume : IVfsVolume
         try
         {
             VolumeCreationTime = TryGetCreationTime(archivePath);
-            VolumeSize = ComputeTotalSize();
+            VolumeSize = reader.TotalUncompressedSize;
 
-            CacheEntry("\\", new ZarEntry(0, "", isDirectory: true, size: 0));
+            CacheEntry("\\",
+                new ZarEntry(ZArchiveReader.RootNode, string.Empty, isDirectory: true, size: 0));
         }
         catch (Exception ex)
         {
@@ -94,51 +88,6 @@ public sealed class ZarVfsVolume : IVfsVolume
         {
             return DateTime.Now;
         }
-    }
-
-    /// <summary>
-    /// Sums the uncompressed sizes of every file in the archive. Directory nodes are
-    /// resolved through <see cref="ZArchiveReader.LookUp(string, bool, bool)"/> because
-    /// directory entries do not expose their node handles.
-    /// </summary>
-    private ulong ComputeTotalSize()
-    {
-        ulong total = 0;
-        var visited = new HashSet<uint> { 0 };
-        var stack = new Stack<(uint Node, string Path)>();
-        stack.Push((0, string.Empty));
-
-        while (stack.Count > 0)
-        {
-            var (node, path) = stack.Pop();
-            var childCount = _reader.GetDirEntryCount(node);
-            if (childCount > MaxEntriesPerDirectory)
-            {
-                Log.Warning(
-                    "ZArchive directory node {Node} reports {Count} children; truncating enumeration.",
-                    node, childCount);
-                childCount = MaxEntriesPerDirectory;
-            }
-
-            for (uint i = 0; i < childCount; i++)
-            {
-                if (!_reader.GetDirEntry(node, i, out var child)) continue;
-
-                if (child.IsFile)
-                {
-                    total += child.Size;
-                    continue;
-                }
-
-                var childPath = path.Length == 0 ? child.Name : path + "\\" + child.Name;
-                var childNode = _reader.LookUp(childPath);
-                if (childNode == ZArchiveReader.InvalidNode || !visited.Add(childNode)) continue;
-
-                stack.Push((childNode, childPath));
-            }
-        }
-
-        return total;
     }
 
     private void CacheEntry(string path, ZarEntry entry)
@@ -175,48 +124,18 @@ public sealed class ZarVfsVolume : IVfsVolume
             return null;
         }
 
+        return CreateEntry(normalizedPath, node);
+    }
+
+    private ZarEntry CreateEntry(string normalizedPath, uint node)
+    {
         var isDirectory = _reader.IsDirectory(node);
         var size = isDirectory ? 0 : (long)Math.Min(_reader.GetFileSize(node), long.MaxValue);
-        var fileName = string.Equals(normalizedPath, "\\", StringComparison.Ordinal)
-            ? string.Empty
-            : ResolveCanonicalName(normalizedPath);
+        var fileName = _reader.TryGetNodeName(node, out var name) ? name : string.Empty;
 
         var entry = new ZarEntry(node, fileName, isDirectory, size);
         CacheEntry(normalizedPath, entry);
         return entry;
-    }
-
-    /// <summary>
-    /// Returns the stored name for a path so entries preserve the archive's casing
-    /// (lookups themselves are case-insensitive).
-    /// </summary>
-    private string ResolveCanonicalName(string normalizedPath)
-    {
-        var requestedName = Path.GetFileName(normalizedPath);
-        var parentPath = Path.GetDirectoryName(normalizedPath);
-        parentPath = string.IsNullOrEmpty(parentPath) ? "\\" : NormalizePath(parentPath);
-
-        if (GetEntryInternal(parentPath) is not { IsDirectory: true } parent)
-        {
-            return requestedName;
-        }
-
-        var childCount = _reader.GetDirEntryCount(parent.Node);
-        if (childCount > MaxEntriesPerDirectory)
-        {
-            childCount = MaxEntriesPerDirectory;
-        }
-
-        for (uint i = 0; i < childCount; i++)
-        {
-            if (_reader.GetDirEntry(parent.Node, i, out var child) &&
-                string.Equals(child.Name, requestedName, StringComparison.OrdinalIgnoreCase))
-            {
-                return child.Name;
-            }
-        }
-
-        return requestedName;
     }
 
     /// <inheritdoc />
@@ -237,29 +156,24 @@ public sealed class ZarVfsVolume : IVfsVolume
         }
 
         var children = new List<IVfsEntry>();
+        var atRoot = string.Equals(normalizedPath, "\\", StringComparison.Ordinal);
         var childCount = _reader.GetDirEntryCount(directory.Node);
-        if (childCount > MaxEntriesPerDirectory)
-        {
-            Log.Warning(
-                "ZArchive directory '{Path}' reports {Count} children; truncating enumeration.",
-                normalizedPath, childCount);
-            childCount = MaxEntriesPerDirectory;
-        }
 
         for (uint i = 0; i < childCount; i++)
         {
-            if (!_reader.GetDirEntry(directory.Node, i, out var child) || string.IsNullOrEmpty(child.Name))
+            // TryGetDirEntry resolves the child handle in one step (the library
+            // clamps the count and bounds-checks the index), so no path rebuild
+            // or second lookup is needed per child.
+            if (!_reader.TryGetDirEntry(directory.Node, i, out var childNode, out var child) ||
+                string.IsNullOrEmpty(child.Name))
             {
                 continue;
             }
 
-            var childPath = string.Equals(normalizedPath, "\\", StringComparison.Ordinal)
-                ? "\\" + child.Name
-                : normalizedPath + "\\" + child.Name;
-
-            var childEntry = GetEntryInternal(childPath);
-            if (childEntry == null) continue;
-
+            var childPath = atRoot ? "\\" + child.Name : normalizedPath + "\\" + child.Name;
+            var size = child.IsDirectory ? 0 : (long)Math.Min(child.Size, long.MaxValue);
+            var childEntry = new ZarEntry(childNode, child.Name, child.IsDirectory, size);
+            CacheEntry(childPath, childEntry);
             children.Add(childEntry);
             yield return childEntry;
         }

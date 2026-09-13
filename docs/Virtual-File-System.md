@@ -15,23 +15,25 @@ per mount and disposed on unmount. The actual storage is an `IVfsVolume` impleme
 | Input | Detection | Volume |
 | --- | --- | --- |
 | `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates | `XisoVfsVolume` |
-| `.zar` | ZArchive footer validates | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over a `ZarNodeStream` |
+| `.zar` | ZArchive footer validates | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |
 | Any other extension | XISO probe first; a renamed ZArchive falls back to the archive path | as above |
 
 ### Construction
 
 `XisoVfsVolume`:
 
-1. A new `IsoSt` opens the ISO file with `FileMode.Open`, `FileAccess.Read`, and
-   `FileShare.ReadWrite` (shared access lets antivirus and indexing tools open the file too).
-2. `VolumeDescriptor.ReadFrom` probes the five known descriptor locations and sets
-   `IsoSt.VolumeOffset` to the winning partition offset.
-3. If validation fails, `InvalidImageException` is thrown:
-   - the original `InvalidImageException` is rethrown unchanged when the descriptor was readable but
-     invalid;
-   - any other failure is wrapped with `Failed to read Xbox ISO: <message>`.
-4. The volume size is taken from the stream length, the creation time from the descriptor, and the
-   synthetic root `FileEntry` (`\`) is cached.
+1. A keep-open `XisoExplorer` opens the ISO file with `FileShare.ReadWrite` (shared access lets
+   antivirus and indexing tools open the file too) and eagerly probes the volume descriptor.
+2. XISOSharp probes the rebuilt sector-0 layout and the standard sector-32 layouts (plain, GLOBAL,
+   XGD3, XGD2 Hybrid, XGD1) and records the winning disc offset.
+3. Invalid images surface as `XisoFormatException`, which the volume wraps in
+   `InvalidImageException`; missing files still throw `FileNotFoundException`.
+4. The volume size and creation time come from the probed `VolumeInfo`; the synthetic root entry
+   (`\`) is cached.
+
+For an embedded XISO, the same class uses the `XisoReader` stream APIs instead: `GetVolumeInfo`
+probes the stream, and lookups/listings go through `GetEntryInfo`/`ListDirectory` under a stream
+lock.
 
 `ZarVfsVolume`:
 
@@ -41,8 +43,9 @@ per mount and disposed on unmount. The actual storage is an `IVfsVolume` impleme
    comes from the `.zar` file's timestamp.
 3. The root ZArchive node is cached.
 
-For an embedded XISO, the factory wraps the single archive file in a seekable `ZarNodeStream` and
-lets `XisoVfsVolume` validate and mount it exactly like a standalone ISO.
+For an embedded XISO, the factory opens a seekable stream over the single archive file with
+`ZArchiveReader.OpenRead` and lets `XisoVfsVolume` validate and mount it exactly like a standalone
+ISO; `ReaderOwningVfsVolume` keeps the archive reader alive and closes it with the mount.
 
 ### Public surface
 
@@ -79,11 +82,10 @@ during construction.
 
 1. If the path is `\`, return the cached root entry.
 2. If the path is already in the entry cache, return it.
-3. Split the path into parent directory and file name.
-4. Resolve the parent recursively; it must be a directory.
-5. Search the parent's children for the name (case-insensitive): an XDVDFS binary-tree walk for
-   ISO volumes, `ZArchiveReader.LookUp` for ZArchive volumes.
-6. Cache and return the result.
+3. Otherwise ask XISOSharp for the entry: `XisoExplorer.GetNode` for path-based images or
+   `XisoReader.GetEntryInfo` for stream-based images (both case-insensitive, `/`-separated library
+   paths).
+4. Cache and return the result.
 
 Every step is wrapped so that a failure logs an error and returns `null` instead of propagating to
 Dokan. ZArchive lookups preserve the archive's original name casing in the returned entry even when
@@ -110,25 +112,24 @@ Windows can send special relative segments. `XboxIsoVfsDokan.NormalizePath` hand
 `GetFolderList` enumerates the entries of a directory table:
 
 1. If the listing is cached, it is replayed from the cache.
-2. Otherwise the directory entry is resolved and its first child is read from offset `0` of its start
-   sector.
-3. The binary tree is traversed iteratively with an explicit stack (left children processed first).
-4. Entries with empty names are skipped; every named entry is cached by full path and yielded.
-5. The complete list is stored in the children cache.
+2. Otherwise the directory entry is resolved (it must be a directory) and XISOSharp's
+   `XisoExplorer.ListChildren` / `XisoReader.ListDirectory` walks the TOC.
+3. Every named entry is cached by full path and added to the returned list.
+4. The complete list is stored in the children cache.
 
-Traversal safety:
+The library's TOC walk is hardened:
 
-- visited nodes are tracked by `(EntrySector, EntryOffset)`, preventing cycles;
-- each traversal is limited to 100,000 nodes and aborts with an error log when exceeded;
-- self-referencing child pointers are rejected.
+- visited offsets are tracked, preventing cycles;
+- each directory table is capped at a fixed number of entries;
+- separator-bearing file names abort the walk instead of escaping the mount root.
 
 ### ZArchive volumes
 
 `GetFolderList` reads children directly from the archive's flat file tree:
 
 1. If the listing is cached, it is replayed from the cache.
-2. Otherwise each child is read with `GetDirEntry`, resolved to a node handle with `LookUp`, cached
-   by full path, and yielded.
+2. Otherwise each child is read with `TryGetDirEntry`, which returns the name, type, size, and node
+   handle in one call; entries are cached by full path and yielded.
 3. The complete list is stored in the children cache.
 
 Safety: directory counts are capped at 100,000 entries and the underlying reader validates node
@@ -226,11 +227,10 @@ written to `error.log` and can be forwarded to the bug report API. See
 
 ## Thread safety notes
 
-- `IsoSt` serializes every stream seek/read pair on a single lock, so concurrent reads cannot corrupt
-  the stream position. `ZArchiveReader` is likewise internally locked and swaps whole decompressed
-  64 KiB blocks in and out of a bounded LRU cache.
-- The `ZarVfsVolume` caches are concurrent dictionaries. The `XisoVfsVolume` caches are populated on
-  demand while servicing requests and are not explicitly synchronized; they are designed for the
-  common case where the first directory listing populates them for later lookups.
-- `GetFolderList` is an iterator; enumeration happens on the calling Dokan thread while the
-  underlying stream or archive lock is taken per read.
+- A keep-open `XisoExplorer` serializes its metadata operations on an internal lock; the
+  stream-backed `XisoVfsVolume` locks its held image stream around every seek/read. `ZArchiveReader`
+  is likewise internally locked and swaps whole decompressed 64 KiB blocks in and out of a bounded
+  LRU cache.
+- Both volume implementations use concurrent dictionaries for their entry and children caches.
+- `GetFolderList` returns the cached list, built on first request while the underlying stream or
+  archive lock is taken per read.

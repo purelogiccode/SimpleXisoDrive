@@ -35,21 +35,18 @@ name, and padding to a 4-byte boundary.
 A Windows timestamp format representing 100-nanosecond intervals since 1601-01-01 UTC. The XDVDFS
 volume descriptor stores the volume creation time as a FILETIME.
 
-**FileEntry**
-The in-memory representation of one XDVDFS directory entry: child pointers, data location, size,
-attributes, and name. Implements `IVfsEntry`. See [XDVDFS Format](XDVDFS-Format).
+**Entry (XISO)**
+A file or directory inside an Xbox image, surfaced by `XisoVfsVolume` as an `IVfsEntry`. Backed by
+XISOSharp's `ExplorerNode` for path-based images or `EntryInfo` for stream-based images (the legacy
+name for the concept was `FileEntry`). See [XDVDFS Format](XDVDFS-Format).
 
 **GLOBAL partition**
 One of the supported disc layout offsets (`0x0FD90000`) at which the volume descriptor may be found
 on certain releases.
 
-**IsoSt**
-The stream abstraction over the ISO file. It applies the volume offset, serializes access with a
-lock, and reads sectors and directory entries.
-
 **Iteration limit**
-A safety cap of 100,000 nodes per directory tree traversal, used to abort on corrupted or circular
-trees.
+A safety cap that aborts enumeration of corrupted or circular directory trees. ZArchive directory
+enumeration is capped at 100,000 entries; the XISO directory walk is bounded per table by XISOSharp.
 
 ---
 
@@ -67,7 +64,7 @@ Mapping a volume into an existing directory on an NTFS volume. Does not consume 
 
 **Partition offset**
 The byte offset within the image at which the game partition (and therefore the volume descriptor)
-begins. SimpleXisoDrive sets `IsoSt.VolumeOffset` to the offset of the winning descriptor location.
+begins. XISOSharp reports the winning offset as `VolumeInfo.DiscLseek` and every read adds it.
 
 **Read-only volume**
 A volume on which all mutating operations are rejected. SimpleXisoDrive mounts every image this way.
@@ -96,15 +93,16 @@ pipeline.
 
 **Subtree index**
 The 16-bit pointer to a child directory entry, expressed as an index that must be multiplied by 4 to
-obtain a byte offset. The value `0xFFFF` means "no child".
+obtain a byte offset. The value `0` means "no child"; a first entry with `0xFFFF` marks an empty
+directory table.
 
 **Volume descriptor**
 The structure that identifies an XDVDFS volume and points to the root directory table. It occupies
 one sector and contains two magic IDs. See [XDVDFS Format](XDVDFS-Format).
 
 **Volume offset**
-The global byte offset applied to every stream read so the parser can ignore partition padding before
-the game partition.
+The global byte offset applied to every stream read so the partition padding before the game
+partition is ignored. XISOSharp reports it as `VolumeInfo.DiscLseek`.
 
 **VFS (Virtual File System)**
 The abstraction layer that resolves paths, caches entries, and serves file data to the Dokan
@@ -112,12 +110,20 @@ operation layer. `VfsContainer` is the facade; the actual storage is an `IVfsVol
 (`XisoVfsVolume` for XDVDFS images, `ZarVfsVolume` for ZArchive trees).
 
 **XGD1 / XGD3**
-Xbox Game Disc layout variants. SimpleXisoDrive probes their known partition offsets when looking for
-a volume descriptor.
+Xbox Game Disc layout variants. XISOSharp probes their known partition offsets when looking for a
+volume descriptor.
 
 **XISO**
 Common shorthand for an Xbox disc image in XDVDFS format. "Rebuilt XISO" images place the volume
 descriptor at sector 0.
+
+**XisoExplorer**
+The XISOSharp explorer used for path-based mounts. Opened in keep-open mode, it holds one image
+stream for the lifetime of the mount and serializes metadata operations on an internal lock.
+
+**XisoReader**
+The XISOSharp static API used for images embedded in archives: stream-based volume probing,
+directory listing, entry lookup, and raw data reads.
 
 **XDVDFS**
 Xbox Disc Video File System, the file system used on original Xbox game discs. See

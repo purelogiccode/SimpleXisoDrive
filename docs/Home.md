@@ -5,10 +5,10 @@ original Xbox ISO images (`.iso`, `.xiso`) and ZArchive (`.zar`) files as virtua
 NTFS folder mount points and exposes their contents directly in Windows Explorer.
 
 The application is built on the [Dokan](https://github.com/dokan-dev/dokany) user-mode file system
-driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/master/dokan-dotnet) and parses
-the Xbox Disc Video File System (**XDVDFS**) itself. ZArchive files are read directly with on-demand
-zstd decompression. The source image is never modified: every write operation is rejected at the
-file system layer.
+driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/master/dokan-dotnet) and uses the
+XISOSharp library to parse the Xbox Disc Video File System (**XDVDFS**). ZArchive files are read
+directly with on-demand zstd decompression. The source image is never modified: every write
+operation is rejected at the file system layer.
 
 Developed by [PureLogic Code](https://purelogiccode.com/) and released under the **GPL-3.0** license.
 

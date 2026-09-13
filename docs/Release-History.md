@@ -21,7 +21,12 @@ history.
   archives containing a single embedded XISO image mount that image — all with on-demand zstd block
   decompression and no extraction to disk.
 - Introduced the `IVfsVolume`/`IVfsEntry` abstraction with `XisoVfsVolume`, `ZarVfsVolume`,
-  `ZarNodeStream`, and `VfsVolumeFactory`; `VfsContainer` is now a facade over the selected volume.
+  `ReaderOwningVfsVolume`, and `VfsVolumeFactory`; `VfsContainer` is now a facade over the selected
+  volume.
+- ZAR mounting uses the ZArchiveSharp 1.3.0 mount-host reader API: node-handle enumeration
+  (`TryGetDirEntry`), canonical names (`TryGetNodeName`), computed volume size
+  (`TotalUncompressedSize`), seekable entry streams (`OpenRead`), shared-read opens, and typed
+  `ZArchiveOpenFailure` reasons surfaced in errors.
 - Path resolution now recognizes `.iso`, `.xiso`, and `.zar`, and a renamed ZArchive still mounts.
 - Added tests for ZAR volumes, embedded XISO images, format detection, and the extended resolver.
 - Integrated Serilog logging with console and rolling file sinks.

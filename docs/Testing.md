@@ -14,11 +14,11 @@ path-resolution logic. The tests run without Dokan installed and without any rea
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 93 (version 1.3.0) |
+| Test count | 43 (version 1.3.0) |
 
 The application exposes internals to the test project through `InternalsVisibleTo` in
-`SimpleXisoDrive/AssemblyInfo.cs`, which allows tests to use the internal `IsoSt(Stream)` constructor
-and internal helpers.
+`SimpleXisoDrive/AssemblyInfo.cs`, which allows tests to use the internal
+`XisoVfsVolume(Stream, string)` constructor and internal helpers.
 
 ---
 
@@ -35,13 +35,13 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj
 dotnet test CSharp_SimpleXisoDrive.sln -c Release
 
 # Filter by test name
-dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQualifiedName~FileEntry"
+dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQualifiedName~XisoVfsVolume"
 
 # Verbose output
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 93, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
+A healthy run reports `Passed: 43, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
 
 ---
 
@@ -49,25 +49,22 @@ A healthy run reports `Passed: 93, Failed: 0` for `SimpleXisoDrive.Tests.dll`.
 
 | Test file | Area | Examples |
 | --- | --- | --- |
-| `FileEntryTests` | Directory entry parsing and attribute mapping | Root entry defaults, `IsDirectory`, child-pointer sentinels, `ReadInternal` for files/directories/empty names, entry-size padding, Windows attribute mapping |
-| `IsoStTests` | Stream access layer | Constructor behavior, `VolumeOffset`, sector size, `ExecuteLocked`, offset-based reads, reads past EOF, entry reads, disposal |
-| `VolumeDescriptorTests` | Descriptor discovery and validation | Magic validation, sector 0 vs sector 32 detection, all `ReadFrom` strategies, invalid FILETIME handling, diagnostic messages |
+| `XisoVfsVolumeTests` | XISO volume over XISOSharp | Standard sector-32 and rebuilt sector-0 images, entry lookup, directory listing, reads at offsets and past EOF, attribute mapping, descriptor creation time, image-handle release on dispose, stream-backed (embedded) images |
 | `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.zar`), directory with exactly one image, multiple/zero images, current-directory lookup |
 | `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount, renamed `.zar` fallback, invalid archive errors, plain ISO mount |
 | `ZarVfsVolumeTests` | ZArchive volume | Tree listing, case-insensitive nested lookup, file reads at offsets, directory reads, volume size, invalid archives |
-| `TestImageFactory` | Shared test fixtures | Minimal rebuilt-XISO image builder with a root file entry |
-| `XisoFsFileAttributesTests` | Attribute flag values | Individual values, flag combinations, independence checks |
+| `TestImageFactory` | Shared test fixtures | Minimal rebuilt-XISO (sector 0) and standard Xbox ISO (sector 32) image builders with a root file entry |
 | `InvalidImageExceptionTests` | Exception contract | Message and inner exception constructors, inheritance, catchability |
 
 ### Testing techniques
 
 - **In-memory images**: tests build byte arrays for volume descriptors and directory entries and wrap
-  them in `MemoryStream`, using the internal `IsoSt(Stream)` constructor.
+  them in `MemoryStream`, using the internal `XisoVfsVolume(Stream, string)` constructor.
 - **Real archives**: `ZarVfsVolumeTests`/`VfsContainerTests` pack small trees and embedded XISO
   images with `ZArchiveWriter` into temporary `.zar` files, so the real reader (including zstd
   decompression) is exercised end to end.
-- **Temporary files**: `ResolveImagePathTests` creates and cleans up temp files/directories and
-  temporarily changes `Environment.CurrentDirectory`.
+- **Temporary files**: `ResolveImagePathTests` and `XisoVfsVolumeTests` create and clean up temp
+  files/directories; `ResolveImagePathTests` also temporarily changes `Environment.CurrentDirectory`.
 - **No driver dependency**: nothing in the test suite requires Dokan, a mounted volume, or admin
   rights.
 

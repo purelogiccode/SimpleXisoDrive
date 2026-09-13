@@ -58,7 +58,7 @@ SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 
 ## Technical Details
 
-*   **XDVDFS Parsing:** Correcty traverses the Xbox-specific binary tree structure.
+*   **XDVDFS Parsing:** Uses the XISOSharp library to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
 *   **Cycle Detection:** Includes safety checks to prevent infinite loops in corrupted or malformed ISO images.
 *   **Mount Sanitization:** Automatically handles mount point strings (e.g., converts `Z:\` to `Z:`) to satisfy Dokan driver requirements.
@@ -68,7 +68,7 @@ SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 
 *   **Administrator Privileges:** While the tool attempts to mount in user-mode, mounting a global drive letter often requires Administrator rights. If the mount fails, right-click the `.exe` and select "Run as Administrator."
 *   **Dokan Errors:** If you see "Dokan driver not found," ensure you have restarted your computer after installing the Dokan library.
-*   **Invalid Magic String:** If the app reports "XDVDFS magic string not found," the file is likely a standard PC ISO or an encrypted Redump-style image that has not been processed for XISO compatibility. A `.zar` file that fails to open is reported as an invalid ZArchive instead.
+*   **Invalid Image:** If the app reports that the file is not a valid Xbox ISO/XISO image, the file is likely a standard PC ISO or an encrypted Redump-style image that has not been processed for XISO compatibility. A `.zar` file that fails to open is reported as an invalid ZArchive instead.
 
 ## Support the Project
 

@@ -72,10 +72,12 @@ The project has a small, explicit style that reviewers expect:
 The `.editorconfig` disables three analyzer rules (`MA0004`, `MA0051`, `MA0015`); everything else
 should build cleanly with the enabled Meziantou and Roslynator analyzers.
 
-### Safety rules for parser changes
+### Safety rules for image access
 
-- Keep all ISO stream access inside `IsoSt` so it stays serialized by the stream lock.
-- Preserve cycle detection and iteration limits in `VfsContainer` traversals.
+- Keep all XDVDFS parsing inside XISOSharp; the application should only map virtual paths to the
+  library's entry APIs and translate its exceptions.
+- Keep image stream access serialized: rely on `XisoExplorer`'s internal lock for path-based mounts
+  and hold the volume's stream lock for embedded images.
 - Treat offsets and lengths from the image as untrusted input; validate against the stream length.
 - Never introduce a write path; the volume is read-only by design.
 

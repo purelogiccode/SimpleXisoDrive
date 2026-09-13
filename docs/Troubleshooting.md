@@ -115,33 +115,24 @@ Use an absolute path or change to the correct directory first.
 
 ## Image format problems
 
-### "Error: XDVDFS magic string not found."
+### "Error: '<path>' is not a valid Xbox ISO/XISO image."
 
-The file exists and is large enough, but the volume descriptor is missing or invalid. The most common
-reasons:
+The file exists but no valid volume descriptor could be found. The most common reasons:
 
 1. It is a **PC ISO**, not an Xbox disc image.
 2. It is an **encrypted/Redump-style image** that must be converted to XISO first.
 3. It is a **corrupted or incomplete** download.
 4. It uses an **unsupported variant** (for example, a container format rather than a raw ISO).
 
-### "Volume descriptor not found. This doesn't appear to be a valid Xbox ISO file."
+XISOSharp's underlying diagnostic (the probed locations and their failure reasons) is attached as the
+inner exception and written to the log file for support.
 
-The message includes the file size and every location the application probed, for example:
+### "Error: XDVDFS magic string not found."
 
-```text
-File size: 4,699,979,776 bytes (4482.66 MB)
-
-Tried the following locations:
-  - Sector 32 (Offset 0): Found data but magic ID mismatch (not a valid XDVDFS signature)
-  - Sector 32 (Offset 265879552): ...
-  - Sector 32 (Offset 34078720): ...
-  - Sector 32 (Offset 405798912): ...
-  - Sector 0 (Offset 0): ...
-```
-
-Use the listed reasons to tell corruption ("file too small") apart from a wrong format ("magic ID
-mismatch"). See [XDVDFS Format](XDVDFS-Format) for the supported layouts.
+This variant is used for an image **embedded in a ZArchive** (or a renamed archive probed as one):
+the single archived file was streamed as an XISO but its volume descriptor did not validate. The
+archive itself is valid; the embedded file is not an Xbox image, so the archive mounts as a
+directory tree instead. See [XDVDFS Format](XDVDFS-Format) for the supported layouts.
 
 ### "Error: '<path>' is not a valid ZArchive (.zar) file."
 

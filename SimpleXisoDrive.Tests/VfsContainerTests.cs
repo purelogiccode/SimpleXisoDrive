@@ -102,13 +102,15 @@ public class VfsContainerTests
     }
 
     [Fact]
-    public void Constructor_WithInvalidZar_ThrowsInvalidImageException()
+    public void Constructor_WithInvalidZar_ThrowsInvalidImageExceptionWithReason()
     {
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zar");
         File.WriteAllBytes(path, new byte[4096]);
         try
         {
-            Assert.Throws<InvalidImageException>(() => new VfsContainer(path));
+            var ex = Assert.Throws<InvalidImageException>(() => new VfsContainer(path));
+            // The ZArchiveSharp 1.3.0 failure code is surfaced in the message.
+            Assert.Contains("BadMagic", ex.Message, StringComparison.Ordinal);
         }
         finally
         {

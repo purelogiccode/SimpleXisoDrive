@@ -32,7 +32,7 @@ internal static class VfsVolumeFactory
         catch (InvalidImageException)
         {
             // A ZArchive renamed to .iso (or another extension) should still mount.
-            var reader = ZarVfsVolume.TryOpenArchive(imagePath);
+            var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
             if (reader is null)
             {
                 throw;
@@ -45,8 +45,8 @@ internal static class VfsVolumeFactory
 
     private static IVfsVolume OpenZar(string archivePath)
     {
-        var reader = ZarVfsVolume.TryOpenArchive(archivePath) ?? throw new InvalidImageException(
-            $"'{archivePath}' is not a valid ZArchive (.zar) file.");
+        var reader = ZarVfsVolume.TryOpenArchive(archivePath, out var failure) ?? throw new InvalidImageException(
+            $"'{archivePath}' is not a valid ZArchive (.zar) file ({failure}).");
 
         return OpenZar(reader, archivePath);
     }
@@ -74,32 +74,21 @@ internal static class VfsVolumeFactory
     {
         volume = null!;
 
-        if (reader.GetDirEntryCount(0) != 1 ||
-            !reader.GetDirEntry(0, 0, out var only) ||
+        if (reader.GetDirEntryCount(ZArchiveReader.RootNode) != 1 ||
+            !reader.TryGetDirEntry(ZArchiveReader.RootNode, 0, out var node, out var only) ||
             !only.IsFile)
         {
             return false;
         }
 
-        var node = reader.LookUp(only.Name);
-        if (node == ZArchiveReader.InvalidNode)
-        {
-            return false;
-        }
-
-        var size = reader.GetFileSize(node);
-        if (size == 0 || size > long.MaxValue)
-        {
-            return false;
-        }
-
-        // leaveOpen keeps the archive usable when the file is not an XISO; ownership
-        // is handed to the stream only after the image has been validated.
-        var stream = new ZarNodeStream(reader, node, (long)size, leaveOpen: true);
         try
         {
-            volume = new XisoVfsVolume(stream, archivePath);
-            stream.TakeOwnership();
+            // The library's OpenRead stream deliberately does not own the reader,
+            // so the wrapper closes both; a failed XISO probe disposes only the
+            // stream, leaving the reader open for the directory-tree fallback.
+            var stream = reader.OpenRead(node);
+            var isoVolume = new XisoVfsVolume(stream, archivePath);
+            volume = new ReaderOwningVfsVolume(isoVolume, reader);
             return true;
         }
         catch (InvalidImageException ex)

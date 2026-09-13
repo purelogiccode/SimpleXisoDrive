@@ -1,23 +1,42 @@
+using System.Collections.Concurrent;
 using Serilog;
-using SimpleXisoDrive.XDVDFs;
+using XISOSharp;
+using XISOSharp.Models;
 
 namespace SimpleXisoDrive.Vfs;
 
 /// <summary>
 /// Provides a read-only virtual file system view over an Xbox ISO/XISO image,
-/// resolving paths to XDVDFS directory entries and serving file data to the Dokan layer.
+/// resolving paths to directory entries and serving file data to the Dokan layer.
 /// </summary>
+/// <remarks>
+/// All XDVDFS parsing is delegated to the XISOSharp library. Path-based images
+/// use a keep-open <see cref="XisoExplorer"/> (one shared image handle for the
+/// lifetime of the mount); images embedded in another container, such as a
+/// ZArchive, are read through the <see cref="XisoReader"/> stream APIs.
+/// </remarks>
 public sealed class XisoVfsVolume : IVfsVolume
 {
-    private readonly IsoSt _isoSt;
-    private readonly Dictionary<string, FileEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<FileEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>The XDVDFS sector size in bytes; always 2048.</summary>
+    private const int SectorSize = 2048;
+
+    /// <summary>Raw XDVDFS attribute byte for a directory entry.</summary>
+    private const byte DirectoryAttribute = 0x10;
+
+    private readonly XisoExplorer? _explorer;
+    private readonly Stream? _stream;
+    private readonly string _displayName;
+    private readonly VolumeInfo _volume;
+    private readonly Lock _streamLock = new();
+    private readonly ConcurrentDictionary<string, XisoEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _disposed;
 
     /// <inheritdoc />
-    public ulong VolumeSize { get; private set; }
+    public ulong VolumeSize => (ulong)_volume.FileLength;
 
     /// <inheritdoc />
-    public DateTime VolumeCreationTime { get; private set; }
+    public DateTime VolumeCreationTime => _volume.CreationTime?.LocalDateTime ?? DateTime.MinValue;
 
     /// <inheritdoc />
     public string VolumeLabel => "XBOX_ISO";
@@ -32,63 +51,70 @@ public sealed class XisoVfsVolume : IVfsVolume
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO image.</exception>
     public XisoVfsVolume(string isoPath)
     {
-        _isoSt = new IsoSt(isoPath);
-        Initialize(isoPath);
+        _displayName = isoPath;
+
+        try
+        {
+            // KeepOpen gives the volume one shared image handle for its lifetime;
+            // ReadWrite sharing lets scanners/indexers keep the file open while mounted.
+            _explorer = new XisoExplorer(isoPath, new XisoExplorerOptions
+            {
+                KeepOpen = true,
+                Share = FileShare.ReadWrite,
+            });
+        }
+        catch (Exception ex) when ((ex is IOException and not (FileNotFoundException or DirectoryNotFoundException))
+                                   || ex is InvalidDataException)
+        {
+            Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", isoPath);
+            throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
+        }
+
+        _volume = _explorer.Volume;
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XisoVfsVolume"/> class over an already-open stream.
-    /// Used to mount an XISO image embedded inside a ZArchive.
+    /// Used to mount an XISO image embedded inside a ZArchive. The volume takes ownership of the stream.
     /// </summary>
     /// <param name="stream">A seekable, read-only stream positioned at the start of the image.</param>
     /// <param name="displayName">The display name used in log and error messages.</param>
     /// <exception cref="InvalidImageException">Thrown when the stream is not a valid Xbox ISO image.</exception>
     internal XisoVfsVolume(Stream stream, string displayName)
     {
-        _isoSt = new IsoSt(stream);
-        Initialize(displayName);
-    }
+        ArgumentNullException.ThrowIfNull(stream);
 
-    private void Initialize(string displayName)
-    {
+        _stream = stream;
+        _displayName = displayName;
+
         try
         {
-            var volumeDescriptor = VolumeDescriptor.ReadFrom(_isoSt);
-            if (!volumeDescriptor.Validate())
-            {
-                throw new InvalidImageException("XDVDFS magic string not found.");
-            }
-
-            Log.Debug(volumeDescriptor.IsRebuiltXisoFormat()
-                ? "Detected rebuilt XISO format (sector 0)"
-                : "Detected standard Xbox ISO format (sector 32)");
-
-            VolumeCreationTime = volumeDescriptor.CreationTime;
-            VolumeSize = (ulong)_isoSt.Reader.BaseStream.Length;
-
-            var rootEntry = FileEntry.CreateRootEntry(volumeDescriptor.RootDirTableSector);
-            Log.Debug("Root entry points to sector: {Sector}", rootEntry.StartSector);
-            CacheEntry("\\", rootEntry);
+            _volume = XisoReader.GetVolumeInfo(stream, displayName);
         }
         catch (Exception ex)
         {
-            _isoSt.Dispose();
-
-            // Exception is re-thrown and caught by Program.cs, which handles the UI feedback.
-            if (ex is InvalidImageException)
-            {
-                Log.Debug(ex, "Invalid Xbox ISO image");
-                throw;
-            }
-
-            Log.Error(ex, "Failed to read Xbox ISO '{ImagePath}'", displayName);
+            DisposeStream(stream);
+            Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", displayName);
             throw new InvalidImageException($"Failed to read Xbox ISO: {ex.Message}", ex);
+        }
+
+        if (!_volume.IsValid)
+        {
+            DisposeStream(stream);
+            throw new InvalidImageException("XDVDFS magic string not found.");
         }
     }
 
-    private void CacheEntry(string path, FileEntry entry)
+    private static void DisposeStream(Stream stream)
     {
-        _entryCache[path] = entry;
+        try
+        {
+            stream.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to dispose image stream");
+        }
     }
 
     /// <inheritdoc />
@@ -105,265 +131,111 @@ public sealed class XisoVfsVolume : IVfsVolume
         }
     }
 
-    private FileEntry? GetEntryInternal(string path)
+    private XisoEntry? GetEntryInternal(string path)
     {
-        var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
-
-        if (string.IsNullOrEmpty(normalizedPath))
-        {
-            normalizedPath = "\\";
-        }
-
-        if (string.Equals(normalizedPath, "\\", StringComparison.OrdinalIgnoreCase))
-        {
-            return _entryCache.GetValueOrDefault("\\");
-        }
+        var normalizedPath = NormalizePath(path);
 
         if (_entryCache.TryGetValue(normalizedPath, out var cachedEntry))
         {
             return cachedEntry;
         }
 
-        var parentPath = Path.GetDirectoryName(normalizedPath) ?? "\\";
-        var fileName = Path.GetFileName(normalizedPath);
-
-        if (GetEntry(parentPath) is not { IsDirectory: true } parentEntry)
+        if (string.Equals(normalizedPath, "\\", StringComparison.Ordinal))
         {
-            return null;
+            return CacheEntry(normalizedPath, new XisoEntry(string.Empty, isDirectory: true, size: 0,
+                _volume.RootDirSector, DirectoryAttribute, node: null));
         }
 
-        var entry = FindEntryInDirectory((FileEntry)parentEntry, fileName);
-        if (entry != null)
+        var libraryPath = XisoExplorer.Normalize(normalizedPath);
+
+        XisoEntry? entry;
+        if (_explorer is not null)
         {
-            CacheEntry(normalizedPath, entry);
+            var node = _explorer.GetNode(libraryPath);
+            entry = node is null
+                ? null
+                : new XisoEntry(node.Name, node.IsDirectory, node.Size, node.StartSector, node.Attributes, node);
+        }
+        else
+        {
+            EntryInfo? info;
+            lock (_streamLock)
+            {
+                info = XisoReader.GetEntryInfo(_stream!, _displayName, libraryPath);
+            }
+
+            entry = info is null
+                ? null
+                : new XisoEntry(info.Name, info.IsDirectory, info.FileSize, info.StartSector, info.Attributes,
+                    node: null);
         }
 
-        return entry;
+        return entry is null ? null : CacheEntry(normalizedPath, entry);
     }
 
-    private FileEntry? FindEntryInDirectory(FileEntry parentEntry, string targetName)
+    private XisoEntry CacheEntry(string normalizedPath, XisoEntry entry)
     {
-        try
-        {
-            return TraverseBinaryTree(parentEntry, entry =>
-                string.Equals(entry.FileName, targetName, StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error in FindEntryInDirectory for target '{TargetName}'", targetName);
-            return null;
-        }
+        _entryCache[normalizedPath] = entry;
+        return entry;
     }
 
     /// <inheritdoc />
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
-        Log.Debug("[GetFolderList] Starting for path: '{NormalizedPath}'", normalizedPath);
+        var normalizedPath = NormalizePath(path);
 
-        if (string.IsNullOrEmpty(normalizedPath))
-        {
-            normalizedPath = "\\";
-        }
-
-        // Check if we have the directory listing cached
         if (_childrenCache.TryGetValue(normalizedPath, out var cachedChildren))
         {
-            Log.Debug("[GetFolderList] Using cached children for '{NormalizedPath}' ({Count} entries)",
-                normalizedPath, cachedChildren.Count);
-            foreach (var entry in cachedChildren) yield return entry;
-
-            yield break;
+            return cachedChildren;
         }
-
-        // Get the directory entry itself
-        var dirEntry = string.Equals(normalizedPath, "\\", StringComparison.OrdinalIgnoreCase)
-            ? _entryCache.GetValueOrDefault("\\")
-            : GetEntry(normalizedPath) as FileEntry;
-        if (dirEntry is not { IsDirectory: true })
-        {
-            Log.Debug("[GetFolderList] Directory not found or invalid: '{NormalizedPath}'", normalizedPath);
-            yield break;
-        }
-
-        // Traverse the binary tree to get all children
-        var children = new List<FileEntry>();
-        var entries = GetAllEntriesFromBinaryTree(dirEntry);
-
-        foreach (var entry in entries)
-        {
-            if (string.IsNullOrEmpty(entry.FileName)) continue;
-
-            var childPath = Path.Combine(normalizedPath, entry.FileName);
-            CacheEntry(childPath, entry);
-            children.Add(entry);
-            yield return entry;
-        }
-
-        _childrenCache[normalizedPath] = children;
-        Log.Debug("[GetFolderList] Cached {Count} children for '{NormalizedPath}'", children.Count, normalizedPath);
-    }
-
-    private List<FileEntry> GetAllEntriesFromBinaryTree(FileEntry directoryEntry)
-    {
-        var entries = new List<FileEntry>();
-        var visited = new HashSet<(long Sector, long Offset)>(); // Track visited nodes by sector and offset
 
         try
         {
-            var firstEntry = directoryEntry.GetFirstChild(_isoSt);
-            if (firstEntry != null)
+            if (GetEntryInternal(normalizedPath) is not { IsDirectory: true })
             {
-                TraverseBinaryTreeForAll(firstEntry, entries, visited);
+                return [];
             }
+
+            var libraryPath = XisoExplorer.Normalize(normalizedPath);
+            var children = new List<IVfsEntry>();
+
+            if (_explorer is not null)
+            {
+                foreach (var node in _explorer.ListChildren(libraryPath))
+                {
+                    var child = new XisoEntry(node.Name, node.IsDirectory, node.Size, node.StartSector, node.Attributes,
+                        node);
+                    CacheEntry(CombinePath(normalizedPath, node.Name), child);
+                    children.Add(child);
+                }
+            }
+            else
+            {
+                IReadOnlyList<EntryInfo> entries;
+                lock (_streamLock)
+                {
+                    entries = XisoReader.ListDirectory(_stream!, _displayName, libraryPath);
+                }
+
+                foreach (var info in entries)
+                {
+                    var child = new XisoEntry(info.Name, info.IsDirectory, info.FileSize, info.StartSector,
+                        info.Attributes, node: null);
+                    CacheEntry(CombinePath(normalizedPath, info.Name), child);
+                    children.Add(child);
+                }
+            }
+
+            _childrenCache[normalizedPath] = children;
+            Log.Debug("[GetFolderList] Cached {Count} children for '{NormalizedPath}'", children.Count,
+                normalizedPath);
+            return children;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error traversing binary tree in GetAllEntriesFromBinaryTree");
+            Log.Error(ex, "GetFolderList failed for '{Path}'", path);
+            return [];
         }
-
-        return entries;
-    }
-
-    private void TraverseBinaryTreeForAll(FileEntry firstEntry, List<FileEntry> results,
-        HashSet<(long Sector, long Offset)> visited)
-    {
-        var stack = new Stack<FileEntry>();
-        const int maxIterations = 100000; // Safety limit to prevent infinite loops
-        var iterations = 0;
-
-        // Check if first entry is valid and not already visited
-        if (!visited.Add((firstEntry.EntrySector, firstEntry.EntryOffset)))
-        {
-            return;
-        }
-
-        stack.Push(firstEntry);
-
-        while (stack.Count > 0)
-        {
-            // Safety check for infinite loops
-            if (++iterations > maxIterations)
-            {
-                Log.Error(
-                    new InvalidOperationException("Max iterations reached in TraverseBinaryTreeForAll"),
-                    "TraverseBinaryTreeForAll: Max iterations reached, possible corrupted tree structure - too many nodes");
-                break;
-            }
-
-            var current = stack.Pop();
-
-            // Process current node
-            if (!string.IsNullOrEmpty(current.FileName))
-            {
-                results.Add(current);
-            }
-
-            // Push right child first (so left is processed first - LIFO)
-            if (current.HasRightChild)
-            {
-                var rightChild = current.GetRightChild(_isoSt);
-                if (rightChild != null && visited.Add((rightChild.EntrySector, rightChild.EntryOffset)))
-                {
-                    stack.Push(rightChild);
-                }
-            }
-
-            // Push left child
-            if (current.HasLeftChild)
-            {
-                var leftChild = current.GetLeftChild(_isoSt);
-                if (leftChild != null && visited.Add((leftChild.EntrySector, leftChild.EntryOffset)))
-                {
-                    stack.Push(leftChild);
-                }
-            }
-        }
-    }
-
-    private FileEntry? TraverseBinaryTree(FileEntry directoryEntry, Func<FileEntry, bool> predicate)
-    {
-        try
-        {
-            var firstEntry = directoryEntry.GetFirstChild(_isoSt);
-            if (firstEntry != null)
-            {
-                return SearchBinaryTree(firstEntry, predicate);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error in binary tree traversal (TraverseBinaryTree)");
-        }
-
-        return null;
-    }
-
-    private FileEntry? SearchBinaryTree(FileEntry? startNode, Func<FileEntry, bool> predicate)
-    {
-        if (startNode == null) return null;
-
-        var stack = new Stack<FileEntry>();
-        const int maxIterations = 100000; // Safety limit to prevent infinite loops
-        var iterations = 0;
-
-        // Track visited nodes to prevent infinite loops (Cycle Detection)
-        // Key is (Sector, Offset)
-        var visited = new HashSet<(long Sector, long Offset)>();
-
-        // Check if start node is valid and not already visited
-        if (!visited.Add((startNode.EntrySector, startNode.EntryOffset)))
-        {
-            return null;
-        }
-
-        stack.Push(startNode);
-
-        while (stack.Count > 0)
-        {
-            // Safety check for infinite loops
-            if (++iterations > maxIterations)
-            {
-                Log.Error(
-                    new InvalidOperationException("Max iterations reached in SearchBinaryTree"),
-                    "SearchBinaryTree: Max iterations reached, possible corrupted tree structure - too many nodes or circular reference");
-                break;
-            }
-
-            var current = stack.Pop();
-
-            // Check if this is the entry we are looking for
-            if (!string.IsNullOrEmpty(current.FileName) && predicate(current))
-            {
-                return current;
-            }
-
-            // Push children to the stack.
-            // To mimic the recursive order (Check -> Left -> Right),
-            // we push Right first, then Left, so Left is popped next.
-
-            if (current.HasRightChild)
-            {
-                var rightChild = current.GetRightChild(_isoSt);
-                // Only add if not null and not already visited
-                if (rightChild != null && visited.Add((rightChild.EntrySector, rightChild.EntryOffset)))
-                {
-                    stack.Push(rightChild);
-                }
-            }
-
-            if (current.HasLeftChild)
-            {
-                var leftChild = current.GetLeftChild(_isoSt);
-                // Only add if not null and not already visited
-                if (leftChild != null && visited.Add((leftChild.EntrySector, leftChild.EntryOffset)))
-                {
-                    stack.Push(leftChild);
-                }
-            }
-        }
-
-        return null;
     }
 
     /// <inheritdoc />
@@ -371,12 +243,32 @@ public sealed class XisoVfsVolume : IVfsVolume
     {
         try
         {
-            if (entry is not FileEntry fileEntry)
+            if (entry is not XisoEntry { IsDirectory: false } xisoEntry || offset < 0 || offset >= xisoEntry.Size ||
+                buffer.IsEmpty)
             {
                 return 0;
             }
 
-            return _isoSt.Read(fileEntry, buffer, offset);
+            var bytesToRead = (int)Math.Min(buffer.Length, xisoEntry.Size - offset);
+
+            if (_explorer is not null && xisoEntry.Node is not null)
+            {
+                using var fileStream = _explorer.OpenReadStream(xisoEntry.Node);
+                fileStream.Seek(offset, SeekOrigin.Begin);
+                return ReadFully(fileStream, buffer[..bytesToRead]);
+            }
+
+            lock (_streamLock)
+            {
+                var position = _volume.DiscLseek + ((long)xisoEntry.StartSector * SectorSize) + offset;
+                if (position >= _stream!.Length)
+                {
+                    return 0;
+                }
+
+                _stream.Seek(position, SeekOrigin.Begin);
+                return ReadFully(_stream, buffer[..bytesToRead]);
+            }
         }
         catch (Exception ex)
         {
@@ -385,18 +277,97 @@ public sealed class XisoVfsVolume : IVfsVolume
         }
     }
 
+    private static int ReadFully(Stream stream, Span<byte> buffer)
+    {
+        var totalRead = 0;
+        while (totalRead < buffer.Length)
+        {
+            var read = stream.Read(buffer[totalRead..]);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            totalRead += read;
+        }
+
+        return totalRead;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        var normalizedPath = path.Replace('/', '\\').TrimEnd('\\');
+        return string.IsNullOrEmpty(normalizedPath) ? "\\" : normalizedPath;
+    }
+
+    private static string CombinePath(string directory, string name) =>
+        string.Equals(directory, "\\", StringComparison.Ordinal) ? "\\" + name : directory + "\\" + name;
+
     /// <summary>
-    /// Closes the underlying ISO stream.
+    /// Closes the underlying image handle.
     /// </summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         try
         {
-            _isoSt.Dispose();
+            _explorer?.Dispose();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "XisoVfsVolume.Dispose failed");
         }
+
+        if (_stream is not null)
+        {
+            DisposeStream(_stream);
+        }
+    }
+
+    /// <summary>
+    /// A file or directory entry backed by an XISOSharp
+    /// <see cref="ExplorerNode"/> (path-based images) or <see cref="EntryInfo"/> (stream-based images).
+    /// </summary>
+    private sealed class XisoEntry(
+        string fileName,
+        bool isDirectory,
+        long size,
+        uint startSector,
+        byte rawAttributes,
+        ExplorerNode? node) : IVfsEntry
+    {
+        /// <summary>
+        /// Gets the explorer node used to open the entry's data stream, or
+        /// <see langword="null"/> for stream-based volumes and the synthetic root.
+        /// </summary>
+        public ExplorerNode? Node { get; } = node;
+
+        /// <summary>
+        /// Gets the partition-relative sector where the entry's data begins.
+        /// </summary>
+        public uint StartSector { get; } = startSector;
+
+        /// <summary>
+        /// Gets the raw XDVDFS attribute byte of the entry.
+        /// </summary>
+        private byte RawAttributes { get; } = rawAttributes;
+
+        /// <inheritdoc />
+        public string FileName { get; } = fileName;
+
+        /// <inheritdoc />
+        public bool IsDirectory { get; } = isDirectory;
+
+        /// <inheritdoc />
+        public long Size { get; } = size;
+
+        /// <inheritdoc />
+        public FileAttributes GetWindowsAttributes() => XisoAttributes.ToWindowsFileAttributes(RawAttributes);
     }
 }

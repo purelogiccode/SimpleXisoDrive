@@ -19,10 +19,8 @@ flowchart TD
         DokanOps["XboxIsoVfsDokan<br/>IDokanOperations"]
         Vfs["VfsContainer<br/>facade and volume selection"]
         Volumes["XisoVfsVolume / ZarVfsVolume<br/>path resolution and caching"]
-        IsoSt["IsoSt<br/>thread-safe stream access"]
+        Xiso["XisoExplorer / XisoReader<br/>XISOSharp image access"]
         Zar["ZArchiveReader<br/>zstd block cache"]
-        Vd["VolumeDescriptor<br/>format validation and offsets"]
-        Fe["FileEntry<br/>directory tree nodes"]
         Services["Services<br/>logging, bug reports, stats, updates"]
     end
 
@@ -37,11 +35,9 @@ flowchart TD
     Dokan --> DokanOps
     DokanOps --> Vfs
     Vfs --> Volumes
-    Volumes --> IsoSt
+    Volumes --> Xiso
     Volumes --> Zar
-    Volumes --> Fe
-    Volumes --> Vd
-    IsoSt --> Image
+    Xiso --> Image
     Zar --> Image
     Program --> Vfs
     Program --> Services
@@ -58,16 +54,14 @@ flowchart TD
 | `Program` | `internal static class` | Entry point, CLI parsing, path resolution, mount lifecycle, console UX, global exception handlers. |
 | `VfsContainer` | `public class` | Facade over the selected volume: opens the image through `VfsVolumeFactory` and forwards entry lookups, directory listings, reads, and metadata. Implements `IDisposable`. |
 | `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume` and `ZarVfsVolume`. |
-| `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by `FileEntry` (XDVDFS) and the ZArchive entry type. |
+| `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS) and the ZArchive entry type. |
 | `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, everything else as an Xbox ISO. Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. |
-| `XisoVfsVolume` | `public sealed class` | Opens an Xbox ISO/XISO (path or stream), reads and validates the volume descriptor, resolves paths to `FileEntry` objects, caches directory listings, serves file reads. |
+| `XisoVfsVolume` | `public sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images use a keep-open `XisoExplorer`; embedded images use `XisoReader` stream APIs. |
 | `ZarVfsVolume` | `public sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
-| `ZarNodeStream` | `internal sealed class` | Seekable stream over one file inside a ZArchive, used to mount an embedded XISO image with the regular XDVDFS reader. |
+| `ReaderOwningVfsVolume` | `internal sealed class` | Decorates an embedded-XISO volume so the ZArchive reader that backs `ZArchiveReader.OpenRead` is disposed with the volume. |
 | `XboxIsoVfsDokan` | `public class` | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
-| `IsoSt` | `public class` | Owns the `FileStream` and `BinaryReader` over the ISO, serializes all stream access with a lock, applies the volume offset, and reads raw sectors and directory entries. Implements `IDisposable`. |
-| `VolumeDescriptor` | `public sealed class` | Reads and validates the XDVDFS volume descriptor from all known locations, detects the image variant, and stores the root directory table sector and creation time. |
-| `FileEntry` | `public class` | Represents one node in the XDVDFS directory binary tree: child pointers, data location and size, attributes, name, and on-disk entry size. Implements `IVfsEntry`. |
-| `XisoFsFileAttributes` | `public enum` | XDVDFS attribute flags (`ReadOnly`, `Hidden`, `System`, `Directory`, `Archive`, `Normal`). |
+| `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
+| `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
 | `SerilogDokanLogger` | `public sealed class` | Routes DokanNet's internal log messages into Serilog. |
 | `InvalidImageException` | `public class` | Signals that a file is not a readable Xbox ISO/XISO image or ZArchive. |
 
@@ -121,7 +115,7 @@ sequenceDiagram
     V->>F: Open(imagePath)
     alt .iso / .xiso (or extensionless ISO)
         F->>X: new XisoVfsVolume(path)
-        X->>X: IsoSt + VolumeDescriptor validation
+        X->>X: XisoExplorer keep-open + volume probe
     else .zar (or renamed archive)
         F->>Z: new ZarVfsVolume(reader)
         Z->>Z: open ZArchiveReader and tree
@@ -142,7 +136,7 @@ Key points:
 
 - `VfsContainer` construction performs all format validation **before** Dokan is involved, so an
   invalid image fails fast with `InvalidImageException`. A `.zar` archive that embeds a single XISO
-  image mounts through `XisoVfsVolume` over a `ZarNodeStream`; a directory-tree archive mounts
+  image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead`; a directory-tree archive mounts
   through `ZarVfsVolume`.
 - Dokan options depend on privileges and flags:
   - always `WriteProtection | CurrentSession`;
@@ -163,11 +157,12 @@ A typical file read in Explorer becomes:
    if the context is missing), checks that it is not a directory, and clamps the request to the file
    size.
 4. `VfsContainer.ReadFile` forwards the request to the active `IVfsVolume`.
-5. `XisoVfsVolume` passes the read to `IsoSt.Read`, which computes the absolute byte offset
-   `VolumeOffset + StartSector * 2048 + offset`, seeks, and reads into the caller's span while
-   holding the stream lock. `ZarVfsVolume` calls `ZArchiveReader.ReadFromFile`, which resolves the
-   covering 64 KiB block(s), decompresses them through a 4 MiB LRU cache, and copies the requested
-   range.
+5. `XisoVfsVolume` serves the read through XISOSharp. Path-based volumes open a bounded stream with
+   `XisoExplorer.OpenReadStream` (CISO-aware, serialized by the explorer's internal lock); embedded
+   stream volumes compute the absolute byte offset `DiscLseek + StartSector * 2048 + offset` and
+   read directly under the volume's stream lock. `ZarVfsVolume` calls `ZArchiveReader.ReadFromFile`,
+   which resolves the covering 64 KiB block(s), decompresses them through a 4 MiB LRU cache, and
+   copies the requested range.
 6. The number of bytes read is returned to Dokan, which hands the buffer to the kernel.
 
 Reads are streamed directly from the image; only the ZAR block cache (64 blocks, 4 MiB) keeps
@@ -181,25 +176,23 @@ The active volume implementation maintains two per-instance caches:
 
 | Cache | Key | Value |
 | --- | --- | --- |
-| Entry cache | Normalized virtual path (`\Games\Halo\default.xbe`) | Entry (`FileEntry` for XISO, ZArchive node for ZAR) |
+| Entry cache | Normalized virtual path (`\Games\Halo\default.xbe`) | Entry (XISO entry for XISO images, ZArchive node for ZAR) |
 | Children cache | Normalized directory path | List of entries |
 
-For XISO images, directory listings are produced by traversing the XDVDFS binary tree iteratively
-with an explicit stack. To survive corrupted images:
-
-- every visited node is tracked by `(EntrySector, EntryOffset)`;
-- a hard iteration limit of 100,000 nodes applies to each traversal;
-- exceeding the limit is logged as an error and the traversal stops.
+For XISO images, directory listings come from XISOSharp's hardened TOC walk: the visited offset set
+prevents cycles, each directory table is capped at a fixed number of entries, and separator-bearing
+file names abort the walk. The volume itself caches entries and child lists in concurrent
+dictionaries, so repeated lookups and re-listings are served without touching the image.
 
 For ZArchive trees, children come from the flat file tree in the archive. The volume caps each
 directory at 100,000 enumerated entries (the underlying reader validates node counts against the
-table), resolves child node handles through case-insensitive path lookup, and caches entries as they
-are discovered.
+table), takes child node handles directly from `TryGetDirEntry` (the library clamps crafted counts),
+and caches entries as they are discovered.
 
-`IsoSt` serializes all stream operations on a single lock object, so concurrent Dokan requests cannot
-interleave seeks. `ZArchiveReader` is internally thread-safe (single lock plus a 4 MiB LRU block
-cache); the ZAR volume's caches are concurrent dictionaries. The XISO volume's caches are plain
-dictionaries populated during traversal.
+`XisoExplorer` in keep-open mode serializes its operations on an internal lock, so concurrent Dokan
+requests cannot interleave seeks; the stream-backed XISO volume guards its held stream with its own
+lock. `ZArchiveReader` is internally thread-safe (single lock plus a 4 MiB LRU block cache); both
+volume caches are concurrent dictionaries.
 
 ---
 
@@ -209,7 +202,7 @@ The application uses a layered approach:
 
 | Layer | Strategy |
 | --- | --- |
-| `IsoSt` | Never throws from public read paths; logs and returns `0`/`null`. |
+| XISOSharp (`XisoExplorer` / `XisoReader`) | Signals invalid images with `XisoFormatException`/`InvalidDataException`; the volume translates them. |
 | `XisoVfsVolume` / `ZarVfsVolume` | Catch failures per operation, log, return `null`/empty. Construction failures are wrapped in `InvalidImageException`. |
 | `XboxIsoVfsDokan` | Every public operation is wrapped by `ExecuteWithReporting`, which logs the failing operation and returns `DokanResult.Error` instead of propagating. |
 | `Program` | Converts known exceptions (`InvalidImageException`, `DokanException`, `DllNotFoundException`) into user-facing guidance and returns exit code `1`. |
@@ -224,9 +217,9 @@ persisted to `error.log` and, if configured, forwarded to the developer API. See
 ## Threading model
 
 - Dokan invokes callbacks on thread pool threads; multiple operations can be in flight at once.
-- All access to the shared `FileStream`/`BinaryReader` is guarded by `IsoSt.LockObject`, making
-  sector reads and directory-entry reads atomic with respect to each other. ZArchive reads are
-  serialized inside `ZArchiveReader` with its own lock.
+- All access to the shared image handle is guarded: a keep-open `XisoExplorer` serializes its
+  operations on an internal lock, and the stream-backed XISO volume locks its held stream. ZArchive
+  reads are serialized inside `ZArchiveReader` with its own lock.
 - The mount initialization itself runs on the main async flow; the process then waits on a
   `TaskCompletionSource` registered with the cancellation token.
 - `Ctrl+C` is handled by cancelling the token; the cancellation is cooperative and triggers a clean
@@ -250,7 +243,6 @@ CSharp_SimpleXisoDrive/
 |   |-- SerilogDokanLogger.cs
 |   |-- InvalidImageException.cs
 |   |-- AssemblyInfo.cs                # InternalsVisibleTo for the test project
-|   |-- Models/XisoFsFileAttributes.cs
 |   |-- Services/
 |   |   |-- LoggingSetup.cs
 |   |   |-- BugReport.cs
@@ -264,21 +256,14 @@ CSharp_SimpleXisoDrive/
 |   |   |-- VfsVolumeFactory.cs        # format detection (.iso/.xiso/.zar)
 |   |   |-- XisoVfsVolume.cs           # XDVDFS image volume
 |   |   |-- ZarVfsVolume.cs            # ZArchive tree volume
-|   |   `-- ZarNodeStream.cs           # stream over an embedded ZAR file
-|   |-- XDVDFs/
-|   |   |-- IsoSt.cs
-|   |   |-- VolumeDescriptor.cs
-|   |   `-- FileEntry.cs
+|   |   `-- ReaderOwningVfsVolume.cs   # closes the reader with an embedded-ISO mount
 |   `-- icon/xiso.ico, icon/xiso.png
 `-- SimpleXisoDrive.Tests/            # xUnit test project
-    |-- FileEntryTests.cs
     |-- InvalidImageExceptionTests.cs
-    |-- IsoStTests.cs
     |-- ResolveImagePathTests.cs
     |-- TestImageFactory.cs
     |-- VfsContainerTests.cs
-    |-- VolumeDescriptorTests.cs
-    |-- XisoFsFileAttributesTests.cs
+    |-- XisoVfsVolumeTests.cs
     `-- ZarVfsVolumeTests.cs
 ```
 
@@ -292,8 +277,8 @@ CSharp_SimpleXisoDrive/
 | `Serilog` | 4.4.0 | Structured logging core. |
 | `Serilog.Sinks.Console` | 6.1.1 | Console log output. |
 | `Serilog.Sinks.File` | 7.0.0 | Rolling file log output. |
-| `XISOSharp` | 1.0.2 | Referenced package (XISO tooling). |
-| `ZArchiveSharp` | 1.2.2 | Pure-C# ZArchive reader/writer used to mount `.zar` volumes. |
+| `XISOSharp` | 1.2.0 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
+| `ZArchiveSharp` | 1.3.0 | Pure-C# ZArchive reader/writer; the mount-friendly 1.3.0 reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
 | `Meziantou.Analyzer` | 3.0.257 | Build-time code analyzers. |
 | `Roslynator.Analyzers` | 5.0.0 | Build-time code analyzers. |
 
@@ -308,7 +293,10 @@ Test project: `Microsoft.NET.Test.Sdk` 18.10.0, `xunit` 2.9.3, `xunit.runner.vis
   would modify state return `DokanResult.AccessDenied` directly.
 - **Validate before mounting.** Format detection and validation happen in `VfsVolumeFactory` and the
   volume constructors, so the user gets a clear error before a drive letter is consumed.
-- **Fail-safe traversal.** Cycle detection and iteration limits protect against malformed or
+- **Parsing delegated to XISOSharp.** The application no longer reads XDVDFS bytes itself; volume
+  probing, TOC walking, and attribute mapping come from the library, so fixes and hardening apply to
+  every consumer at once.
+- **Fail-safe traversal.** Cycle detection and per-table entry limits protect against malformed or
   malicious images rather than trusting the tree structure.
 - **Stream, do not load.** File content is read on demand and never cached; ZAR blocks are
   decompressed individually through a small bounded cache, keeping memory usage independent of
