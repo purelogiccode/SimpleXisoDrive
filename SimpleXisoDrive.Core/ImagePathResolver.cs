@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace SimpleXisoDrive;
+namespace SimpleXisoDrive.Core;
 
 /// <summary>
 /// Resolves user-supplied image paths to actual image files, handling directories,

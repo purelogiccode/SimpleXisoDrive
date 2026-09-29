@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Decorates an <see cref="IVfsVolume"/> so that disposing it also disposes the
@@ -26,13 +26,22 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
     public string FileSystemName => _inner.FileSystemName;
 
     /// <inheritdoc />
-    public IVfsEntry? GetEntry(string path) => _inner.GetEntry(path);
+    public IVfsEntry? GetEntry(string path)
+    {
+        return _inner.GetEntry(path);
+    }
 
     /// <inheritdoc />
-    public IEnumerable<IVfsEntry> GetFolderList(string path) => _inner.GetFolderList(path);
+    public IEnumerable<IVfsEntry> GetFolderList(string path)
+    {
+        return _inner.GetFolderList(path);
+    }
 
     /// <inheritdoc />
-    public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset) => _inner.ReadFile(entry, buffer, offset);
+    public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
+    {
+        return _inner.ReadFile(entry, buffer, offset);
+    }
 
     /// <inheritdoc />
     public void Dispose()

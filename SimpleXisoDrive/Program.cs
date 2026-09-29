@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using DokanNet;
 using Serilog;
+using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Services;
 using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive;

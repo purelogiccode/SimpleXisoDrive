@@ -1,6 +1,6 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core.Vfs;
 
-namespace SimpleXisoDrive;
+namespace SimpleXisoDrive.Core;
 
 /// <summary>
 /// Provides a read-only virtual file system view over an Xbox image, resolving paths
@@ -57,14 +57,20 @@ public class VfsContainer : IDisposable
     /// </summary>
     /// <param name="path">The virtual path to look up.</param>
     /// <returns>The matching entry, or <see langword="null"/> if no entry exists at the path.</returns>
-    public IVfsEntry? GetEntry(string path) => _volume.GetEntry(path);
+    public IVfsEntry? GetEntry(string path)
+    {
+        return _volume.GetEntry(path);
+    }
 
     /// <summary>
     /// Enumerates the child entries of the directory at the specified virtual path.
     /// </summary>
     /// <param name="path">The virtual directory path to list.</param>
     /// <returns>The entries contained in the directory; empty if the path is not a valid directory.</returns>
-    public IEnumerable<IVfsEntry> GetFolderList(string path) => _volume.GetFolderList(path);
+    public IEnumerable<IVfsEntry> GetFolderList(string path)
+    {
+        return _volume.GetFolderList(path);
+    }
 
     /// <summary>
     /// Reads file data for the specified entry into the buffer.
@@ -73,7 +79,10 @@ public class VfsContainer : IDisposable
     /// <param name="buffer">The buffer that receives the data.</param>
     /// <param name="offset">The byte offset within the file at which to start reading.</param>
     /// <returns>The number of bytes read, or zero if the read fails.</returns>
-    public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset) => _volume.ReadFile(entry, buffer, offset);
+    public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
+    {
+        return _volume.ReadFile(entry, buffer, offset);
+    }
 
     /// <summary>
     /// Closes the underlying image or archive stream.

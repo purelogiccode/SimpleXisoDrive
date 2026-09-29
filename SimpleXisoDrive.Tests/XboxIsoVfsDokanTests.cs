@@ -1,5 +1,6 @@
 using System.Security.AccessControl;
 using DokanNet;
+using SimpleXisoDrive.Core;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive.Tests;
@@ -30,8 +31,10 @@ public class XboxIsoVfsDokanTests : IDisposable
         File.Delete(_imagePath);
     }
 
-    private static bool HasName(FileInformation file, string name) =>
-        string.Equals(file.FileName, name, StringComparison.Ordinal);
+    private static bool HasName(FileInformation file, string name)
+    {
+        return string.Equals(file.FileName, name, StringComparison.Ordinal);
+    }
 
     [Fact]
     public void GetVolumeInformation_ReportsXisoVolume()

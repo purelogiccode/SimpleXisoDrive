@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Serilog;
 using ZArchiveSharp;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Provides a read-only virtual file system view over the directory tree stored in a

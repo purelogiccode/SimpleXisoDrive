@@ -1,7 +1,8 @@
 ﻿using System.Security.AccessControl;
 using DokanNet;
 using Serilog;
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Vfs;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive;

@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive;
+namespace SimpleXisoDrive.Core;
 
 /// <summary>
 /// Provides a single shared console key press for interactive waits. The

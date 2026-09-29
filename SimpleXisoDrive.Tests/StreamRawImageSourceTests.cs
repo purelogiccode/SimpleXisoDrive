@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
@@ -90,12 +90,24 @@ public class StreamRawImageSourceTests
         {
         }
 
-        public override int Read(byte[] buffer, int offset, int count) => 0;
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return 0;
+        }
 
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
 
-        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
 
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

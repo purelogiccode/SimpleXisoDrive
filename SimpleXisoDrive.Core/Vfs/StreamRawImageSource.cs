@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Serves raw image bytes from a seekable, read-only stream: a plain ISO/XISO

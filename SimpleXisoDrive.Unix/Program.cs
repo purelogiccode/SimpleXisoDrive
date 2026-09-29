@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using Serilog;
+using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Services;
 using SimpleXisoDrive.Fuse;
-using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive;
 
@@ -239,7 +240,8 @@ internal static class Program
         Console.WriteLine("Usage: SimpleXisoDrive <image-file> [mount-path] [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
-        Console.WriteLine("  <image-file>    Path to the Xbox image (.iso, .xiso, .cso) or ZArchive (.zar) file to mount.");
+        Console.WriteLine(
+            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso) or ZArchive (.zar) file to mount.");
         Console.WriteLine("  <mount-path>    Existing empty directory to mount on. When omitted, a temporary");
         Console.WriteLine("                  directory is created and printed after mounting.");
         Console.WriteLine("");

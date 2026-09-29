@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Decorates an <see cref="IVfsVolume"/> so that the mount also exposes the raw
@@ -79,11 +79,15 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
             : _inner.ReadFile(entry, buffer, offset);
     }
 
-    private static bool IsImageIsoPath(string path) =>
-        string.Equals(NormalizePath(path), ImageIsoPath, StringComparison.OrdinalIgnoreCase);
+    private static bool IsImageIsoPath(string path)
+    {
+        return string.Equals(NormalizePath(path), ImageIsoPath, StringComparison.OrdinalIgnoreCase);
+    }
 
-    private static bool IsRoot(string path) =>
-        string.Equals(NormalizePath(path), "\\", StringComparison.Ordinal);
+    private static bool IsRoot(string path)
+    {
+        return string.Equals(NormalizePath(path), "\\", StringComparison.Ordinal);
+    }
 
     private static string NormalizePath(string path)
     {
@@ -137,6 +141,9 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
         public long Size { get; } = size;
 
         /// <inheritdoc />
-        public FileAttributes GetWindowsAttributes() => FileAttributes.ReadOnly | FileAttributes.Normal;
+        public FileAttributes GetWindowsAttributes()
+        {
+            return FileAttributes.ReadOnly | FileAttributes.Normal;
+        }
     }
 }

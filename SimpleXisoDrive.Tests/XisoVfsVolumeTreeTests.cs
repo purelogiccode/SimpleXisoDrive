@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
@@ -36,8 +36,10 @@ public class XisoVfsVolumeTreeTests
         return path;
     }
 
-    private static bool HasName(IVfsEntry entry, string name) =>
-        string.Equals(entry.FileName, name, StringComparison.Ordinal);
+    private static bool HasName(IVfsEntry entry, string name)
+    {
+        return string.Equals(entry.FileName, name, StringComparison.Ordinal);
+    }
 
     [Fact]
     public void PathVolume_ListsRootEntries()

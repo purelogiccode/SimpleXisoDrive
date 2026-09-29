@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Serilog;
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Fuse;
 
@@ -269,7 +270,7 @@ internal sealed class FuseFileSystem
             var entry = _vfs.GetEntry(ToVfsPath(path));
             if (entry is null)
             {
-                return -PosixError.ENOENT;
+                return -PosixError.Enoent;
             }
 
             if (_isMacOs)
@@ -286,13 +287,13 @@ internal sealed class FuseFileSystem
         catch (Exception ex)
         {
             Log.Error(ex, "FUSE getattr failed for '{Path}'", SafePath(path));
-            return -PosixError.EIO;
+            return -PosixError.Eio;
         }
     }
 
-    private int SetAttrMac(IntPtr path, IntPtr darwinAttr, int toSet, IntPtr fileInfo)
+    private static int SetAttrMac(IntPtr path, IntPtr darwinAttr, int toSet, IntPtr fileInfo)
     {
-        return -PosixError.EROFS;
+        return -PosixError.Erofs;
     }
 
     private int Open(IntPtr path, IntPtr fileInfo)
@@ -302,22 +303,22 @@ internal sealed class FuseFileSystem
             var entry = _vfs.GetEntry(ToVfsPath(path));
             if (entry is null)
             {
-                return -PosixError.ENOENT;
+                return -PosixError.Enoent;
             }
 
             if (entry.IsDirectory)
             {
-                return -PosixError.EISDIR;
+                return -PosixError.Eisdir;
             }
 
             // O_ACCMODE: 0 = O_RDONLY. Everything else is rejected.
             var flags = Marshal.ReadInt32(fileInfo);
-            return (flags & 3) != 0 ? -PosixError.EACCES : 0;
+            return (flags & 3) != 0 ? -PosixError.Eacces : 0;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "FUSE open failed for '{Path}'", SafePath(path));
-            return -PosixError.EIO;
+            return -PosixError.Eio;
         }
     }
 
@@ -328,17 +329,17 @@ internal sealed class FuseFileSystem
             var entry = _vfs.GetEntry(ToVfsPath(path));
             if (entry is null)
             {
-                return -PosixError.ENOENT;
+                return -PosixError.Enoent;
             }
 
             if (entry.IsDirectory)
             {
-                return -PosixError.EISDIR;
+                return -PosixError.Eisdir;
             }
 
             if (offset < 0)
             {
-                return -PosixError.EINVAL;
+                return -PosixError.Einval;
             }
 
             if (offset >= entry.Size)
@@ -361,7 +362,7 @@ internal sealed class FuseFileSystem
         catch (Exception ex)
         {
             Log.Error(ex, "FUSE read failed for '{Path}' at offset {Offset}", SafePath(path), offset);
-            return -PosixError.EIO;
+            return -PosixError.Eio;
         }
     }
 
@@ -386,7 +387,7 @@ internal sealed class FuseFileSystem
         catch (Exception ex)
         {
             Log.Error(ex, "FUSE statfs failed for '{Path}'", SafePath(path));
-            return -PosixError.EIO;
+            return -PosixError.Eio;
         }
     }
 
@@ -397,7 +398,7 @@ internal sealed class FuseFileSystem
             var names = GetDirectoryNames(path);
             if (names is null)
             {
-                return -PosixError.ENOENT;
+                return -PosixError.Enoent;
             }
 
             var fill = Marshal.GetDelegateForFunctionPointer<FillDirDelegate>(filler);
@@ -406,7 +407,7 @@ internal sealed class FuseFileSystem
         catch (Exception ex)
         {
             Log.Error(ex, "FUSE readdir failed for '{Path}'", SafePath(path));
-            return -PosixError.EIO;
+            return -PosixError.Eio;
         }
     }
 

@@ -1,3 +1,5 @@
+using SimpleXisoDrive.Core;
+
 namespace SimpleXisoDrive.Tests;
 
 public class InvalidImageExceptionTests

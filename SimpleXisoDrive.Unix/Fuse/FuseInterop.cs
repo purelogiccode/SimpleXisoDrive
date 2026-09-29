@@ -300,10 +300,10 @@ internal delegate IntPtr InitDelegate(IntPtr connectionInfo, IntPtr fuseConfig);
 /// </summary>
 internal static class PosixError
 {
-    public const int ENOENT = 2;
-    public const int EIO = 5;
-    public const int EACCES = 13;
-    public const int EISDIR = 21;
-    public const int EINVAL = 22;
-    public const int EROFS = 30;
+    public const int Enoent = 2;
+    public const int Eio = 5;
+    public const int Eacces = 13;
+    public const int Eisdir = 21;
+    public const int Einval = 22;
+    public const int Erofs = 30;
 }

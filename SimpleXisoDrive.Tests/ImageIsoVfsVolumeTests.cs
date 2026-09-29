@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
@@ -23,7 +23,10 @@ public class ImageIsoVfsVolumeTests
             return count;
         }
 
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            Disposed = true;
+        }
     }
 
     private static string CreateImageFile(byte[]? image = null, string fileName = "default.xbe")

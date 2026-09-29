@@ -20,8 +20,10 @@ internal static class TestImageFactory
     /// <param name="fileData">The file contents; defaults to a small ASCII payload.</param>
     /// <param name="fileName">The file name stored in the directory entry.</param>
     /// <returns>The raw image bytes.</returns>
-    public static byte[] CreateMinimalXdvdfsImage(byte[]? fileData = null, string fileName = "default.xbe") =>
-        CreateXdvdfsImage([new TestImageEntry(fileName, fileData ?? "hello xbox"u8.ToArray())], headerSector: 0);
+    public static byte[] CreateMinimalXdvdfsImage(byte[]? fileData = null, string fileName = "default.xbe")
+    {
+        return CreateXdvdfsImage([new TestImageEntry(fileName, fileData ?? "hello xbox"u8.ToArray())], headerSector: 0);
+    }
 
     /// <summary>
     /// Creates a minimal standard Xbox ISO image (volume descriptor at sector 32) whose
@@ -30,8 +32,11 @@ internal static class TestImageFactory
     /// <param name="fileData">The file contents; defaults to a small ASCII payload.</param>
     /// <param name="fileName">The file name stored in the directory entry.</param>
     /// <returns>The raw image bytes.</returns>
-    public static byte[] CreateStandardXdvdfsImage(byte[]? fileData = null, string fileName = "default.xbe") =>
-        CreateXdvdfsImage([new TestImageEntry(fileName, fileData ?? "hello xbox"u8.ToArray())], headerSector: 32);
+    public static byte[] CreateStandardXdvdfsImage(byte[]? fileData = null, string fileName = "default.xbe")
+    {
+        return CreateXdvdfsImage([new TestImageEntry(fileName, fileData ?? "hello xbox"u8.ToArray())],
+            headerSector: 32);
+    }
 
     /// <summary>
     /// Creates an XDVDFS image containing the specified files and directories.

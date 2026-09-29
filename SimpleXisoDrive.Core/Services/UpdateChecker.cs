@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Serilog;
 
-namespace SimpleXisoDrive.Services;
+namespace SimpleXisoDrive.Core.Services;
 
 /// <summary>
 /// Checks the GitHub releases API for a newer version of the application and

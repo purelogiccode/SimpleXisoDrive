@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using SimpleXisoDrive.Services;
+using SimpleXisoDrive.Core.Services;
 
 namespace SimpleXisoDrive.Tests;
 

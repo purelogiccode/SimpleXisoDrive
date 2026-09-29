@@ -2,7 +2,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
-namespace SimpleXisoDrive.Services;
+namespace SimpleXisoDrive.Core.Services;
 
 /// <summary>
 /// Configures the global Serilog logger with console, rolling file and bug report sinks.

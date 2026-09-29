@@ -3,7 +3,7 @@ using Serilog;
 using XISOSharp;
 using XISOSharp.Models;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Provides a read-only virtual file system view over an Xbox ISO/XISO image,
@@ -302,8 +302,10 @@ public sealed class XisoVfsVolume : IVfsVolume
         return string.IsNullOrEmpty(normalizedPath) ? "\\" : normalizedPath;
     }
 
-    private static string CombinePath(string directory, string name) =>
-        string.Equals(directory, "\\", StringComparison.Ordinal) ? "\\" + name : directory + "\\" + name;
+    private static string CombinePath(string directory, string name)
+    {
+        return string.Equals(directory, "\\", StringComparison.Ordinal) ? "\\" + name : directory + "\\" + name;
+    }
 
     /// <summary>
     /// Closes the underlying image handle.
@@ -370,6 +372,9 @@ public sealed class XisoVfsVolume : IVfsVolume
         public long Size { get; } = size;
 
         /// <inheritdoc />
-        public FileAttributes GetWindowsAttributes() => XisoAttributes.ToWindowsFileAttributes(RawAttributes);
+        public FileAttributes GetWindowsAttributes()
+        {
+            return XisoAttributes.ToWindowsFileAttributes(RawAttributes);
+        }
     }
 }

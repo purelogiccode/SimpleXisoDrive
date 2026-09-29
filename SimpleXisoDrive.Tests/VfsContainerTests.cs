@@ -1,3 +1,4 @@
+using SimpleXisoDrive.Core;
 using XISOSharp;
 using ZArchiveSharp;
 

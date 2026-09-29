@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Serilog;
 
-namespace SimpleXisoDrive.Services;
+namespace SimpleXisoDrive.Core.Services;
 
 /// <summary>
 /// Supplies the API key used by the bug report and statistics services. The key is
@@ -59,7 +59,10 @@ internal static class ApiKeyProvider
     /// Decrypts the key eagerly so it is ready before the first report is built.
     /// Called during application startup; never throws.
     /// </summary>
-    public static void Preload() => _ = ApiKey;
+    public static void Preload()
+    {
+        _ = ApiKey;
+    }
 
     private static string Decrypt()
     {

@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// A read-only volume that resolves paths to entries and serves file data to the Dokan layer.

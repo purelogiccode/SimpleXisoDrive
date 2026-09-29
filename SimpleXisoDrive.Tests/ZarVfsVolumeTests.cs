@@ -1,4 +1,5 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Vfs;
 using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Tests;

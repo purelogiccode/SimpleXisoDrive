@@ -2,7 +2,7 @@ using Serilog;
 using XISOSharp;
 using ZArchiveSharp;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Opens the correct <see cref="IVfsVolume"/> implementation for an image file.
@@ -119,8 +119,10 @@ internal static class VfsVolumeFactory
     /// Opens the raw image bytes for a path-based image: CISO inputs are decompressed
     /// on demand through the block device, plain ISO/XISO files are read directly.
     /// </summary>
-    private static IRawImageSource OpenPathRawImageSource(string imagePath) =>
-        new StreamRawImageSource(XisoReader.OpenImageStream(imagePath, FileShare.ReadWrite));
+    private static IRawImageSource OpenPathRawImageSource(string imagePath)
+    {
+        return new StreamRawImageSource(XisoReader.OpenImageStream(imagePath, FileShare.ReadWrite));
+    }
 
     /// <summary>
     /// Detects the single-embedded-XISO layout (used for lossless Redump rebuilds):

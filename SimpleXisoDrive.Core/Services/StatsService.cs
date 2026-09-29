@@ -5,7 +5,7 @@ using System.Security.Authentication;
 using System.Text.Json.Serialization;
 using Serilog;
 
-namespace SimpleXisoDrive.Services;
+namespace SimpleXisoDrive.Core.Services;
 
 /// <summary>
 /// Service for reporting application launch statistics to the central stats API.

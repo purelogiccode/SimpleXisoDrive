@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
-namespace SimpleXisoDrive.Services;
+namespace SimpleXisoDrive.Core.Services;
 
 /// <summary>
 /// Builds bug reports from exceptions and log events, writes them to the local

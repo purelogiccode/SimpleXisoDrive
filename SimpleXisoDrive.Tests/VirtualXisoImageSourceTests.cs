@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Vfs;
+using SimpleXisoDrive.Core.Vfs;
 using XISOSharp;
 using ZArchiveSharp;
 

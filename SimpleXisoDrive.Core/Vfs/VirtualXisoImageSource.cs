@@ -6,7 +6,7 @@ using XISOSharp.DataStructures;
 using XISOSharp.Models;
 using ZArchiveSharp;
 
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Serves a virtual XISO image for a ZArchive directory tree. A ZArchive stores a

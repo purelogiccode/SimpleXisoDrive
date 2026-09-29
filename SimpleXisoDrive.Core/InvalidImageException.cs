@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive;
+namespace SimpleXisoDrive.Core;
 
 /// <summary>
 /// Represents an error that occurs when a file is not a valid Xbox ISO image

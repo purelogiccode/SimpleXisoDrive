@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive.Vfs;
+namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Represents a single file or directory entry exposed by an <see cref="IVfsVolume"/>.
