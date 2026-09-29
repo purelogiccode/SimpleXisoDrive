@@ -341,7 +341,7 @@ public class XisoVfsVolumeTreeTests
     public async Task StreamVolume_ParallelReads_ReturnCorrectData()
     {
         var image = TestImageFactory.CreateXdvdfsImage(SampleEntries);
-        using var stream = new MemoryStream(image);
+        await using var stream = new MemoryStream(image);
         using var volume = new XisoVfsVolume(stream, "embedded.iso");
 
         var entry = volume.GetEntry("\\big.bin");

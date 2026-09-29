@@ -53,12 +53,7 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     public IVfsEntry? GetEntry(string path)
     {
         var existing = _inner.GetEntry(path);
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        return IsImageIsoPath(path) ? _entry : null;
+        return existing ?? (IsImageIsoPath(path) ? _entry : null);
     }
 
     /// <inheritdoc />

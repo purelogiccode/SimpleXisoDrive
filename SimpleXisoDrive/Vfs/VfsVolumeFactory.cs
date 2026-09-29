@@ -68,11 +68,6 @@ internal static class VfsVolumeFactory
         }
     }
 
-    private static IVfsVolume OpenZar(string archivePath, bool exposeImageIso)
-    {
-        return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(archivePath), archivePath, exposeImageIso);
-    }
-
     /// <summary>
     /// Opens an archive that is already being read. Ownership of <paramref name="reader"/>
     /// transfers to the returned volume (or to the probe on the way there).

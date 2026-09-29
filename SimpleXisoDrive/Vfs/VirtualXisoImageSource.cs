@@ -133,7 +133,8 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
                     }
                     else if (extent.ZarNode != ZArchiveReader.InvalidNode)
                     {
-                        var read = (int)_reader.ReadFromFile(extent.ZarNode, (ulong)delta, buffer.Slice(totalRead, length));
+                        var read = (int)_reader.ReadFromFile(extent.ZarNode, (ulong)delta,
+                            buffer.Slice(totalRead, length));
                         if (read < length)
                         {
                             // A block failure yields a short read; zero-fill the rest so the
@@ -242,6 +243,7 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
     /// Walks the ZArchive tree and materializes the directory model (names, sizes and
     /// node handles only - no file data is read).
     /// </summary>
+    // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
     private static DirectoryNode BuildDirectory(ZArchiveReader reader, uint node, string name, int depth)
     {
         if (depth > MaxDirectoryDepth)
@@ -429,7 +431,7 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
 
         header[dateOffset] = 0x01;
 
-        var terminator = Constants.Ecma119DataAreaStart + Constants.SectorSize;
+        const int terminator = Constants.Ecma119DataAreaStart + Constants.SectorSize;
         header[terminator] = 0xFF;
         "CD001"u8.CopyTo(header.AsSpan(terminator + 1));
         header[terminator + 6] = 0x01;
@@ -443,8 +445,8 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
     {
         var descriptor = new byte[Constants.SectorSize];
         var magic = Encoding.ASCII.GetBytes(Constants.HeaderData);
-        var magicTailOffset = Constants.HeaderDataLength + Constants.SectorOffsetSize + Constants.DirTableSize +
-                              Constants.FileTimeSize + Constants.UnusedSize;
+        const int magicTailOffset = Constants.HeaderDataLength + Constants.SectorOffsetSize + Constants.DirTableSize +
+                                    Constants.FileTimeSize + Constants.UnusedSize;
 
         magic.CopyTo(descriptor, 0);
         BinaryPrimitives.WriteUInt32LittleEndian(descriptor.AsSpan(Constants.HeaderDataLength), root.StartSector);

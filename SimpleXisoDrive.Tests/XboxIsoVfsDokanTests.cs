@@ -127,7 +127,8 @@ public class XboxIsoVfsDokanTests : IDisposable
     [Fact]
     public void GetFileInformation_MissingEntry_ReturnsFileNotFound()
     {
-        Assert.Equal(DokanResult.FileNotFound, _dokan.GetFileInformation("\\missing.xbe", out _, new MockDokanFileInfo()));
+        Assert.Equal(DokanResult.FileNotFound,
+            _dokan.GetFileInformation("\\missing.xbe", out _, new MockDokanFileInfo()));
     }
 
     [Fact]

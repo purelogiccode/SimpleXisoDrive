@@ -197,7 +197,8 @@ internal static class TestImageFactory
 
         if (cursor > SectorSize)
         {
-            throw new ArgumentException($"Directory table for '{directory.Path}' exceeds one sector.", nameof(directory));
+            throw new ArgumentException($"Directory table for '{directory.Path}' exceeds one sector.",
+                nameof(directory));
         }
 
         for (var i = 0; i < items.Count; i++)

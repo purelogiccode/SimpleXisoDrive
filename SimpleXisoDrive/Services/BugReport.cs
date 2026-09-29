@@ -15,8 +15,10 @@ public static class BugReport
     private const string BugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
     private const string ApplicationName = "SimpleXisoDrive";
+
     private static readonly string AppVersion =
         Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+
     private static readonly HttpClient HttpClientInstance;
     private static readonly bool IsApiLoggingConfigured;
     private static readonly Lock FileLock = new();

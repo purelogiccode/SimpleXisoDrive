@@ -37,7 +37,7 @@ public class XisoVfsVolumeTests
             var file = volume.GetEntry("\\default.xbe");
             Assert.NotNull(file);
             Assert.Equal("standard data"u8.Length, file.Size);
-            Assert.True((file.GetWindowsAttributes() & FileAttributes.Archive) != FileAttributes.None);
+            Assert.NotEqual(FileAttributes.None, file.GetWindowsAttributes() & FileAttributes.Archive);
 
             var buffer = new byte[8];
             Assert.Equal(4, volume.ReadFile(file, buffer, offset: 9));

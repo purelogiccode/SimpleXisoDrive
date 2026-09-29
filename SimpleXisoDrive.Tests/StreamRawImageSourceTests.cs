@@ -58,6 +58,7 @@ public class StreamRawImageSourceTests
         Parallel.For(0, results.Length, i =>
         {
             var buffer = new byte[256];
+            // ReSharper disable once AccessToDisposedClosure
             var read = source.Read(buffer, i * 256);
             Assert.Equal(256, read);
             results[i] = buffer;

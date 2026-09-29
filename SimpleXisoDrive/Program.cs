@@ -358,7 +358,8 @@ internal static class Program
         var exeName = mainModule != null
             ? Path.GetFileNameWithoutExtension(mainModule.FileName)
             : "SimpleXisoDrive";
-        Console.WriteLine("Mounts an Xbox ISO/XISO (.iso, .xiso) or ZArchive (.zar) file as a virtual file system on Windows.");
+        Console.WriteLine(
+            "Mounts an Xbox ISO/XISO (.iso, .xiso) or ZArchive (.zar) file as a virtual file system on Windows.");
         Console.WriteLine("");
         Console.WriteLine($"Usage: {exeName} <image-file> <mount-path> [options]");
         Console.WriteLine("");
@@ -586,7 +587,8 @@ internal static class Program
             return false;
         }
 
-        return int.TryParse(name.AsSpan(separator + 1), System.Globalization.CultureInfo.InvariantCulture, out var part) && part >= 2;
+        return int.TryParse(name.AsSpan(separator + 1), System.Globalization.CultureInfo.InvariantCulture,
+            out var part) && part >= 2;
     }
 
     private static IEnumerable<string> EnumerateExtensionCandidates(string path)

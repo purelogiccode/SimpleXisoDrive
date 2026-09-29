@@ -29,7 +29,10 @@ public sealed class XisoVfsVolume : IVfsVolume
     private readonly VolumeInfo _volume;
     private readonly Lock _streamLock = new();
     private readonly ConcurrentDictionary<string, XisoEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private bool _disposed;
 
     /// <inheritdoc />

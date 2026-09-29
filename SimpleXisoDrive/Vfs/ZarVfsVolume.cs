@@ -13,7 +13,9 @@ public sealed class ZarVfsVolume : IVfsVolume
 {
     private readonly ZArchiveReader _reader;
     private readonly ConcurrentDictionary<string, ZarEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public ulong VolumeSize { get; }

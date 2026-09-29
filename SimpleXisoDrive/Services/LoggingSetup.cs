@@ -17,13 +17,13 @@ public static class LoggingSetup
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.Console(
-                theme: ConsoleTheme.None,
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                theme: ConsoleTheme.None)
             .WriteTo.File(
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", "simplexisodrive-.log"),
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+                retainedFileCountLimit: 7)
             .WriteTo.Sink(new BugReportSink(), LogEventLevel.Warning)
             .CreateLogger();
     }
