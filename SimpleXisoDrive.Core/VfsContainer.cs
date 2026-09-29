@@ -16,7 +16,7 @@ namespace SimpleXisoDrive.Core;
 /// <see cref="VfsVolumeFactory"/>. With <c>exposeImageIso</c>, an
 /// <see cref="ImageIsoVfsVolume"/> decorator adds the raw image as <c>image.iso</c>.
 /// </remarks>
-public class VfsContainer : IDisposable
+public class VfsContainer : IVfsVolume
 {
     private readonly IVfsVolume _volume;
 

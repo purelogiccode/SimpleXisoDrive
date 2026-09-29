@@ -183,7 +183,8 @@ No user, machine, or file information is included in this request.
 
 ## UpdateChecker
 
-`UpdateChecker.CheckForUpdateAsync()` queries the GitHub releases API at startup.
+`UpdateChecker.CheckForUpdateAsync()` queries the GitHub releases API at startup. The front end
+supplies the user prompt: Windows uses a native message box, Unix uses the console prompt.
 
 | Step | Detail |
 | --- | --- |
@@ -191,8 +192,9 @@ No user, machine, or file information is included in this request.
 | Timeout | 5 seconds |
 | Parsing | Extracts `tag_name` and `html_url`, then matches `\d+\.\d+\.\d+` (1-second regex timeout) |
 | Comparison | Newer than the entry assembly version wins |
-| Prompt | `Open the release page in your browser? [Y/n]`; pressing `n`/`N` cancels |
-| Redirected input | The version details are printed, the prompt is skipped, and the download URL is shown instead |
+| Prompt (Windows) | Native message box (`WindowsUpdatePrompt.ConfirmOpenRelease`) showing current/latest versions and asking whether to open the release page; `Yes` opens the browser |
+| Prompt (Unix) | Console prompt: `Open the release page in your browser? [Y/n]`; pressing `n`/`N` cancels |
+| Redirected input | Unix only: the version details are printed, the prompt is skipped, and the download URL is shown instead. The Windows message box is shown regardless of redirection |
 | Browser launch | Uses the default browser via shell execute |
 | Failure handling | Logged at Information level only and never forwarded to the bug report API |
 

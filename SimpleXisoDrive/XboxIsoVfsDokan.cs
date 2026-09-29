@@ -1,7 +1,6 @@
 ﻿using System.Security.AccessControl;
 using DokanNet;
 using Serilog;
-using SimpleXisoDrive.Core;
 using SimpleXisoDrive.Core.Interfaces;
 using FileAccess = DokanNet.FileAccess;
 
@@ -9,11 +8,11 @@ namespace SimpleXisoDrive;
 
 /// <summary>
 /// Dokan file system implementation that exposes an Xbox ISO image as a read-only
-/// virtual drive backed by a <see cref="VfsContainer"/>.
+/// virtual drive backed by an <see cref="IVfsVolume"/>.
 /// </summary>
-internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
+internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
 {
-    private readonly VfsContainer _vfs = vfs;
+    private readonly IVfsVolume _vfs = vfs;
     private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(1);
 
     /// <summary>

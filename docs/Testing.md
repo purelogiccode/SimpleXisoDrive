@@ -15,7 +15,7 @@ any real image file.
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 287 (version 1.4.0): 263 core + 24 FUSE |
+| Test count | 317 (version 1.4.0): 282 core + 35 FUSE |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -44,8 +44,8 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 263, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
-`Passed: 24, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
+A healthy run reports `Passed: 282, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+`Passed: 35, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 
@@ -74,12 +74,17 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `BugReportSinkTests` | Sink guard rails | Sub-Warning events are ignored and malformed events are swallowed (Warning+ intentionally not emitted: it would call the live API) |
 | `BugReportHttpTests` | Bug report API | Stubbed request shaping (endpoint, method, `X-API-KEY` header, JSON body) and the idle pending-reports wait |
 | `StatsServiceHttpTests` | Stats API | Stubbed request shaping (endpoint, bearer token, `applicationId`/`version` body) and rejection handling |
-| `UpdateCheckerHttpTests` | Update check API | Stubbed endpoint/user-agent, malformed response swallowing and error-status handling (no live traffic, no prompts) |
+| `UpdateCheckerHttpTests` | Update check API | Stubbed endpoint/user-agent, malformed response swallowing, error-status handling and the update-available prompt callback (no live traffic, no prompts) |
+| `WindowsUpdatePromptTests` | Update message box | Message text includes both versions, the release URL and the download question |
 | `CheckAccessTests` | Privilege probe | Administrator probe returns without throwing on any privilege level |
-| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, version-ordered library candidates, missing-library probing, availability guidance and loader failures; `FuseMountArgumentsTests` covers `fsname`/`volname` label exposure, debug flags and label sanitization; `PosixErrorTests` pins the errno values; `ProgramNameTests` covers the usage-text executable name |
+| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, version-ordered library candidates, missing-library probing, availability guidance and loader failures; `FuseMountArgumentsTests` covers `fsname`/`volname` label exposure, debug flags and label sanitization; `FuseHelperTests` covers native path conversion, Unix time conversion and directory fill offsets; `PosixErrorTests` pins the errno values; `ProgramNameTests` covers the usage-text executable name |
 | `TestImageFactory` / `TestImageEntry` | Shared test fixtures | Builders for minimal rebuilt (sector 0) and standard (sector 32) images with arbitrary nested file/directory trees, raw attribute bytes, and descriptor FILETIME values |
 | `FakeVfsVolume` / `FakeVfsEntry` / `TrackingRawImageSource` / `RecordingDisposable` | Shared test doubles | Configurable failure injection and disposal counting for decorator tests |
 | `StubHttpMessageHandler` | Shared HTTP double | Records outbound method/URI/headers/body and returns a canned response, so API services are tested without live traffic |
+| `CommandLineParserTests` | Windows command line | Single-argument drag-and-drop mode, case-insensitive option flags, empty/invalid image paths, unknown options (with usage hint), extra positional arguments, null arrays |
+| `DriveLetterSelectorTests` | Drive letter choice | Preferred `M`-`R` order and that the selected letter is free and valid |
+| `DokanInstallationTests` | Dokan paths | Library and driver paths under the system directory |
+| `UsageTextTests` | Usage text | Executable name and every documented option appear in the usage text |
 | `BoundedCacheTests` | Cache budget | Round-trip get/set, case-insensitive keys, stopping new entries at the limit, updating existing entries at the limit, non-positive limit rejection |
 | `InvalidImageExceptionTests` | Exception contract | Default, message, null-message and inner-exception constructors, inheritance, catchability |
 
@@ -122,11 +127,13 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --collect:"XPlat 
 
 Results are written under `SimpleXisoDrive.Tests/TestResults/` as Cobertura XML.
 
-Note that Dokan callbacks (`XboxIsoVfsDokan`), the application entry points and the FUSE callbacks
-themselves (they need a real mount) are not covered by unit tests because they require a driver, a
-running process, or a kernel mount. The HTTP services are covered through stubbed clients rather
-than live traffic. The FUSE struct layouts, resolver and error constants are covered by
-`SimpleXisoDrive.Unix.Tests`.
+Note that the Dokan callbacks (`XboxIsoVfsDokan` runs against in-memory volumes, but real driver
+behavior needs a driver) and the FUSE callbacks themselves (they need a real mount) are not covered
+by unit tests, nor are the `Program.Main` entry points themselves. The logic extracted from the
+entry points (command line, drive letters, usage text, Dokan paths) is covered, as are the front-end
+Unix helpers (path conversion, timestamps, directory fill offsets) and the HTTP services through
+stubbed clients rather than live traffic. The FUSE struct layouts, resolver and error constants are
+covered by `SimpleXisoDrive.Unix.Tests`.
 
 ---
 

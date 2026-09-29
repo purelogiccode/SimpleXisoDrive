@@ -442,7 +442,7 @@ internal sealed class FuseFileSystem
         }
     }
 
-    private static int FillDirectory(List<string> names, long offset, Func<IntPtr, long, int> fill)
+    internal static int FillDirectory(List<string> names, long offset, Func<IntPtr, long, int> fill)
     {
         var start = offset <= 0 ? 0 : (int)offset;
         for (var i = start; i < names.Count; i++)
@@ -546,7 +546,7 @@ internal sealed class FuseFileSystem
         Marshal.WriteInt64(buffer, offset + 8, 0);
     }
 
-    private static string ToVfsPath(IntPtr path)
+    internal static string ToVfsPath(IntPtr path)
     {
         var value = Marshal.PtrToStringUTF8(path);
         if (string.IsNullOrEmpty(value) || string.Equals(value, "/", StringComparison.Ordinal))
@@ -570,7 +570,7 @@ internal sealed class FuseFileSystem
         }
     }
 
-    private static long ToUnixTime(DateTime value)
+    internal static long ToUnixTime(DateTime value)
     {
         try
         {

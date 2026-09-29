@@ -370,6 +370,36 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies volume read failures are reported as errors instead of escaping the callback.
+    /// </summary>
+    [Fact]
+    public void ReadFile_WhenVolumeThrows_ReturnsError()
+    {
+        var volume = new FakeVfsVolume { ThrowOnReadFile = true };
+        var dokan = new XboxIsoVfsDokan(volume);
+        IDokanFileInfo info = new MockDokanFileInfo { Context = volume.Entry };
+
+        var status = dokan.ReadFile("\\entry.bin", new byte[4], out var bytesRead, 0, info);
+
+        Assert.Equal(DokanResult.Error, status);
+        Assert.Equal(0, bytesRead);
+    }
+
+    /// <summary>
+    /// Verifies volume lookup failures are reported as errors instead of escaping the callback.
+    /// </summary>
+    [Fact]
+    public void GetFileInformation_WhenVolumeThrows_ReturnsError()
+    {
+        var volume = new FakeVfsVolume { ThrowOnGetEntry = true };
+        var dokan = new XboxIsoVfsDokan(volume);
+
+        var status = dokan.GetFileInformation("\\entry.bin", out _, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Error, status);
+    }
+
+    /// <summary>
     /// Verifies opening the root sets the directory flag and stores the root entry.
     /// </summary>
     [Fact]

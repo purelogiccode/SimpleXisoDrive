@@ -97,7 +97,8 @@ flowchart TD
    verifies the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`).
 4. Arguments are parsed and the image path is resolved (see
    [Command-Line Reference](Command-Line-Reference)).
-5. `UpdateChecker.CheckForUpdateAsync` runs and may prompt the user.
+5. `UpdateChecker.CheckForUpdateAsync` runs; on Windows an available update is offered through a
+   message box, on Unix through the console prompt.
 6. `RunMount` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`) and
    mounts the Dokan file system.
 7. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), or a failure.
@@ -261,6 +262,13 @@ CSharp_SimpleXisoDrive/
 |-- docs/                              # this documentation
 |-- SimpleXisoDrive/                   # application project
 |   |-- Program.cs
+|   |-- CommandLineParser.cs            # argument parsing/validation
+|   |-- CommandLineArguments.cs
+|   |-- CommandLineException.cs
+|   |-- DriveLetterSelector.cs          # free M-R drive letter for drag-and-drop
+|   |-- DokanInstallation.cs            # dokan2.dll/dokan2.sys detection
+|   |-- UsageText.cs
+|   |-- WindowsUpdatePrompt.cs          # native message box for update notifications
 |   |-- VfsContainer.cs                # facade over the selected volume
 |   |-- XboxIsoVfsDokan.cs
 |   |-- SerilogDokanLogger.cs

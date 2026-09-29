@@ -10,7 +10,9 @@ supported.
 ## VfsContainer and IVfsVolume
 
 `VfsContainer` is the facade between the Dokan operations layer and the image data. It is created once
-per mount and disposed on unmount. The actual storage is an `IVfsVolume` implementation selected by
+per mount and disposed on unmount. `VfsContainer` itself implements `IVfsVolume`, so the Dokan layer
+consumes the volume contract rather than the concrete facade (which is also how volume failures are
+injected in tests). The actual storage is an `IVfsVolume` implementation selected by
 `VfsVolumeFactory`:
 
 | Input | Detection | Volume |

@@ -28,6 +28,33 @@ public class UpdateCheckerHttpTests
     }
 
     /// <summary>
+    /// Verifies an available update is offered to the supplied prompt with the parsed
+    /// versions and release URL.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenUpdateAvailable_InvokesPrompt()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK,
+            "{\"tag_name\":\"v999.0.0\",\"html_url\":\"https://example.invalid/release\"}");
+        using var client = new HttpClient(handler);
+        Version? promptedCurrent = null;
+        Version? promptedLatest = null;
+        string? promptedUrl = null;
+
+        await UpdateChecker.CheckForUpdateAsync(client, (current, latest, url) =>
+        {
+            promptedCurrent = current;
+            promptedLatest = latest;
+            promptedUrl = url;
+            return false;
+        });
+
+        Assert.Equal(new Version(999, 0, 0), promptedLatest);
+        Assert.NotNull(promptedCurrent);
+        Assert.Equal("https://example.invalid/release", promptedUrl);
+    }
+
+    /// <summary>
     /// Verifies a malformed response body is swallowed (update checks are non-fatal).
     /// </summary>
     [Fact]

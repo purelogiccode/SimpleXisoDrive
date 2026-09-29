@@ -73,7 +73,7 @@ internal static class Program
             // Report launch statistics (fire and forget)
             StatsService.ReportLaunch();
 
-            if (!IsDokanInstalled())
+            if (!DokanInstallation.IsInstalled())
             {
                 Log.Error("Dokan is not installed. Exiting.");
                 await WaitForExitKeyPressAsync();
@@ -87,82 +87,21 @@ internal static class Program
             return 1;
         }
 
-        var isDragAndDrop = false;
-        var debug = false;
-        var launch = false;
-        var imageIso = false;
-
         try
         {
-            string isoPath;
-            string mountPath;
-            switch (args.Length)
+            if (args.Length == 0)
             {
-                case 0:
-                    PrintUsage();
-                    Console.WriteLine(
-                        "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
-                    await WaitForExitKeyPressAsync();
-                    return 1;
-
-                case 1:
-                    isDragAndDrop = true;
-                    isoPath = args[0];
-                    ValidateImagePath(isoPath);
-
-                    var availableMountPath = FindAvailableDriveLetter();
-                    if (availableMountPath is null)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        await Console.Error.WriteLineAsync("Error: Could not find an available drive letter (M-R).");
-                        await WaitForExitKeyPressAsync();
-                        return 1;
-                    }
-
-                    mountPath = availableMountPath;
-                    launch = true;
-                    break;
-
-                default:
-                    {
-                        isoPath = args[0];
-                        mountPath = args[1];
-                        ValidateImagePath(isoPath);
-
-                        foreach (var argument in args.Skip(2))
-                        {
-                            if (MatchesAny(argument, "-d", "--debug"))
-                            {
-                                debug = true;
-                            }
-                            else if (MatchesAny(argument, "-l", "--launch"))
-                            {
-                                launch = true;
-                            }
-                            else if (MatchesAny(argument, "-i", "--image-iso"))
-                            {
-                                imageIso = true;
-                            }
-                            else if (argument.StartsWith('-'))
-                            {
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                await Console.Error.WriteLineAsync($"Error: unknown option '{argument}'.");
-                                PrintUsage();
-                                return 1;
-                            }
-                            else
-                            {
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                await Console.Error.WriteLineAsync($"Error: unexpected argument '{argument}'.");
-                                return 1;
-                            }
-                        }
-
-                        break;
-                    }
+                UsageText.Print();
+                Console.WriteLine(
+                    "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
+                await WaitForExitKeyPressAsync();
+                return 1;
             }
 
-            if (debug)
+            var arguments = CommandLineParser.Parse(args);
+            var isoPath = arguments.ImagePath;
+
+            if (arguments.Debug)
             {
                 LoggingSetup.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
                 Log.Information("Debug logging enabled (-d/--debug).");
@@ -206,12 +145,22 @@ internal static class Program
             isoPath = resolvedIsoPath;
 
             // Check for updates only after the arguments and image path have been
-            // validated, matching the Unix front end.
-            await UpdateChecker.CheckForUpdateAsync();
+            // validated, matching the Unix front end. The Windows front end notifies
+            // the user with a message box instead of the console prompt.
+            await UpdateChecker.CheckForUpdateAsync(WindowsUpdatePrompt.ConfirmOpenRelease);
 
-            if (isDragAndDrop)
+            if (arguments.IsDragAndDrop)
             {
-                var mountTask = RunMountAsync(isoPath, mountPath, debug, launch, imageIso);
+                var mountPath = DriveLetterSelector.FindAvailableDriveLetter();
+                if (mountPath is null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    await Console.Error.WriteLineAsync("Error: Could not find an available drive letter (M-R).");
+                    await WaitForExitKeyPressAsync();
+                    return 1;
+                }
+
+                var mountTask = RunMountAsync(isoPath, mountPath, arguments.Debug, arguments.Launch, arguments.ImageIso);
 
                 // Wait for either the mount to fail OR the user to press a key
                 var keyPressTask = ConsoleKeyPress.WaitAsync();
@@ -236,10 +185,23 @@ internal static class Program
             {
                 // For standard command-line use, await the task directly.
                 // The user will stop it with Ctrl+C.
-                await RunMountAsync(isoPath, mountPath, debug, launch, imageIso);
+                await RunMountAsync(isoPath, arguments.MountPath!, arguments.Debug, arguments.Launch, arguments.ImageIso);
             }
 
             return 0;
+        }
+        catch (CommandLineException ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+
+            if (ex.ShowUsage)
+            {
+                UsageText.Print();
+            }
+
+            await WaitForExitKeyPressAsync();
+            return 1;
         }
         catch (InvalidImageException ex)
         {
@@ -327,163 +289,6 @@ internal static class Program
             BugReport.LogFatalException(e.Exception, "CRITICAL: Unobserved Task Exception");
             e.SetObserved();
         };
-    }
-
-    /// <summary>
-    /// Checks whether the Dokan runtime library (dokan2.dll) and driver (dokan2.sys) are installed.
-    /// Displays an error and exits if dokan2.dll is missing, since the application cannot function without it.
-    /// </summary>
-    /// <returns>True if dokan2.dll is found; false otherwise.</returns>
-    private static bool IsDokanInstalled()
-    {
-        try
-        {
-            return IsDokanInstalledCore();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to check whether Dokan is installed");
-            return false;
-        }
-    }
-
-    private static bool IsDokanInstalledCore()
-    {
-        var dokanDllPath = Path.Combine(Environment.SystemDirectory, "dokan2.dll");
-        var dokanSysPath = Path.Combine(Environment.SystemDirectory, "drivers", "dokan2.sys");
-
-        var dllExists = File.Exists(dokanDllPath);
-        var sysExists = File.Exists(dokanSysPath);
-
-        if (!dllExists)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Error.WriteLine("Error: The Dokan runtime library (dokan2.dll) was not found.");
-            Console.Error.WriteLine("");
-            Console.Error.WriteLine("SimpleXisoDrive requires the Dokan User-Mode File System Library to operate.");
-            Console.Error.WriteLine("");
-            Console.Error.WriteLine("To fix this:");
-            Console.Error.WriteLine("  1. Download Dokan from: https://github.com/dokan-dev/dokany/releases");
-            Console.Error.WriteLine("  2. Install the package (the default installation includes dokan2.dll)");
-            Console.Error.WriteLine("  3. Restart your computer if prompted");
-            Console.Error.WriteLine("  4. Re-run SimpleXisoDrive");
-            Console.Error.WriteLine("");
-            Console.Error.WriteLine($"Expected file location: {dokanDllPath}");
-
-            Log.Error("Dokan check FAILED: {DllPath} not found.", dokanDllPath);
-            return false;
-        }
-
-        if (!sysExists)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Error.WriteLine("Warning: The Dokan driver (dokan2.sys) was not found.");
-            Console.Error.WriteLine("Mounting may fail. Please reinstall Dokan if you encounter issues.");
-            Log.Warning("Dokan driver warning: {SysPath} not found.", dokanSysPath);
-        }
-
-        Log.Information("Dokan check passed: {DllPath} found.", dokanDllPath);
-        return true;
-    }
-
-    private static string? FindAvailableDriveLetter()
-    {
-        try
-        {
-            // Get all existing drive letters
-            var usedLetters = DriveInfo.GetDrives()
-                .Select(static d => d.Name)
-                .Where(static name => name.Length > 0)
-                .Select(static name => name[0])
-                .ToHashSet();
-
-            char[] preferredLetters = ['M', 'N', 'O', 'P', 'Q', 'R'];
-
-            foreach (var letter in preferredLetters)
-            {
-                if (!usedLetters.Contains(letter))
-                {
-                    var drivePath = $"{letter}:\\";
-                    Log.Debug("Found available drive letter: {DrivePath}", drivePath);
-                    return drivePath;
-                }
-            }
-
-            Log.Warning("No available drive letters found in preferred range M-R");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error checking drive letters");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Validates the image path supplied on the command line, matching the checks
-    /// applied by the drag-and-drop branch.
-    /// </summary>
-    /// <param name="isoPath">The image path to validate.</param>
-    /// <exception cref="ArgumentException">Thrown when the path is empty or contains invalid characters.</exception>
-    private static void ValidateImagePath(string isoPath)
-    {
-        if (string.IsNullOrEmpty(isoPath))
-        {
-            throw new ArgumentException("ISO path cannot be null or empty");
-        }
-
-        if (isoPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-        {
-            throw new ArgumentException("Invalid path characters detected");
-        }
-    }
-
-    /// <summary>
-    /// Checks whether a command-line argument matches one of two option spellings,
-    /// ignoring case.
-    /// </summary>
-    /// <param name="value">The argument to test.</param>
-    /// <param name="first">The first accepted spelling.</param>
-    /// <param name="second">The second accepted spelling.</param>
-    /// <returns><see langword="true"/> when the argument matches either spelling.</returns>
-    private static bool MatchesAny(string value, string first, string second)
-    {
-        return string.Equals(value, first, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value, second, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void PrintUsage()
-    {
-        try
-        {
-            PrintUsageCore();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to print usage information");
-        }
-    }
-
-    private static void PrintUsageCore()
-    {
-        var mainModule = Process.GetCurrentProcess().MainModule;
-        var exeName = mainModule != null
-            ? Path.GetFileNameWithoutExtension(mainModule.FileName)
-            : "SimpleXisoDrive";
-        Console.WriteLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso), Xbox ISO CHD (.chd) or ZArchive (.zar) file as a virtual file system on Windows.");
-        Console.WriteLine("");
-        Console.WriteLine($"Usage: {exeName} <image-file> <mount-path> [options]");
-        Console.WriteLine("");
-        Console.WriteLine("Arguments:");
-        Console.WriteLine("  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file to mount.");
-        Console.WriteLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
-        Console.WriteLine("");
-        Console.WriteLine("Options:");
-        Console.WriteLine("  -d, --debug     Display debug Dokan output in the console window.");
-        Console.WriteLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
-        Console.WriteLine("  -i, --image-iso Also expose the raw Xbox image as image.iso at the mount root");
-        Console.WriteLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
     }
 
     private static async Task RunMountAsync(string isoPath, string mountPath, bool debug, bool launch, bool imageIso)

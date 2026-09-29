@@ -1,4 +1,5 @@
 using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Tests.Models;
 using XISOSharp;
 using ZArchiveSharp;
@@ -741,6 +742,27 @@ public class VfsContainerTests
     {
         Assert.Throws<ArgumentNullException>(() => new VfsContainer(null!));
         Assert.Throws<ArgumentException>(() => new VfsContainer(string.Empty));
+    }
+
+    /// <summary>
+    /// Verifies the facade can be consumed through the volume interface (as the Dokan layer does).
+    /// </summary>
+    [Fact]
+    public void ImplementsIVfsVolume()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            Assert.IsAssignableFrom<IVfsVolume>(vfs);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     /// <summary>
