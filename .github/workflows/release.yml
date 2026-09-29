@@ -136,10 +136,29 @@ jobs:
           --output publish/${{ matrix.rid }}
 
       - name: Package release zip
+        # Each zip contains the single-file executable plus ReadMe.md,
+        # WhatsNew.md and LICENSE.txt, matching the local release bundles.
         shell: pwsh
         run: |
           $zip = "release_${{ needs.verify.outputs.version }}_${{ matrix.rid }}.zip"
-          Compress-Archive -Path "publish/${{ matrix.rid }}/${{ matrix.binary }}" -DestinationPath $zip -Force
+          $staging = "bundle/${{ matrix.rid }}"
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item -LiteralPath "publish/${{ matrix.rid }}/${{ matrix.binary }}" -Destination $staging
+          Copy-Item -LiteralPath ReadMe.md, WhatsNew.md, LICENSE.txt -Destination $staging
+
+          if ($IsWindows) {
+            Compress-Archive -Path "$staging/*" -DestinationPath $zip -Force
+          } else {
+            # The zip CLI (not Compress-Archive) stores the executable Unix mode,
+            # so the extracted SimpleXisoDrive is runnable without chmod.
+            Push-Location $staging
+            try {
+              zip -q -r (Join-Path ".." $zip) (Get-ChildItem -Name)
+            } finally {
+              Pop-Location
+            }
+          }
+
           Get-Item -LiteralPath $zip | Select-Object Name, Length
 
       - name: Upload package
