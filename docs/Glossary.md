@@ -10,6 +10,12 @@ Definitions of terms used throughout the documentation and the source code.
 A diagnostic document containing environment details, the error message, and exception details,
 written to `error.log` and optionally submitted to the developer API. See [Services](Services).
 
+**CHD**
+A compressed disc-image container (`.chd`, "Compressed Hunks of Data") read through the CHDSharp
+library. SimpleXisoDrive decompresses Xbox ISO CHDs hunk-by-hunk on demand; CD and GD-ROM CHDs are
+rejected, and the decompressed image must contain an XDVDFS filesystem. See
+[Virtual File System](Virtual-File-System).
+
 **CISO**
 A compressed ISO container (`.cso`) that stores the image with block compression. SimpleXisoDrive
 decompresses it on the fly; split sets use numbered parts (`game.1.cso`, `game.2.cso`, …) and are
@@ -48,6 +54,10 @@ name for the concept was `FileEntry`). See [XDVDFS Format](XDVDFS-Format).
 **GLOBAL partition**
 One of the supported disc layout offsets (`0x0FD90000`) at which the volume descriptor may be found
 on certain releases.
+
+**Hunk**
+The CHD compression unit: a fixed-size block of the decompressed image that is compressed and stored
+independently. CHDSharp decompresses one hunk at a time and caches the most recent one.
 
 **Iteration limit**
 A safety cap that aborts enumeration of corrupted or circular directory trees. ZArchive directory
@@ -112,7 +122,8 @@ partition is ignored. XISOSharp reports it as `VolumeInfo.DiscLseek`.
 **VFS (Virtual File System)**
 The abstraction layer that resolves paths, caches entries, and serves file data to the Dokan
 operation layer. `VfsContainer` is the facade; the actual storage is an `IVfsVolume` implementation
-(`XisoVfsVolume` for XDVDFS images, `ZarVfsVolume` for ZArchive trees).
+(`XisoVfsVolume` for XDVDFS images — including decompressed CHD images — and `ZarVfsVolume` for
+ZArchive trees).
 
 **XGD1 / XGD3**
 Xbox Game Disc layout variants. XISOSharp probes their known partition offsets when looking for a

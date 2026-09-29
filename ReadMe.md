@@ -14,7 +14,7 @@
 ![Linux](https://img.shields.io/badge/Linux-x64_%7C_ARM64-FCC624?logo=linux&logoColor=black)
 ![macOS](https://img.shields.io/badge/macOS-x64_%7C_ARM64-000000?logo=apple&logoColor=white)
 
-Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`) and ZArchive (`.zar`) files as read-only virtual drives or directory mount points. Built on Dokan for Windows and FUSE 3 for Linux and macOS, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from your file manager.
+Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD files (`.chd`) and ZArchive (`.zar`) files as read-only virtual drives or directory mount points. Built on Dokan for Windows and FUSE 3 for Linux and macOS, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from your file manager.
 
 The application is designed for extreme memory efficiency and supports **Windows x64/ARM64**, **Linux x64/ARM64** and **macOS x64/ARM64**.
 
@@ -22,8 +22,9 @@ The application is designed for extreme memory efficiency and supports **Windows
 
 *   **Cross-Platform:** Native executables for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`.
 *   **Broad Format Support:** Handles standard Xbox ISO dumps (Sector 32), rebuilt "XISO" formats (Sector 0), Dual-Layer/Hybrid discs (Game Partition offsets), and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
+*   **Xbox ISO CHD Support:** Mounts Xbox ISO images stored as CHD (`.chd`) — any CHD format version and codec (zlib, lzma, huffman, flac, zstd) — with on-demand hunk decompression via the CHDSharp library. CD and GD-ROM CHDs are rejected; the decompressed image must contain an XDVDFS filesystem.
 *   **ZArchive Support:** Mounts `.zar` archives directly — either the archived game tree or a single embedded XISO image — with on-demand zstd decompression (no extraction or temp files).
-*   **Virtual `image.iso`:** The `--image-iso` option also exposes the raw Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO images are decompressed on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
+*   **Virtual `image.iso`:** The `--image-iso` option also exposes the raw Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO and CHD images are decompressed on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
 *   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO, CISO or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **Flexible Mount Points:** Mount ISOs as Windows drive letters (e.g., `Z:`) or NTFS folders, and as any directory on Linux and macOS.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
@@ -60,7 +61,7 @@ project wiki:
 ### Windows
 
 #### 1. Drag-and-Drop (Easiest)
-*   Drag your `.iso`, `.xiso`, `.cso` or `.zar` file and drop it onto `SimpleXisoDrive.exe`.
+*   Drag your `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file and drop it onto `SimpleXisoDrive.exe`.
 *   The app will automatically find an available drive letter, mount the image, and open Windows Explorer.
 *   **To Unmount:** Return to the console window and press any key.
 
@@ -72,7 +73,7 @@ SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 ```
 
 **Arguments:**
-*   `<PathToImageFile>`: Full path to the `.iso`, `.xiso`, `.cso` or `.zar` file.
+*   `<PathToImageFile>`: Full path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file.
 *   `<MountPoint>`: A drive letter (e.g., `Z:`) or a path to an empty NTFS folder.
 
 ### Linux and macOS
@@ -82,7 +83,7 @@ SimpleXisoDrive <image-file> [mount-path] [options]
 ```
 
 **Arguments:**
-*   `<image-file>`: Path to the `.iso`, `.xiso`, `.cso` or `.zar` file.
+*   `<image-file>`: Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file.
 *   `<mount-path>`: An existing empty directory. When omitted, a temporary directory is created and printed after mounting.
 
 **Options (all platforms):**
@@ -95,6 +96,7 @@ Press **Ctrl+C** (or run `fusermount3 -u <mount-path>` / `umount <mount-path>`) 
 ## Technical Details
 
 *   **XDVDFS Parsing:** Uses the XISOSharp library to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images.
+*   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
 *   **Mount Backends:** Dokan on Windows (`DokanNet`); a small, self-contained FUSE 3 interop layer on Linux and macOS (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
 *   **Shared Core:** The image parsing, virtual file system and services live in `SimpleXisoDrive.Core`; the Windows and Unix front ends only implement the mount backend and CLI.
@@ -108,7 +110,7 @@ Press **Ctrl+C** (or run `fusermount3 -u <mount-path>` / `umount <mount-path>`) 
 *   **Dokan Errors (Windows):** If you see "Dokan driver not found," ensure you have restarted your computer after installing the Dokan library.
 *   **FUSE Errors (Linux):** If `libfuse3` is reported missing, install the FUSE 3 package for your distribution. Ensure `/dev/fuse` exists (`sudo modprobe fuse`) and that `fusermount3` is on your `PATH`.
 *   **macFUSE Errors (macOS):** If macFUSE is reported missing, install it from [https://macfuse.io](https://macfuse.io) and allow the system extension when prompted. macOS may quarantine the downloaded binary; if it refuses to run, remove the quarantine attribute with `xattr -d com.apple.quarantine SimpleXisoDrive`.
-*   **Invalid Image:** If the app reports that the file is not a valid Xbox ISO/XISO image, the file is likely a standard PC ISO or an encrypted Redump-style image that has not been processed for XISO compatibility. A `.zar` file that fails to open is reported as an invalid ZArchive instead.
+*   **Invalid Image:** If the app reports that the file is not a valid Xbox ISO/XISO image, the file is likely a standard PC ISO or an encrypted Redump-style image that has not been processed for XISO compatibility. A `.zar` file that fails to open is reported as an invalid ZArchive instead; a `.chd` file is reported as not an Xbox ISO CHD when its decompressed content is not XDVDFS (for example a CD or GD-ROM CHD).
 
 ## Support the Project
 
@@ -121,6 +123,7 @@ If you find this tool useful, consider supporting development:
 This project is licensed under **GPL-3.0**.
 *   **DokanNet:** MIT License.
 *   **Dokan Library:** LGPL/MIT.
+*   **CHDSharp:** MIT License.
 *   **libfuse:** LGPL-2.1 (Linux).
 *   **macFUSE:** BSD-style licenses.
 

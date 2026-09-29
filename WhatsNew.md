@@ -19,14 +19,30 @@ the .NET 10.0 Runtime (the base runtime; the Desktop Runtime also works but is n
 - When the mounted image already contains a real `image.iso` file, that file is shown instead of the
   synthetic one.
 
+## Xbox ISO CHD support
+
+- **New `.chd` mounting.** Xbox ISO images stored as CHD are mounted read-only through the
+  **CHDSharp** library: hunks are decompressed on demand (CHD V1–V5, all codecs) and the source file
+  is never modified.
+- **Xbox ISO only.** CD and GD-ROM CHDs are rejected up front, and the decompressed image must parse
+  as XDVDFS; anything else fails with
+  `"<path>" is not an Xbox ISO CHD (XDVDFS filesystem not found).`
+- **`--image-iso` works for CHDs.** The virtual `image.iso` serves the decompressed Xbox image
+  (a second independent CHD reader, so raw-image reads never race the volume stream).
+- **Renamed CHDs still mount.** A valid CHD with any extension falls back to the CHD path when the
+  XISO probe fails.
+- The resolver recognizes `.chd` for extensionless paths and directory lookups.
+
 ## Tests
 
-- The suite grew from 89 to **110 tests**.
+- The suite grew from 89 to **119 tests**.
 - `ImageIsoVfsVolumeTests` covers the synthetic entry (listing, lookup, reads, clamping, real-file
   precedence, disposal), `StreamRawImageSourceTests` covers seeked and parallel reads plus disposal,
   `VirtualXisoImageSourceTests` proves the synthesized ZAR image is byte-identical to the XISOSharp
   whole-image writer for nested trees (sector-crossing files, empty files, empty directories) and
-  validates unaligned reads and XISOSharp readability, and `VfsContainerTests` mounts `.iso`, `.cso`,
+  validates unaligned reads and XISOSharp readability, `ChdVfsContainerTests` encodes real CHDs with
+  the CHDSharp encoder and mounts them (rebuilt and standard layouts, trees, `--image-iso`,
+  non-Xbox rejection, renamed fallback), and `VfsContainerTests` mounts `.iso`, `.cso`,
   embedded-XISO `.zar` and tree `.zar` inputs with the option and validates the exposed image.
 
 # What's New in 1.3.0 (since 1.2.0)

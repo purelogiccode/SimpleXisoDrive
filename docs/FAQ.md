@@ -6,16 +6,17 @@ Short answers to frequently asked questions.
 
 ### What is SimpleXisoDrive?
 
-A Windows utility that mounts original Xbox ISO/XISO images and ZArchive (`.zar`) files as read-only
-virtual drives or folder mount points, so their contents can be browsed in Explorer or copied with
-normal tools.
+A utility that mounts original Xbox ISO/XISO images, Xbox ISO CHD images (`.chd`) and ZArchive
+(`.zar`) files as read-only virtual drives or folder mount points, so their contents can be browsed
+in the file manager or copied with normal tools.
 
 ### What is an XISO?
 
 "XISO" commonly refers to an Xbox disc image in the XDVDFS layout. SimpleXisoDrive supports both
 standard dumps (descriptor at sector 32) and rebuilt images (descriptor at sector 0).
 CISO-compressed variants (`.cso`, either a single file or a split `.1.cso` part set) are supported
-too and are decompressed on the fly — no extraction step is needed.
+too and are decompressed on the fly — no extraction step is needed. Xbox ISO images stored as CHD
+(`.chd`) are supported as well and are decompressed hunk-by-hunk on demand.
 
 ### What is a ZAR, and can I mount one?
 
@@ -55,10 +56,11 @@ and mount point. Each instance uses its own `VfsContainer`.
 
 ### Does it support Xbox 360 or Xbox One images?
 
-ISO mounting is limited to the original Xbox XDVDFS format; Xbox 360 and Xbox One discs use different
-file systems and are not parsed. ZArchive mounting is format-agnostic, though: any `.zar` directory
-tree (including one packed from Xbox 360 game files) is exposed as-is. If a `.zar` contains a raw
-Xbox 360 ISO as a single file, that file is shown but its internal file system is not parsed.
+ISO and CHD mounting is limited to the original Xbox XDVDFS format; Xbox 360 and Xbox One discs use
+different file systems and are not parsed (a CHD of an Xbox 360 disc is rejected). ZArchive mounting
+is format-agnostic, though: any `.zar` directory tree (including one packed from Xbox 360 game files)
+is exposed as-is. If a `.zar` contains a raw Xbox 360 ISO as a single file, that file is shown but
+its internal file system is not parsed.
 
 ### What are XGD1, XGD3, and GLOBAL partitions?
 
@@ -119,7 +121,9 @@ different file system driver (for example FUSE) and substantial changes.
 
 Common reasons: the image is not XDVDFS (PC ISO), it is an encrypted Redump image, it is incomplete,
 or it uses a layout variant that is not among the supported offsets. The error message lists every
-probed location.
+probed location. A `.chd` that reports "not an Xbox ISO CHD" contains something other than an Xbox
+ISO once decompressed (for example a CD, GD-ROM or Xbox 360 disc image); differential child CHDs
+must be merged with their parent first.
 
 ### Can I use a folder on a network share as the mount point?
 

@@ -1,13 +1,15 @@
 # SimpleXisoDrive Wiki
 
 SimpleXisoDrive is a lightweight, read-only virtual file system driver for Windows. It mounts
-original Xbox ISO images (`.iso`, `.xiso`) and ZArchive (`.zar`) files as virtual drive letters or
-NTFS folder mount points and exposes their contents directly in Windows Explorer.
+original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`) and ZArchive
+(`.zar`) files as virtual drive letters or NTFS folder mount points and exposes their contents
+directly in Windows Explorer.
 
 The application is built on the [Dokan](https://github.com/dokan-dev/dokany) user-mode file system
 driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/master/dokan-dotnet) and uses the
-XISOSharp library to parse the Xbox Disc Video File System (**XDVDFS**). ZArchive files are read
-directly with on-demand zstd decompression. The source image is never modified: every write
+XISOSharp library to parse the Xbox Disc Video File System (**XDVDFS**). CHD files are decompressed
+hunk-by-hunk with the CHDSharp library, and ZArchive files are read directly with on-demand zstd
+decompression. The source image is never modified: every write
 operation is rejected at the file system layer.
 
 Developed by [PureLogic Code](https://purelogiccode.com/) and released under the **GPL-3.0** license.
@@ -55,6 +57,9 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 - **Broad Xbox format support** - standard Xbox ISO dumps (volume descriptor at sector 32),
   rebuilt XISO images (sector 0), dual-layer/hybrid dumps using the XGD1, XGD3, and GLOBAL
   partition offsets, and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
+- **Xbox ISO CHD support** - `.chd` images mount directly with on-demand hunk decompression through
+  the pure-C# CHDSharp decoder (CHD V1–V5, all codecs). Only CHDs whose decompressed image is a
+  valid Xbox ISO are accepted; CD/GD-ROM CHDs are rejected.
 - **ZArchive support** - `.zar` archives mount directly: either the stored game tree or a single
   embedded XISO image, streamed through the pure-C# zstd block decoder.
 - **Zero-config drag-and-drop** - drop an image onto the executable and it automatically picks a
@@ -79,8 +84,8 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Target framework | .NET 10 (`net10.0-windows`) |
 | File systems | XDVDFS (original Xbox disc format), ZArchive (`ZARCHIVE`) |
 | Access mode | Read-only |
-| Volume label | `XBOX_ISO` (ISO) / `XBOX_ZAR` (ZArchive) |
-| File system name | `XDVDFS` (ISO) / `ZARCHIVE` (ZArchive) |
+| Volume label | `XBOX_ISO` (ISO/CHD) / `XBOX_ZAR` (ZArchive) |
+| File system name | `XDVDFS` (ISO/CHD) / `ZARCHIVE` (ZArchive) |
 | Prerequisites | Dokan 2.x, .NET 10 Runtime |
 | License | GPL-3.0 |
 | Repository | <https://github.com/purelogiccode/SimpleXisoDrive> |
@@ -100,6 +105,9 @@ SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
 # Mount a CISO image (single or split .1.cso part set)
 SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
 
+# Mount an Xbox ISO stored as CHD
+SimpleXisoDrive.exe "D:\Games\Halo.chd" Z:
+
 # Mount an ISO into an empty NTFS folder
 SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
 
@@ -107,7 +115,7 @@ SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
 SimpleXisoDrive.exe "D:\Games\Halo.iso" Z: --debug
 ```
 
-The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso` or `.zar` file onto
+The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file onto
 `SimpleXisoDrive.exe`.
 
 ## Support the project
@@ -124,3 +132,4 @@ SimpleXisoDrive is licensed under **GPL-3.0**. Third-party components:
 | --- | --- |
 | DokanNet | MIT |
 | Dokan Library | LGPL/MIT |
+| CHDSharp | MIT |

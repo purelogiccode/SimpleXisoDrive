@@ -2,7 +2,8 @@
 
 This page explains how SimpleXisoDrive turns an Xbox image into a Windows-visible, read-only volume.
 It covers format selection, path resolution, caching, every Dokan operation, and the read-only
-guarantees. Both XDVDFS images (`.iso`, `.xiso`) and ZArchive (`.zar`) trees are supported.
+guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchive (`.zar`) trees are
+supported.
 
 ---
 
@@ -15,8 +16,9 @@ per mount and disposed on unmount. The actual storage is an `IVfsVolume` impleme
 | Input | Detection | Volume |
 | --- | --- | --- |
 | `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates | `XisoVfsVolume` |
+| `.chd` | CHDSharp opens the container (CD/GD-ROM rejected); the decompressed image must validate as XDVDFS | `XisoVfsVolume` over a `ChdImageStream` |
 | `.zar` | ZArchive footer validates | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |
-| Any other extension | XISO probe first; a renamed ZArchive falls back to the archive path | as above |
+| Any other extension | XISO probe first; a renamed CHD or ZArchive falls back to the matching format | as above |
 
 ### Construction
 
@@ -35,6 +37,12 @@ For an embedded XISO, the same class uses the `XisoReader` stream APIs instead: 
 probes the stream, and lookups/listings go through `GetEntryInfo`/`ListDirectory` under a stream
 lock.
 
+For a CHD, `ChdImageSource` opens the container with `ChdFile.Open`, rejects CD/GD-ROM images, and
+hands the `XisoVfsVolume` a `ChdImageStream` over the decompressed bytes. The same stream APIs then
+probe the decompressed image; CHDSharp decompresses hunks on demand and caches the most recent hunk
+per handle. A CHD whose decompressed image is not XDVDFS fails with
+`"<path>" is not an Xbox ISO CHD (XDVDFS filesystem not found).`
+
 `ZarVfsVolume`:
 
 1. `ZArchiveReader.TryOpen` validates the archive footer and loads the offset records, name table,
@@ -51,11 +59,11 @@ ISO; `ReaderOwningVfsVolume` keeps the archive reader alive and closes it with t
 
 | Member | Behavior |
 | --- | --- |
-| `VolumeSize` | ISO length in bytes, or the summed uncompressed size of a ZArchive tree. |
-| `VolumeCreationTime` | Timestamp from the volume descriptor (ISO) or the archive file (ZAR); `DateTime.MinValue` when the descriptor timestamp is invalid. |
+| `VolumeSize` | ISO length in bytes (CHD: the decompressed image size), or the summed uncompressed size of a ZArchive tree. |
+| `VolumeCreationTime` | Timestamp from the volume descriptor (ISO/CHD) or the archive file (ZAR); `DateTime.MinValue` when the descriptor timestamp is invalid. |
 | `GetEntry(path)` | Resolves a virtual path to an `IVfsEntry`, or `null`. Never throws. |
 | `GetFolderList(path)` | Lazily enumerates the children of a directory. Returns nothing when the path is not a valid directory. |
-| `ReadFile(entry, buffer, offset)` | Reads file data (decompressing ZAR blocks as needed); returns the number of bytes read, or `0` on failure. |
+| `ReadFile(entry, buffer, offset)` | Reads file data (decompressing ZAR blocks or CHD hunks as needed); returns the number of bytes read, or `0` on failure. |
 | `Dispose()` | Closes the underlying stream or archive. |
 
 ---
@@ -230,7 +238,8 @@ written to `error.log` and can be forwarded to the bug report API. See
 - A keep-open `XisoExplorer` serializes its metadata operations on an internal lock; the
   stream-backed `XisoVfsVolume` locks its held image stream around every seek/read. `ZArchiveReader`
   is likewise internally locked and swaps whole decompressed 64 KiB blocks in and out of a bounded
-  LRU cache.
+  LRU cache. `ChdImageStream` is not thread-safe, so the volume's stream lock serializes CHD reads;
+  with `--image-iso` the synthetic `image.iso` uses a second, independent CHD reader.
 - Both volume implementations use concurrent dictionaries for their entry and children caches.
 - `GetFolderList` returns the cached list, built on first request while the underlying stream or
   archive lock is taken per read.

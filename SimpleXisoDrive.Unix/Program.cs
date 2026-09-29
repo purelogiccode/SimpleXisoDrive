@@ -8,8 +8,8 @@ namespace SimpleXisoDrive;
 
 /// <summary>
 /// Application entry point for Linux and macOS. Parses command-line arguments and
-/// mounts an Xbox ISO/XISO or ZArchive (.zar) image as a read-only virtual file
-/// system using FUSE 3 (libfuse3 or macFUSE).
+/// mounts an Xbox ISO/XISO, Xbox ISO CHD (.chd) or ZArchive (.zar) image as a read-only
+/// virtual file system using FUSE 3 (libfuse3 or macFUSE).
 /// </summary>
 internal static class Program
 {
@@ -111,13 +111,13 @@ internal static class Program
                 if (Directory.Exists(args[0]))
                 {
                     await Console.Error.WriteLineAsync(
-                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso or .zar file.");
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file.");
                 }
 
                 if (string.IsNullOrEmpty(Path.GetExtension(args[0])))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{args[0]}.iso', '{args[0]}.xiso', '{args[0]}.cso' and '{args[0]}.zar' but none were found.");
+                        $"Hint: Tried looking for '{args[0]}.iso', '{args[0]}.xiso', '{args[0]}.cso', '{args[0]}.chd' and '{args[0]}.zar' but none were found.");
                 }
 
                 Log.Error(new FileNotFoundException($"Image file not found at '{args[0]}'"),
@@ -235,13 +235,13 @@ internal static class Program
     private static void PrintUsage()
     {
         Console.WriteLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso, .cso) or ZArchive (.zar) file as a read-only virtual file system.");
+            "Mounts an Xbox ISO/XISO (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file as a read-only virtual file system.");
         Console.WriteLine("");
         Console.WriteLine("Usage: SimpleXisoDrive <image-file> [mount-path] [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
         Console.WriteLine(
-            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso) or ZArchive (.zar) file to mount.");
+            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file to mount.");
         Console.WriteLine("  <mount-path>    Existing empty directory to mount on. When omitted, a temporary");
         Console.WriteLine("                  directory is created and printed after mounting.");
         Console.WriteLine("");

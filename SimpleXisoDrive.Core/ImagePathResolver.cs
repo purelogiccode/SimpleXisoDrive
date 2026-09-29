@@ -12,13 +12,13 @@ public static class ImagePathResolver
     /// <summary>
     /// The file extensions the resolver recognizes, in preference order.
     /// </summary>
-    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".cso", ".zar"];
+    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".cso", ".chd", ".zar"];
 
     /// <summary>
     /// Resolves the image file path, handling cases where the user provides a path without an
     /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>), CISO-compressed
-    /// images (<c>.cso</c>, including split <c>.1.cso</c> sets) and ZArchive (<c>.zar</c>)
-    /// files. Tries multiple strategies to find the file:
+    /// images (<c>.cso</c>, including split <c>.1.cso</c> sets), Xbox ISO CHD images
+    /// (<c>.chd</c>) and ZArchive (<c>.zar</c>) files. Tries multiple strategies to find the file:
     /// 1. Return original path if file exists
     /// 2. If path is a directory containing exactly one image file, resolve to it
     /// 3. If no extension, try appending each supported extension

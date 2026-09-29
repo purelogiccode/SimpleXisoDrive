@@ -116,6 +116,42 @@ public class ResolveImagePathTests
     }
 
     [Fact]
+    public void AppendsChdExtensionWhenOnlyChdExists()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.chd");
+        File.WriteAllText(tempFile, string.Empty);
+        try
+        {
+            var pathWithoutExtension = tempFile[..^4]; // Remove ".chd"
+            var result = ImagePathResolver.Resolve(pathWithoutExtension);
+            Assert.Equal(tempFile, result);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ResolvesDirectoryContainingExactlyOneChd()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var tempChd = Path.Combine(tempDir, "game.chd");
+        File.WriteAllText(tempChd, string.Empty);
+
+        try
+        {
+            var result = ImagePathResolver.Resolve(tempDir);
+            Assert.Equal(tempChd, result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void ResolvesDirectoryContainingSplitCsoSet()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());

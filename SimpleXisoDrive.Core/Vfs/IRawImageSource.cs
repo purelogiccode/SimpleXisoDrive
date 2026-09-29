@@ -3,8 +3,8 @@ namespace SimpleXisoDrive.Core.Vfs;
 /// <summary>
 /// Provides read access to the raw bytes of the mounted Xbox image, served to
 /// consumers as the virtual <c>image.iso</c> file. Implementations back the file
-/// with a plain ISO stream, a CISO block device view, an XISO embedded in a
-/// ZArchive, or an XISO synthesized from a ZArchive tree.
+/// with a plain ISO stream, a CISO block device view, an Xbox ISO CHD stream, an
+/// XISO embedded in a ZArchive, or an XISO synthesized from a ZArchive tree.
 /// </summary>
 internal interface IRawImageSource : IDisposable
 {

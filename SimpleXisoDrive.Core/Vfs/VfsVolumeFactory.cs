@@ -1,3 +1,4 @@
+using CHDSharp;
 using Serilog;
 using XISOSharp;
 using ZArchiveSharp;
@@ -6,7 +7,8 @@ namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Opens the correct <see cref="IVfsVolume"/> implementation for an image file.
-/// Xbox ISO/XISO images are opened directly; ZArchive (<c>.zar</c>) files expose either
+/// Xbox ISO/XISO images are opened directly; Xbox ISO CHD (<c>.chd</c>) files are
+/// decompressed on demand through CHDSharp; ZArchive (<c>.zar</c>) files expose either
 /// an embedded XISO image or their archived directory tree. When requested, the raw
 /// image is also exposed as a virtual <c>image.iso</c> file at the volume root.
 /// </summary>
@@ -14,8 +16,10 @@ internal static class VfsVolumeFactory
 {
     private const string ZarExtension = ".zar";
 
+    private const string ChdExtension = ".chd";
+
     /// <summary>
-    /// Opens <paramref name="imagePath"/> as an Xbox ISO or ZArchive volume.
+    /// Opens <paramref name="imagePath"/> as an Xbox ISO, Xbox ISO CHD or ZArchive volume.
     /// </summary>
     /// <param name="imagePath">The path to the image to open.</param>
     /// <param name="exposeImageIso">
@@ -23,12 +27,17 @@ internal static class VfsVolumeFactory
     /// virtual <c>image.iso</c> file for emulators that only accept disc images.
     /// </param>
     /// <returns>The volume that exposes the image's file system.</returns>
-    /// <exception cref="InvalidImageException">Thrown when the file is neither a valid Xbox ISO nor a valid ZArchive.</exception>
+    /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO, Xbox ISO CHD or ZArchive.</exception>
     public static IVfsVolume Open(string imagePath, bool exposeImageIso = false)
     {
         if (HasExtension(imagePath, ZarExtension))
         {
             return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(imagePath), imagePath, exposeImageIso);
+        }
+
+        if (HasExtension(imagePath, ChdExtension))
+        {
+            return OpenChd(imagePath, exposeImageIso);
         }
 
         XisoVfsVolume xisoVolume;
@@ -38,7 +47,13 @@ internal static class VfsVolumeFactory
         }
         catch (InvalidImageException)
         {
-            // A ZArchive renamed to .iso (or another extension) should still mount.
+            // A CHD or ZArchive renamed to .iso (or another extension) should still mount.
+            if (Chd.IsChdFile(imagePath))
+            {
+                Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
+                return OpenChd(imagePath, exposeImageIso);
+            }
+
             var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
             if (reader is null)
             {
@@ -112,6 +127,54 @@ internal static class VfsVolumeFactory
             virtualSource?.Dispose();
             treeVolume.Dispose();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens an Xbox ISO CHD. The decompressed image must parse as XDVDFS; when
+    /// requested, a second independent CHD reader backs the virtual <c>image.iso</c>
+    /// so raw-image reads never race the volume's stream (CHD streams are not
+    /// thread-safe).
+    /// </summary>
+    private static IVfsVolume OpenChd(string imagePath, bool exposeImageIso)
+    {
+        var xisoVolume = OpenChdVolume(imagePath);
+        if (!exposeImageIso)
+        {
+            return xisoVolume;
+        }
+
+        IRawImageSource? source = null;
+        try
+        {
+            source = new StreamRawImageSource(ChdImageSource.OpenOrThrow(imagePath));
+            return new ImageIsoVfsVolume(xisoVolume, source);
+        }
+        catch
+        {
+            source?.Dispose();
+            xisoVolume.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens the decompressed CHD image as an <see cref="XisoVfsVolume"/>, mapping a
+    /// failed XDVDFS parse to a CHD-specific error message. The volume takes ownership
+    /// of the stream; a failed parse disposes it inside the volume constructor.
+    /// </summary>
+    private static XisoVfsVolume OpenChdVolume(string imagePath)
+    {
+        var stream = ChdImageSource.OpenOrThrow(imagePath);
+        try
+        {
+            return new XisoVfsVolume(stream, imagePath);
+        }
+        catch (InvalidImageException ex)
+        {
+            Log.Debug(ex, "CHD '{ImagePath}' does not contain an Xbox ISO image", imagePath);
+            throw new InvalidImageException(
+                $"'{imagePath}' is not an Xbox ISO CHD (XDVDFS filesystem not found).", ex);
         }
     }
 

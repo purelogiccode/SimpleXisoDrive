@@ -8,8 +8,8 @@ using SimpleXisoDrive.Services;
 namespace SimpleXisoDrive;
 
 /// <summary>
-/// Application entry point. Parses command-line arguments and mounts an Xbox ISO/XISO or
-/// ZArchive (.zar) image as a read-only virtual file system using Dokan.
+/// Application entry point. Parses command-line arguments and mounts an Xbox ISO/XISO, Xbox ISO
+/// CHD (.chd) or ZArchive (.zar) image as a read-only virtual file system using Dokan.
 /// </summary>
 internal static class Program
 {
@@ -136,13 +136,13 @@ internal static class Program
                 if (Directory.Exists(isoPath))
                 {
                     await Console.Error.WriteLineAsync(
-                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso or .zar file.");
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file.");
                 }
 
                 if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso', '{isoPath}.cso' and '{isoPath}.zar' but none were found.");
+                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso', '{isoPath}.cso', '{isoPath}.chd' and '{isoPath}.zar' but none were found.");
                 }
 
                 if (args.Length > 2 && !isoPath.Contains(' '))
@@ -361,12 +361,12 @@ internal static class Program
             ? Path.GetFileNameWithoutExtension(mainModule.FileName)
             : "SimpleXisoDrive";
         Console.WriteLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso) or ZArchive (.zar) file as a virtual file system on Windows.");
+            "Mounts an Xbox ISO/XISO (.iso, .xiso), Xbox ISO CHD (.chd) or ZArchive (.zar) file as a virtual file system on Windows.");
         Console.WriteLine("");
         Console.WriteLine($"Usage: {exeName} <image-file> <mount-path> [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
-        Console.WriteLine("  <image-file>    Path to the Xbox image (.iso, .xiso) or ZArchive (.zar) file to mount.");
+        Console.WriteLine("  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file to mount.");
         Console.WriteLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
         Console.WriteLine("");
         Console.WriteLine("Options:");

@@ -1,6 +1,6 @@
 # Linux and macOS
 
-SimpleXisoDrive mounts Xbox ISO/XISO/CISO images and ZArchive files as read-only
+SimpleXisoDrive mounts Xbox ISO/XISO/CISO/CHD images and ZArchive files as read-only
 directories on Linux and macOS using FUSE 3.
 
 ---
@@ -45,7 +45,7 @@ The application searches for the FUSE library in the standard locations. Set
 SimpleXisoDrive <image-file> [mount-path] [options]
 ```
 
-*   `<image-file>` — path to the `.iso`, `.xiso`, `.cso` or `.zar` file. A directory
+*   `<image-file>` — path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. A directory
     containing exactly one image, or a path without an extension, is also resolved.
 *   `<mount-path>` — an existing empty directory. When omitted, the application creates
     a temporary directory and prints it after mounting.
@@ -59,6 +59,13 @@ Example:
 mkdir -p ~/mnt/halo
 SimpleXisoDrive ~/Games/Halo.iso ~/mnt/halo
 ls ~/mnt/halo
+```
+
+To mount an Xbox ISO stored as CHD and expose the decompressed disc image for an emulator:
+
+```shell
+SimpleXisoDrive ~/Games/Halo.chd ~/mnt/halo --image-iso
+# The emulator can open ~/mnt/halo/image.iso
 ```
 
 To mount a ZArchive and expose the synthesized disc image for an emulator:

@@ -100,8 +100,8 @@ are printed when applicable:
 
 | Hint | Meaning |
 | --- | --- |
-| "The specified path is a directory..." | You passed a folder with zero or multiple image files. Point at a file, or ensure the folder contains exactly one `.iso`, `.xiso` or `.zar`. |
-| "Tried looking for '<path>.iso', '<path>.xiso' and '<path>.zar'..." | The extensionless variant also does not exist. Check the file name. |
+| "The specified path is a directory..." | You passed a folder with zero or multiple image files. Point at a file, or ensure the folder contains exactly one `.iso`, `.xiso`, `.cso`, `.chd` or `.zar`. |
+| "Tried looking for '<path>.iso', '<path>.xiso', '<path>.cso', '<path>.chd' and '<path>.zar'..." | The extensionless variant also does not exist. Check the file name. |
 | "If your file path contains spaces..." | Quote the path: `"D:\My Games\Halo.iso"` |
 
 Note that the failure is also logged as a `FileNotFoundException` for diagnostics.
@@ -124,10 +124,30 @@ The file exists but no valid volume descriptor could be found. The most common r
 3. It is a **corrupted or incomplete** download.
 4. It uses an **unsupported layout** (for example, an Xbox 360/One file system rather than original-Xbox XDVDFS).
 
-CISO-compressed images (`.cso`, including split `.1.cso` part sets) are supported and decompressed
-on the fly, so they do not need to be extracted first. XISOSharp's underlying diagnostic (the probed
-locations and their failure reasons) is attached as the inner exception and written to the log file
-for support.
+CISO-compressed images (`.cso`, including split `.1.cso` part sets) and Xbox ISO CHDs (`.chd`) are
+supported and decompressed on the fly, so they do not need to be extracted first. XISOSharp's
+underlying diagnostic (the probed locations and their failure reasons) is attached as the inner
+exception and written to the log file for support.
+
+### "Error: '<path>' is not a readable CHD file: ..."
+
+CHDSharp could not open the file as a CHD. Common causes:
+
+1. The file is **corrupt or incomplete** (an interrupted download or copy).
+2. It is **not a CHD at all** (a renamed container of another type).
+3. It is a **differential child CHD** whose parent is required (`Chderrrequiresparent`); merge it
+   with its parent (`chdman copy -i child.chd -ip parent.chd`) before mounting.
+
+### "Error: '<path>' is a CD/GD-ROM CHD; only Xbox ISO CHDs are supported."
+
+The file is a valid CHD, but it stores a CD or GD-ROM image (2352-byte sectors) rather than an Xbox
+ISO. Convert the disc data to an Xbox ISO/XISO first, then encode it as a CHD.
+
+### "Error: '<path>' is not an Xbox ISO CHD (XDVDFS filesystem not found)."
+
+The CHD opened and decompressed, but its content is not an XDVDFS image — for example a PC ISO, an
+Xbox 360 disc image, an encrypted Redump dump, or a raw dump that still needs conversion. See
+[XDVDFS Format](XDVDFS-Format) for the supported layouts.
 
 ### "Error: XDVDFS magic string not found."
 
@@ -195,12 +215,16 @@ image if you suspect corruption.
 Reads are streamed directly from the image; performance depends on disk speed and fragmentation. Mount
 to a local drive for best results; network shares and external USB drives are slower. ZArchive reads
 additionally decompress each 64 KiB block on first access and cache the most recent blocks, so the
-first pass over a `.zar` is CPU-bound while repeated reads of the same region are fast.
+first pass over a `.zar` is CPU-bound while repeated reads of the same region are fast. CHD reads
+decompress each hunk on first access and cache the most recent hunk per handle; a codec such as
+`lzma` costs more CPU per hunk than `zlib` or `zstd`, so the first pass over a `.chd` is CPU-bound
+while sequential reads within a hunk are served from the cache.
 
 ### Antivirus interferes with mounting or reading
 
-The application opens the ISO or ZAR with `FileShare.ReadWrite` specifically to coexist with
-scanners. If a scanner still locks the file, add an exclusion for the image folder or the
+The application opens the ISO, CISO or ZAR with `FileShare.ReadWrite` specifically to coexist with
+scanners. CHD files are opened by CHDSharp with `FileShare.Read` (multiple readers are allowed but
+not writers). If a scanner still locks the file, add an exclusion for the image folder or the
 application.
 
 ### The update prompt appears on every start
@@ -218,7 +242,7 @@ Include:
 2. The complete console output.
 3. The newest file in `logs\`.
 4. `error.log` (and `critical_error.log` if present).
-5. The image size and how it was produced (dump tool, format variant, and for `.zar` the packer used).
+5. The image size and how it was produced (dump tool, format variant, and for `.zar`/`.chd` the packer/encoder used, including the codec).
 
 Remember that warning-level logs may already have been submitted automatically; see
 [Privacy and Networking](Privacy-and-Networking).

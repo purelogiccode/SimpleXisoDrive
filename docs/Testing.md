@@ -55,8 +55,9 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `XisoVfsVolumeTreeTests` | Directory trees and reads | Multi-file and nested-directory images, separators and case-insensitivity, empty files/directories, reads across sector boundaries, clamped reads, attribute-flag mapping, descriptor FILETIME values, parallel reads (path and stream modes), idempotent dispose |
 | `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering, metadata for files and directories, `CreateFile` access modes, `ReadFile` offsets/clamping/directories, normalized special segments, read-only denials, locking, alternate-stream reporting, security descriptors |
 | `ApiKeyProviderTests` | API key protection | Deterministic decryption of the double-encrypted key, expected key digest (without storing the key), preload behavior |
-| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup |
+| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup |
 | `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, invalid archive errors, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
+| `ChdVfsContainerTests` | Xbox ISO CHD mounts | CHD mount of rebuilt and standard-layout images, nested directory trees, `--image-iso` decompressed image, non-Xbox CHD rejection, renamed `.chd` fallback, missing file errors |
 | `ImageIsoVfsVolumeTests` | Virtual `image.iso` decorator | Root listing and case-insensitive lookup, raw reads at offsets with clamping, inner tree entries remain readable, a real `image.iso` entry wins, disposal |
 | `StreamRawImageSourceTests` | Raw stream source | Non-seekable rejection, offset reads across sector boundaries, end clamping, disposal, parallel reads |
 | `VirtualXisoImageSourceTests` | Synthesized ZAR XISO | Byte-identical to `XisoWriter.PackFromDirectory` for nested trees (sector-crossing files, empty files/directories), XISOSharp readability, unaligned reads across extents, disposal |
@@ -75,6 +76,9 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 - **Real archives**: `ZarVfsVolumeTests`/`VfsContainerTests` pack small trees and embedded XISO
   images with `ZArchiveWriter` into temporary `.zar` files, so the real reader (including zstd
   decompression) is exercised end to end.
+- **Real CHDs**: `ChdVfsContainerTests` encodes `TestImageFactory` images with `ChdEncoder` (the
+  uncompressed codec, for speed) into temporary `.chd` files, so the real CHDSharp reader,
+  decompression path and XDVDFS validation are exercised end to end.
 - **Temporary files**: `ResolveImagePathTests`, `XisoVfsVolumeTests`, and the Dokan tests create and
   clean up temp files/directories; `ResolveImagePathTests` also temporarily changes
   `Environment.CurrentDirectory`.

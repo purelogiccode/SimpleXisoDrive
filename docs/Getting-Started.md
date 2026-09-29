@@ -1,8 +1,8 @@
 # Getting Started
 
 This page walks through the two supported ways to mount an Xbox image: drag-and-drop and the
-command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`) and ZArchive
-(`.zar`) files are supported.
+command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO CHD
+images (`.chd`) and ZArchive (`.zar`) files are supported.
 
 Before you begin, make sure [Dokan and the .NET runtime are installed](Installation).
 
@@ -22,7 +22,8 @@ Every run follows the same sequence:
    - **one argument** - treated as a drag-and-drop mount (automatic drive letter, Explorer opens);
    - **two or more arguments** - image path followed by mount point and optional flags.
 6. The image path is resolved (see [path resolution](Command-Line-Reference#image-path-resolution)).
-7. The image is opened, validated, and the Dokan file system is mounted. For `.zar` files the
+7. The image is opened, validated, and the Dokan file system is mounted. For `.chd` files the
+   decompressed Xbox image is validated as XDVDFS and served hunk-by-hunk; for `.zar` files the
    archive tree (or a single embedded XISO image) is exposed.
 8. The console remains open until the volume is unmounted.
 
@@ -32,7 +33,7 @@ Every run follows the same sequence:
 
 This is the fastest way to mount an image and requires no typing.
 
-1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`) or ZArchive (`.zar`) file in File Explorer.
+1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`), Xbox ISO CHD (`.chd`) or ZArchive (`.zar`) file in File Explorer.
 2. Drag the file and drop it onto `SimpleXisoDrive.exe`.
 3. A console window opens. The application:
    - validates the path,
@@ -77,6 +78,18 @@ drive; if the archive wraps a single XISO image, the image's contents are shown 
 ```shell
 SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
 ```
+
+### Mount an Xbox ISO CHD
+
+An Xbox ISO stored as CHD is mounted exactly like an ISO. Hunks are decompressed on demand, so the
+mount appears immediately and the source `.chd` is never modified:
+
+```shell
+SimpleXisoDrive.exe "D:\Games\Halo.chd" Z:
+```
+
+Only CHDs whose decompressed image is a valid Xbox ISO are accepted. CD/GD-ROM CHDs and
+differential child CHDs (which need their parent merged first) are rejected with a clear error.
 
 ### Mount into an NTFS folder
 
@@ -155,7 +168,7 @@ Expected console output (simplified):
 ```
 
 Windows Explorer opens at `P:\`, which shows the contents of the disc under the volume label
-`XBOX_ISO` (ISO/XISO) or `XBOX_ZAR` (ZArchive).
+`XBOX_ISO` (ISO/XISO/CHD) or `XBOX_ZAR` (ZArchive).
 
 ---
 
