@@ -17,6 +17,12 @@ history.
 
 ## Unreleased (after 1.2.0)
 
+- Added the `-i`/`--image-iso` option: the mount also exposes a virtual read-only `image.iso` file
+  at the volume root for emulators that only accept a disc image (such as xemu). Plain ISO/XISO and
+  CISO inputs are served on demand (CISO blocks are decompressed through the XISOSharp block
+  device), and a ZArchive directory tree is synthesized into an XISO entirely in memory (XISOSharp
+  layout primitives; file data read from the archive on demand) with no extraction. The synthesized
+  image is byte-identical to `XisoWriter.PackFromDirectory` output for the same tree.
 - Added ZArchive (`.zar`) mounting: directory-tree archives expose their game files directly, and
   archives containing a single embedded XISO image mount that image — all with on-demand zstd block
   decompression and no extraction to disk.
@@ -35,8 +41,9 @@ history.
 - Added GitHub Actions CI: every push/pull request builds and tests on Windows and uploads TRX and
   coverage artifacts; the `release_*` workflow verifies the tag against `AssemblyVersion`, packages
   framework-dependent single-file `win-x64`/`win-arm64` zips, and creates the GitHub release.
-- Expanded the test suite from 43 to 89 tests, covering XISO directory trees and reads, the Dokan
-  operation layer, stream-backed embedded images, parallel reads, resolver CISO cases, and API key
+- Expanded the test suite from 43 to 110 tests, covering XISO directory trees and reads, the Dokan
+  operation layer, stream-backed embedded images, parallel reads, resolver CISO cases, the virtual
+  `image.iso` sources (including byte-identity with the whole-image writer), and API key
   decryption.
 - Added tests for ZAR volumes, embedded XISO images, format detection, and the extended resolver.
 - Hardened error handling: locked or unreadable images surface real I/O errors instead of "invalid

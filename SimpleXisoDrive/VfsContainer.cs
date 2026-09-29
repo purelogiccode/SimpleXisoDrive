@@ -10,7 +10,8 @@ namespace SimpleXisoDrive;
 /// Xbox ISO/XISO images are exposed through <see cref="XisoVfsVolume"/>; ZArchive
 /// (<c>.zar</c>) files are exposed through <see cref="ZarVfsVolume"/> (directory tree)
 /// or as an embedded XISO image. The volume implementation is chosen automatically by
-/// <see cref="VfsVolumeFactory"/>.
+/// <see cref="VfsVolumeFactory"/>. With <c>exposeImageIso</c>, an
+/// <see cref="ImageIsoVfsVolume"/> decorator adds the raw image as <c>image.iso</c>.
 /// </remarks>
 public class VfsContainer : IDisposable
 {
@@ -40,10 +41,15 @@ public class VfsContainer : IDisposable
     /// Initializes a new instance of the <see cref="VfsContainer"/> class for the specified image file.
     /// </summary>
     /// <param name="imagePath">The path to the Xbox ISO/XISO or ZArchive (<c>.zar</c>) file to open.</param>
+    /// <param name="exposeImageIso">
+    /// When <see langword="true"/>, the mount also exposes the raw Xbox image as a virtual
+    /// <c>image.iso</c> file at the volume root, for emulators that only accept a disc image
+    /// (such as xemu). ZArchive directory trees are synthesized into a virtual XISO image in memory.
+    /// </param>
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox image or ZArchive.</exception>
-    public VfsContainer(string imagePath)
+    public VfsContainer(string imagePath, bool exposeImageIso = false)
     {
-        _volume = VfsVolumeFactory.Open(imagePath);
+        _volume = VfsVolumeFactory.Open(imagePath, exposeImageIso);
     }
 
     /// <summary>

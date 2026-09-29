@@ -21,7 +21,7 @@ Repository: <https://github.com/purelogiccode/SimpleXisoDrive>
 
 Include as much of the following as possible:
 
-1. Application version (shown in logs; currently 1.3.0).
+1. Application version (shown in logs; currently 1.4.0).
 2. Windows version and architecture (x64/ARM64).
 3. Dokan version installed.
 4. The exact command line used.

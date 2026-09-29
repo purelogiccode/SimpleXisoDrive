@@ -26,12 +26,28 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 | --- | --- | --- |
 | `--debug` | `-d` | Enables Dokan debug mode and routes Dokan's internal log output to stderr/console. Useful for diagnosing mount or file access problems. |
 | `--launch` | `-l` | Opens Windows Explorer at the mount path after a successful mount. |
+| `--image-iso` | `-i` | Also exposes the raw Xbox image as a virtual read-only `image.iso` file at the mount root, for emulators that only accept a disc image (such as xemu). See [Virtual image.iso](#virtual-imageiso). |
 
 Option matching is case-insensitive. Any token after the mount path that is not a recognized option
 is ignored rather than treated as an error.
 
-> In single-argument (drag-and-drop) mode, `--launch` is implied and `--debug` is not available.
-> Use the two-argument form if you need debug output.
+> In single-argument (drag-and-drop) mode, `--launch` is implied and `--debug`/`--image-iso` are not
+> available. Use the two-argument form if you need those options.
+
+## Virtual image.iso
+
+`--image-iso` adds a synthetic read-only file named `image.iso` at the root of the mounted volume
+while the normal file tree remains browsable. The raw image bytes are served as follows:
+
+| Input | `image.iso` content |
+| --- | --- |
+| Plain ISO/XISO (`.iso`, `.xiso`) | The image file itself. |
+| CISO (`.cso`, including split `.1.cso` sets) | The decompressed Xbox image, decoded on demand. |
+| ZArchive with a single embedded XISO | The embedded image, decompressed on demand. |
+| ZArchive directory tree | An XISO synthesized in memory from the archived files (volume descriptor, directory tables and file extents built with XISOSharp's layout primitives). File data is read from the archive on demand — nothing is extracted and the mount appears immediately. |
+
+If the mounted image already contains a real file named `image.iso`, that real file is shown instead
+of the synthetic one.
 
 ## Behavior by argument count
 
@@ -153,6 +169,12 @@ SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
 
 # Mount a CISO image (single .cso or the first part of a split set)
 SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
+
+# Mount a CISO image and expose the decompressed image as image.iso
+SimpleXisoDrive.exe "D:\Games\Halo.cso" Z: --image-iso
+
+# Mount a ZArchive tree and expose a synthesized image.iso for an emulator
+SimpleXisoDrive.exe "D:\Games\Halo.zar" Z: -i
 
 # Mount the only image file in a directory
 SimpleXisoDrive.exe "D:\Games\HaloCollection" Z:

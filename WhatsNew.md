@@ -1,3 +1,34 @@
+# What's New in 1.4.0 (since 1.3.0)
+
+Prepared for the `release_1.4.0` tag. Framework-dependent `win-x64` and `win-arm64` builds require
+the .NET 10.0 Runtime (the base runtime; the Desktop Runtime also works but is not required).
+
+## Virtual image.iso (`--image-iso`)
+
+- **New `-i` / `--image-iso` option** adds a synthetic read-only `image.iso` file at the mount root
+  while the normal tree stays browsable, so emulators that only accept a disc image (such as xemu)
+  can open `<mount>\image.iso`.
+- Plain ISO/XISO inputs and CISO `.cso` images (including split `.1.cso` sets) are served on demand:
+  CISO blocks are decompressed through the XISOSharp block device, nothing is extracted.
+- A ZArchive with a single embedded XISO is served from the embedded image on demand.
+- A ZArchive directory tree is synthesized into an XISO **in memory**: the XDVDFS layout
+  (volume descriptor, directory tables and file extents) is built with XISOSharp's public layout
+  primitives and file data is read from the archive on demand. Nothing is extracted, the mount
+  appears immediately, and the synthesized image is byte-identical to
+  `XisoWriter.PackFromDirectory` output for the same tree.
+- When the mounted image already contains a real `image.iso` file, that file is shown instead of the
+  synthetic one.
+
+## Tests
+
+- The suite grew from 89 to **110 tests**.
+- `ImageIsoVfsVolumeTests` covers the synthetic entry (listing, lookup, reads, clamping, real-file
+  precedence, disposal), `StreamRawImageSourceTests` covers seeked and parallel reads plus disposal,
+  `VirtualXisoImageSourceTests` proves the synthesized ZAR image is byte-identical to the XISOSharp
+  whole-image writer for nested trees (sector-crossing files, empty files, empty directories) and
+  validates unaligned reads and XISOSharp readability, and `VfsContainerTests` mounts `.iso`, `.cso`,
+  embedded-XISO `.zar` and tree `.zar` inputs with the option and validates the exposed image.
+
 # What's New in 1.3.0 (since 1.2.0)
 
 Prepared for the `release_1.3.0` tag. Framework-dependent `win-x64` and `win-arm64` builds require

@@ -24,7 +24,7 @@ No other connections are made by the application.
 ```json
 {
   "applicationId": "simplexisodrive",
-  "version": "1.3.0"
+  "version": "1.4.0"
 }
 ```
 
@@ -56,7 +56,7 @@ an unhandled exception, or an unobserved task exception.
 | --- | --- | --- |
 | `message` | Rendered report | Environment + error + exception sections |
 | `applicationName` | Constant | `SimpleXisoDrive` |
-| `version` | Assembly metadata | `1.3.0` |
+| `version` | Assembly metadata | `1.4.0` |
 | `userInfo` | `Environment.UserName` | Windows account name |
 | `environment` | Runtime information | OS description and architecture |
 | `stackTrace` | Exception `ToString()` | Managed stack trace |

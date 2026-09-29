@@ -11,6 +11,7 @@ The application is designed for extreme memory efficiency and now supports both 
 *   **Multi-Architecture Support:** Native executables for `win-x64` and `win-arm64`.
 *   **Broad Format Support:** Handles standard Xbox ISO dumps (Sector 32), rebuilt "XISO" formats (Sector 0), Dual-Layer/Hybrid discs (Game Partition offsets), and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
 *   **ZArchive Support:** Mounts `.zar` archives directly — either the archived game tree or a single embedded XISO image — with on-demand zstd decompression (no extraction or temp files).
+*   **Virtual `image.iso`:** The `--image-iso` option also exposes the raw Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO images are decompressed on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
 *   **Zero-Config Mounting:** Drag-and-drop an ISO, CISO or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **NTFS Integration:** Mount ISOs as drive letters (e.g., `Z:`) or into empty NTFS folders.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
@@ -59,6 +60,7 @@ SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 **Options:**
 *   `-l`, `--launch`: Automatically opens Windows Explorer to the mount point.
 *   `-d`, `--debug`: Enables verbose Dokan debug output in the console.
+*   `-i`, `--image-iso`: Also exposes the raw Xbox image as `image.iso` at the mount root (for emulators such as xemu).
 
 ## Technical Details
 

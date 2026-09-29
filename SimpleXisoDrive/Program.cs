@@ -72,6 +72,7 @@ internal static class Program
 
         var isDragAndDrop = false;
         var debug = false;
+        var imageIso = false;
 
         try
         {
@@ -117,6 +118,7 @@ internal static class Program
                     var options = new HashSet<string>(args.Skip(2), StringComparer.OrdinalIgnoreCase);
                     debug = options.Contains("-d") || options.Contains("--debug");
                     launch = options.Contains("-l") || options.Contains("--launch");
+                    imageIso = options.Contains("-i") || options.Contains("--image-iso");
                     break;
             }
 
@@ -162,7 +164,7 @@ internal static class Program
 
             if (isDragAndDrop)
             {
-                var mountTask = RunMount(isoPath, mountPath, debug, launch);
+                var mountTask = RunMount(isoPath, mountPath, debug, launch, imageIso);
 
                 // Wait for either the mount to fail OR the user to press a key
                 var keyPressTask = ConsoleKeyPress.WaitAsync();
@@ -187,7 +189,7 @@ internal static class Program
             {
                 // For standard command-line use, await the task directly.
                 // The user will stop it with Ctrl+C.
-                await RunMount(isoPath, mountPath, debug, launch);
+                await RunMount(isoPath, mountPath, debug, launch, imageIso);
             }
 
             return 0;
@@ -367,9 +369,11 @@ internal static class Program
         Console.WriteLine("Options:");
         Console.WriteLine("  -d, --debug     Display debug Dokan output in the console window.");
         Console.WriteLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
+        Console.WriteLine("  -i, --image-iso Also expose the raw Xbox image as image.iso at the mount root");
+        Console.WriteLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
     }
 
-    private static async Task RunMount(string isoPath, string mountPath, bool debug, bool launch)
+    private static async Task RunMount(string isoPath, string mountPath, bool debug, bool launch, bool imageIso)
     {
         // Check for admin rights for drive letter mounting
         if (mountPath.EndsWith(":\\", StringComparison.Ordinal) && !CheckAccess.IsAdministrator())
@@ -397,7 +401,7 @@ internal static class Program
                 mountPath = mountPath.Substring(0, 2);
             }
 
-            _vfsContainer = new VfsContainer(isoPath);
+            _vfsContainer = new VfsContainer(isoPath, imageIso);
 
             // Use MountManager only if we have Admin rights, otherwise it often fails with "Something's wrong with the Dokan driver"
             var dokanOptions = DokanOptions.WriteProtection | DokanOptions.CurrentSession;

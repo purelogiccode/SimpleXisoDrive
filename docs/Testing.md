@@ -41,7 +41,7 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 89, Failed: 0` for `SimpleXisoDrive.Tests.dll`. The same suite runs in
+A healthy run reports `Passed: 110, Failed: 0` for `SimpleXisoDrive.Tests.dll`. The same suite runs in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 
@@ -56,7 +56,10 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering, metadata for files and directories, `CreateFile` access modes, `ReadFile` offsets/clamping/directories, normalized special segments, read-only denials, locking, alternate-stream reporting, security descriptors |
 | `ApiKeyProviderTests` | API key protection | Deterministic decryption of the double-encrypted key, expected key digest (without storing the key), preload behavior |
 | `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup |
-| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, invalid archive errors, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors |
+| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, invalid archive errors, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
+| `ImageIsoVfsVolumeTests` | Virtual `image.iso` decorator | Root listing and case-insensitive lookup, raw reads at offsets with clamping, inner tree entries remain readable, a real `image.iso` entry wins, disposal |
+| `StreamRawImageSourceTests` | Raw stream source | Non-seekable rejection, offset reads across sector boundaries, end clamping, disposal, parallel reads |
+| `VirtualXisoImageSourceTests` | Synthesized ZAR XISO | Byte-identical to `XisoWriter.PackFromDirectory` for nested trees (sector-crossing files, empty files/directories), XISOSharp readability, unaligned reads across extents, disposal |
 | `ZarVfsVolumeTests` | ZArchive volume | Tree listing, case-insensitive nested lookup, file reads at offsets, directory reads, multi-block reads, volume size, invalid archives |
 | `TestImageFactory` / `TestImageEntry` | Shared test fixtures | Builders for minimal rebuilt (sector 0) and standard (sector 32) images with arbitrary nested file/directory trees, raw attribute bytes, and descriptor FILETIME values |
 | `InvalidImageExceptionTests` | Exception contract | Message and inner exception constructors, inheritance, catchability |

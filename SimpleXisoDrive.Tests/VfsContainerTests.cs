@@ -1,3 +1,4 @@
+using XISOSharp;
 using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Tests;
@@ -248,5 +249,155 @@ public class VfsContainerTests
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zar");
 
         Assert.Throws<FileNotFoundException>(() => new VfsContainer(path));
+    }
+
+    [Fact]
+    public void Constructor_WithoutImageIsoOption_DoesNotExposeVirtualImageIso()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            Assert.Null(vfs.GetEntry("\\image.iso"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithImageIsoOption_ExposesRawImageForPlainIso()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("raw data"u8.ToArray());
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, image);
+
+        try
+        {
+            using var vfs = new VfsContainer(path, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.False(entry.IsDirectory);
+            Assert.Equal(image.Length, entry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(entry, buffer, 0));
+            Assert.Equal(image, buffer);
+
+            // The normal tree view is still available.
+            Assert.NotNull(vfs.GetEntry("\\default.xbe"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithImageIsoOption_ExposesDecompressedCso()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("cso data"u8.ToArray());
+        var isoPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        var csoPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.cso");
+        File.WriteAllBytes(isoPath, image);
+
+        try
+        {
+            Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath));
+
+            using var vfs = new VfsContainer(csoPath, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.Equal(image.Length, entry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(entry, buffer, 0));
+            Assert.Equal(image, buffer);
+
+            Assert.NotNull(vfs.GetEntry("\\default.xbe"));
+        }
+        finally
+        {
+            File.Delete(isoPath);
+            File.Delete(csoPath);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithImageIsoOption_ExposesEmbeddedIsoFromZar()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("embedded"u8.ToArray());
+        var path = CreateZar(".zar", writer =>
+        {
+            Assert.True(writer.StartNewFile("game.iso"));
+            writer.AppendData(image);
+        });
+
+        try
+        {
+            using var vfs = new VfsContainer(path, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.Equal(image.Length, entry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(entry, buffer, 0));
+            Assert.Equal(image, buffer);
+
+            Assert.NotNull(vfs.GetEntry("\\default.xbe"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithImageIsoOption_ServesSynthesizedXisoForZarTree()
+    {
+        var path = CreateZar(".zar", writer =>
+        {
+            Assert.True(writer.MakeDir("sub", recursive: true));
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("hello xbox"u8);
+            Assert.True(writer.StartNewFile("sub/data.bin"));
+            writer.AppendData("archived data"u8);
+        });
+
+        try
+        {
+            using var vfs = new VfsContainer(path, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.True(entry.Size > 0);
+
+            var buffer = new byte[(int)entry.Size];
+            Assert.Equal(buffer.Length, vfs.ReadFile(entry, buffer, 0));
+
+            using var imageStream = new MemoryStream(buffer);
+            Assert.True(XisoReader.GetVolumeInfo(imageStream, "image.iso").IsValid);
+
+            imageStream.Position = 0;
+            var boot = XisoReader.GetEntryInfo(imageStream, "image.iso", "default.xbe");
+            Assert.NotNull(boot);
+            Assert.Equal((ulong)"hello xbox"u8.Length, boot.FileSize);
+
+            imageStream.Position = 0;
+            Assert.NotNull(XisoReader.GetEntryInfo(imageStream, "image.iso", "sub/data.bin"));
+
+            // The normal tree view is still available.
+            Assert.NotNull(vfs.GetEntry(@"\sub\data.bin"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

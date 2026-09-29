@@ -18,7 +18,7 @@ flowchart TD
         Program["Program<br/>CLI, lifecycle, global error handlers"]
         DokanOps["XboxIsoVfsDokan<br/>IDokanOperations"]
         Vfs["VfsContainer<br/>facade and volume selection"]
-        Volumes["XisoVfsVolume / ZarVfsVolume<br/>path resolution and caching"]
+        Volumes["XisoVfsVolume / ZarVfsVolume / ImageIsoVfsVolume<br/>path resolution, caching and virtual image.iso"]
         Xiso["XisoExplorer / XisoReader<br/>XISOSharp image access"]
         Zar["ZArchiveReader<br/>zstd block cache"]
         Services["Services<br/>logging, bug reports, stats, updates"]
@@ -53,12 +53,15 @@ flowchart TD
 | --- | --- | --- |
 | `Program` | `internal static class` | Entry point, CLI parsing, path resolution, mount lifecycle, console UX, global exception handlers. |
 | `VfsContainer` | `public class` | Facade over the selected volume: opens the image through `VfsVolumeFactory` and forwards entry lookups, directory listings, reads, and metadata. Implements `IDisposable`. |
-| `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume` and `ZarVfsVolume`. |
-| `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS) and the ZArchive entry type. |
-| `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, everything else as an Xbox ISO. Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. |
+| `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume`, `ZarVfsVolume` and `ImageIsoVfsVolume`. |
+| `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS), the ZArchive entry type, and the synthetic entry in `ImageIsoVfsVolume`. |
+| `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, everything else as an Xbox ISO. Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. With `--image-iso` it wraps the volume in `ImageIsoVfsVolume`, synthesizing a virtual XISO for a ZArchive tree when needed. |
 | `XisoVfsVolume` | `public sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images use a keep-open `XisoExplorer`; embedded images use `XisoReader` stream APIs. |
 | `ZarVfsVolume` | `public sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
 | `ReaderOwningVfsVolume` | `internal sealed class` | Decorates an embedded-XISO volume so the ZArchive reader that backs `ZArchiveReader.OpenRead` is disposed with the volume. |
+| `ImageIsoVfsVolume` | `internal sealed class` | Decorator enabled by `--image-iso`: adds a virtual read-only `image.iso` file at the volume root, backed by `IRawImageSource`, while the normal tree stays browsable. |
+| `IRawImageSource` / `StreamRawImageSource` | `internal` | Reads raw image bytes at an offset from a seekable stream (plain ISO, CISO block device, or embedded XISO) or from the in-memory virtual XISO layout. Reads are serialized for Dokan's concurrent callbacks. |
+| `VirtualXisoImageSource` | `internal sealed class` | Synthesizes an XISO for a ZArchive directory tree entirely in memory: builds the directory tables with `DirectoryEntryTableWriter`, allocates sectors with `SectorAllocator`, emits the volume descriptor/ECMA-119 header/optimized tag, and serves file data from the archive on demand. No extraction, no temporary files. |
 | `XboxIsoVfsDokan` | `public class` | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
 | `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
@@ -139,6 +142,10 @@ Key points:
   invalid image fails fast with `InvalidImageException`. A `.zar` archive that embeds a single XISO
   image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead`; a directory-tree archive mounts
   through `ZarVfsVolume`.
+- With `--image-iso`, `VfsVolumeFactory` wraps the volume in `ImageIsoVfsVolume`. Plain ISO and CISO
+  inputs and embedded-XISO archives serve `image.iso` on demand from the raw image stream; a ZArchive
+  directory tree is synthesized into a virtual XISO in memory (layout built immediately, file data
+  read from the archive on demand), so the mount appears without any extraction.
 - Dokan options depend on privileges and flags:
   - always `WriteProtection | CurrentSession`;
   - `MountManager` only when elevated;
@@ -158,6 +165,8 @@ A typical file read in Explorer becomes:
    if the context is missing), checks that it is not a directory, and clamps the request to the file
    size.
 4. `VfsContainer.ReadFile` forwards the request to the active `IVfsVolume`.
+   `ImageIsoVfsVolume` routes the synthetic `image.iso` entry to its `IRawImageSource` (a serialized
+   seek-and-read over the raw image stream); every other entry goes to the wrapped volume.
 5. `XisoVfsVolume` serves the read through XISOSharp. Path-based volumes open a bounded stream with
    `XisoExplorer.OpenReadStream` (CISO-aware, serialized by the explorer's internal lock); embedded
    stream volumes compute the absolute byte offset `DiscLseek + StartSector * 2048 + offset` and

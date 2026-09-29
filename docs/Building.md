@@ -96,7 +96,7 @@ Release bundles use the **framework-dependent single-file** publish — one
 
 ```shell
 dotnet publish SimpleXisoDrive/SimpleXisoDrive.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
-Compress-Archive -Path SimpleXisoDrive/bin/Release/net10.0-windows/win-x64/publish/SimpleXisoDrive.exe -DestinationPath release_1.3.0_win-x64.zip
+Compress-Archive -Path SimpleXisoDrive/bin/Release/net10.0-windows/win-x64/publish/SimpleXisoDrive.exe -DestinationPath release_1.4.0_win-x64.zip
 ```
 
 > If you plan to upload a release, the release notes convention uses archive suffixes `win-x64` and
@@ -114,9 +114,9 @@ The version is defined in two places and both must be updated together:
 | `SimpleXisoDrive/SimpleXisoDrive.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 
-The current version is **1.3.0**. The update checker parses the three-part (`major.minor.patch`)
+The current version is **1.4.0**. The update checker parses the three-part (`major.minor.patch`)
 portion of GitHub release tags, so release tags should follow that pattern (for example,
-`release_1.3.0`).
+`release_1.4.0`).
 
 ---
 
@@ -175,8 +175,8 @@ To cut a release:
 3. Tag and push:
 
    ```shell
-   git tag release_1.3.0
-   git push origin release_1.3.0
+   git tag release_1.4.0
+   git push origin release_1.4.0
    ```
 
 4. Watch the workflow create the GitHub release with the `win-x64` and `win-arm64` zips attached.
