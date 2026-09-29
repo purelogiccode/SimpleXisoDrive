@@ -193,6 +193,76 @@ jobs:
     timeout-minutes: 15
     needs: [verify, package]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history and tags so the previous release tag can be found for
+          # the Full Changelog link.
+          fetch-depth: 0
+
+      - name: Build release notes
+        # Curated release body: prerequisites (the downloads are
+        # framework-dependent and need the .NET runtime plus a mount driver)
+        # followed by the version's section from WhatsNew.md.
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          $whatsNew = Get-Content -LiteralPath WhatsNew.md -Raw
+          $marker = "# What's New in $env:VERSION"
+          $start = $whatsNew.IndexOf($marker, [StringComparison]::Ordinal)
+          if ($start -lt 0) {
+            throw "WhatsNew.md has no '$marker' section."
+          }
+
+          $next = $whatsNew.IndexOf("# What's New in ", $start + $marker.Length, [StringComparison]::Ordinal)
+          $section = if ($next -lt 0) { $whatsNew.Substring($start) } else { $whatsNew.Substring($start, $next - $start) }
+
+          # Demote the section headings by one level so the release body hierarchy stays intact.
+          $section = ($section -replace '(?m)^(#{1,5}) ', '$1# ').Trim()
+
+          $previous = ""
+          try {
+            $previous = (git describe --tags --abbrev=0 HEAD^ 2>$null).Trim()
+          } catch {
+            $previous = ""
+          }
+
+          # Single-quoted here-string: the Markdown backticks stay literal.
+          $template = @'
+          Read-only mounting of original Xbox ISO/XISO/CISO images, Xbox ISO CHD images and ZArchive files on Windows, Linux and macOS. The downloads are framework-dependent single-file executables, so the .NET runtime and the platform mount driver must be installed first.
+
+          ## Before you start
+
+          | Platform | What to install |
+          | --- | --- |
+          | All | [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) - the base runtime is enough (the Desktop Runtime is not required). |
+          | Windows | [Dokan 2.x](https://github.com/dokan-dev/dokany/releases) - restart Windows after installing so the driver loads. |
+          | Linux | FUSE 3: `libfuse3` plus the `fuse3` tools, for example `sudo apt install libfuse3-3 fuse3` (Fedora: `sudo dnf install fuse3 fuse3-libs`; Arch: `sudo pacman -S fuse3`). Make sure `/dev/fuse` exists (`sudo modprobe fuse`) and `fusermount3` is on `PATH`. |
+          | macOS | [macFUSE](https://macfuse.io) - allow the system extension when prompted. macOS 15.4 or later can use the FSKit backend, which needs no kernel extension. |
+
+          ## Downloads
+
+          | Bundle | Platform |
+          | --- | --- |
+          | `release_{VERSION}_win-x64.zip`, `release_{VERSION}_win-arm64.zip` | Windows x64 / ARM64 (Dokan) |
+          | `release_{VERSION}_linux-x64.zip`, `release_{VERSION}_linux-arm64.zip` | Linux x64 / ARM64 (FUSE 3) |
+          | `release_{VERSION}_osx-x64.zip`, `release_{VERSION}_osx-arm64.zip` | macOS Intel / Apple silicon (macFUSE) |
+
+          Each zip contains the single-file executable plus `ReadMe.md`, `LICENSE.txt` and `WhatsNew.md`. On Linux and macOS the executable bit is already set, so extract and run `./SimpleXisoDrive`. On Windows run `SimpleXisoDrive.exe`.
+          '@
+
+          $template = $template.Replace('{VERSION}', $env:VERSION)
+          $compare = if ($previous) {
+            "`n`n---`n`n**Full Changelog**: https://github.com/$env:GITHUB_REPOSITORY/compare/$previous...release_$env:VERSION`n"
+          } else {
+            "`n"
+          }
+
+          $notes = $template.TrimEnd() + "`n`n" + $section + $compare
+          Set-Content -LiteralPath release-notes.md -Value $notes -Encoding utf8
+          Write-Output "release-notes.md written ($($notes.Length) chars, previous tag: '$previous')"
+
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
@@ -209,5 +279,5 @@ jobs:
           gh release create "${GITHUB_REF_NAME}"
           --repo "${GITHUB_REPOSITORY}"
           --title "SimpleXisoDrive ${VERSION}"
-          --generate-notes
+          --notes-file release-notes.md
           assets/release_*.zip
