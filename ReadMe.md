@@ -121,6 +121,11 @@ If you find this tool useful, consider supporting development:
 ## License
 
 This project is licensed under **GPL-3.0**.
+
+SimpleXisoDrive is an independent, community project and is **not affiliated with, endorsed by, or
+sponsored by Microsoft Corporation**. "Xbox" and "Microsoft" are trademarks of the Microsoft group
+of companies and are used here only to describe compatibility and file formats.
+
 *   **DokanNet:** MIT License.
 *   **Dokan Library:** LGPL/MIT.
 *   **CHDSharp:** MIT License.
