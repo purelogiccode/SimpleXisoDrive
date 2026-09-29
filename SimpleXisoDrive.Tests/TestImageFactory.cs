@@ -233,6 +233,9 @@ internal static class TestImageFactory
         return size + ((4 - (size % 4)) % 4);
     }
 
+    /// <summary>
+    /// A directory node used while building a test image.
+    /// </summary>
     private sealed class DirectoryNode(string name, string path)
     {
         public string Name { get; } = name;
@@ -246,6 +249,9 @@ internal static class TestImageFactory
         public int Sector { get; set; }
     }
 
+    /// <summary>
+    /// A file node used while building a test image.
+    /// </summary>
     private sealed class FileNode(string name, byte[] data, byte attributes)
     {
         public string Name { get; } = name;

@@ -16,7 +16,7 @@ namespace SimpleXisoDrive.Core.Vfs;
 /// lifetime of the mount); images embedded in another container, such as a
 /// ZArchive, are read through the <see cref="XisoReader"/> stream APIs.
 /// </remarks>
-public sealed class XisoVfsVolume : IVfsVolume
+internal sealed class XisoVfsVolume : IVfsVolume
 {
     /// <summary>The XDVDFS sector size in bytes; always 2048.</summary>
     private const int SectorSize = 2048;

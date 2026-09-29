@@ -44,6 +44,9 @@ public class VirtualXisoImageSourceTests
         return buffer;
     }
 
+    /// <summary>
+    /// Verifies the synthesized image is byte-identical to the XISO writer output for a nested tree.
+    /// </summary>
     [Fact]
     public void VirtualImage_MatchesXisoWriterOutput_ForNestedTree()
     {
@@ -106,6 +109,9 @@ public class VirtualXisoImageSourceTests
         }
     }
 
+    /// <summary>
+    /// Verifies the synthesized image is a valid XISO exposing the archived files.
+    /// </summary>
     [Fact]
     public void VirtualImage_IsAValidXiso_WithTheArchivedFiles()
     {
@@ -140,6 +146,9 @@ public class VirtualXisoImageSourceTests
         }
     }
 
+    /// <summary>
+    /// Verifies unaligned reads across extents return the expected bytes.
+    /// </summary>
     [Fact]
     public void Read_ReturnsCorrectBytes_ForUnalignedRangesAcrossExtents()
     {
@@ -181,6 +190,9 @@ public class VirtualXisoImageSourceTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads after disposal return zero.
+    /// </summary>
     [Fact]
     public void Read_AfterDispose_ReturnsZero()
     {

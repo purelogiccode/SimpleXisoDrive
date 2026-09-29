@@ -5,6 +5,9 @@ using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the <c>VfsContainer</c> facade over ISO, CHD and ZArchive images.
+/// </summary>
 public class VfsContainerTests
 {
     private static string CreateZar(string extension, Action<ZArchiveWriter> build)
@@ -18,6 +21,9 @@ public class VfsContainerTests
         return path;
     }
 
+    /// <summary>
+    /// Verifies a ZArchive tree mounts its archived contents.
+    /// </summary>
     [Fact]
     public void Constructor_WithZarTree_MountsArchiveContents()
     {
@@ -50,6 +56,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies an embedded XISO mounts its XDVDFS contents.
+    /// </summary>
     [Fact]
     public void Constructor_WithEmbeddedIso_MountsXdvdfsContents()
     {
@@ -82,6 +91,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a renamed ZArchive still mounts as an archive.
+    /// </summary>
     [Fact]
     public void Constructor_WithRenamedZar_FallsBackToArchiveMount()
     {
@@ -104,6 +116,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies an invalid ZArchive throws with the failure reason.
+    /// </summary>
     [Fact]
     public void Constructor_WithInvalidZar_ThrowsInvalidImageExceptionWithReason()
     {
@@ -121,6 +136,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies an ISO file mounts as an XDVDFS image.
+    /// </summary>
     [Fact]
     public void Constructor_WithIsoFile_MountsXdvdfsImage()
     {
@@ -140,6 +158,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a .xiso file mounts as an XDVDFS image.
+    /// </summary>
     [Fact]
     public void Constructor_WithXisoExtension_MountsXdvdfsImage()
     {
@@ -164,6 +185,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies an embedded XISO with directories mounts stream-backed contents.
+    /// </summary>
     [Fact]
     public void Constructor_WithEmbeddedNestedIso_MountsStreamBackedContents()
     {
@@ -205,6 +229,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a locked ISO surfaces an I/O error.
+    /// </summary>
     [Fact]
     public void Constructor_WithLockedIso_ThrowsIOException()
     {
@@ -224,6 +251,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a locked ZArchive surfaces an I/O error.
+    /// </summary>
     [Fact]
     public void Constructor_WithLockedZar_ThrowsIOException()
     {
@@ -245,6 +275,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a missing ZArchive throws <c>FileNotFoundException</c>.
+    /// </summary>
     [Fact]
     public void Constructor_WithMissingZar_ThrowsFileNotFoundException()
     {
@@ -253,6 +286,9 @@ public class VfsContainerTests
         Assert.Throws<FileNotFoundException>(() => new VfsContainer(path));
     }
 
+    /// <summary>
+    /// Verifies image.iso is absent unless requested.
+    /// </summary>
     [Fact]
     public void Constructor_WithoutImageIsoOption_DoesNotExposeVirtualImageIso()
     {
@@ -270,6 +306,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies the raw image is exposed for a plain ISO.
+    /// </summary>
     [Fact]
     public void Constructor_WithImageIsoOption_ExposesRawImageForPlainIso()
     {
@@ -299,6 +338,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies the decompressed CISO is exposed as image.iso.
+    /// </summary>
     [Fact]
     public void Constructor_WithImageIsoOption_ExposesDecompressedCso()
     {
@@ -330,6 +372,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies the embedded XISO of a ZArchive is exposed as image.iso.
+    /// </summary>
     [Fact]
     public void Constructor_WithImageIsoOption_ExposesEmbeddedIsoFromZar()
     {
@@ -360,6 +405,9 @@ public class VfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a ZArchive tree is synthesized into a valid XISO exposed as image.iso.
+    /// </summary>
     [Fact]
     public void Constructor_WithImageIsoOption_ServesSynthesizedXisoForZarTree()
     {

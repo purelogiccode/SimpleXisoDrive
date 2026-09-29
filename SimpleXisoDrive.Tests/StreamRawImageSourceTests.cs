@@ -2,8 +2,14 @@ using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the stream-backed raw image source.
+/// </summary>
 public class StreamRawImageSourceTests
 {
+    /// <summary>
+    /// Verifies the constructor rejects a non-seekable stream.
+    /// </summary>
     [Fact]
     public void Constructor_RejectsNonSeekableStream()
     {
@@ -12,6 +18,9 @@ public class StreamRawImageSourceTests
         Assert.Throws<ArgumentException>(() => new StreamRawImageSource(stream));
     }
 
+    /// <summary>
+    /// Verifies reads return the requested bytes at an offset across sector boundaries.
+    /// </summary>
     [Fact]
     public void Read_ReturnsBytesAtOffset_AcrossSectorBoundaries()
     {
@@ -27,6 +36,9 @@ public class StreamRawImageSourceTests
         Assert.Equal(data[2000..7000], buffer);
     }
 
+    /// <summary>
+    /// Verifies reads clamp to the image end and reject negative offsets.
+    /// </summary>
     [Fact]
     public void Read_ClampsToImageEnd_AndRejectsOutOfRangeOffsets()
     {
@@ -39,6 +51,9 @@ public class StreamRawImageSourceTests
         Assert.Equal(0, source.Read(buffer, -1));
     }
 
+    /// <summary>
+    /// Verifies reads after disposal return zero bytes.
+    /// </summary>
     [Fact]
     public void Read_AfterDispose_ReturnsZero()
     {
@@ -48,6 +63,9 @@ public class StreamRawImageSourceTests
         Assert.Equal(0, source.Read(new byte[4], 0));
     }
 
+    /// <summary>
+    /// Verifies concurrent reads return correct data.
+    /// </summary>
     [Fact]
     public void ConcurrentReads_ReturnCorrectData()
     {
@@ -70,6 +88,9 @@ public class StreamRawImageSourceTests
         }
     }
 
+    /// <summary>
+    /// A read-only stream that does not support seeking, used to exercise the constructor guard.
+    /// </summary>
     private sealed class NonSeekableStream : Stream
     {
         public override bool CanRead => true;

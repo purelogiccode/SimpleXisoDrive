@@ -3,6 +3,9 @@ using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests constructing and reading <c>XisoVfsVolume</c> from files and embedded streams.
+/// </summary>
 public class XisoVfsVolumeTests
 {
     private static string WriteTempImage(byte[] image, string extension = ".iso")
@@ -12,6 +15,9 @@ public class XisoVfsVolumeTests
         return path;
     }
 
+    /// <summary>
+    /// Verifies a standard-layout image lists and reads entries.
+    /// </summary>
     [Fact]
     public void PathVolume_WithStandardImage_ListsAndReadsEntries()
     {
@@ -50,6 +56,9 @@ public class XisoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies a rebuilt-layout image lists and reads entries.
+    /// </summary>
     [Fact]
     public void PathVolume_WithRebuiltImage_ListsAndReadsEntries()
     {
@@ -74,6 +83,9 @@ public class XisoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies the creation time comes from the volume descriptor.
+    /// </summary>
     [Fact]
     public void PathVolume_VolumeCreationTime_ComesFromDescriptor()
     {
@@ -90,6 +102,9 @@ public class XisoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies non-ISO content throws <c>InvalidImageException</c>.
+    /// </summary>
     [Fact]
     public void PathVolume_WithNonIsoImage_ThrowsInvalidImageException()
     {
@@ -105,6 +120,9 @@ public class XisoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies an embedded image stream lists and reads entries.
+    /// </summary>
     [Fact]
     public void StreamVolume_WithEmbeddedImage_ListsAndReadsEntries()
     {
@@ -130,6 +148,9 @@ public class XisoVfsVolumeTests
         Assert.Equal(0, volume.ReadFile(file, buffer, offset: file.Size));
     }
 
+    /// <summary>
+    /// Verifies an invalid embedded image throws and disposes the stream.
+    /// </summary>
     [Fact]
     public void StreamVolume_WithInvalidImage_ThrowsAndDisposesStream()
     {
@@ -139,6 +160,9 @@ public class XisoVfsVolumeTests
         Assert.False(stream.CanRead);
     }
 
+    /// <summary>
+    /// Verifies disposal releases the image file handle.
+    /// </summary>
     [Fact]
     public void Dispose_ReleasesImageHandle()
     {
@@ -158,6 +182,9 @@ public class XisoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies missing paths return null entries and empty listings.
+    /// </summary>
     [Fact]
     public void GetEntry_And_GetFolderList_ForMissingPaths_AreEmptyOrNull()
     {

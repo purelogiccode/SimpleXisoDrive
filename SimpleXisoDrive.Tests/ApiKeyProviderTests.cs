@@ -4,8 +4,14 @@ using SimpleXisoDrive.Core.Services;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the <c>ApiKeyProvider</c> decryption: determinism, expected digest and eager preload.
+/// </summary>
 public class ApiKeyProviderTests
 {
+    /// <summary>
+    /// Verifies the key decrypts to a 65-character value and stays stable across accesses.
+    /// </summary>
     [Fact]
     public void ApiKey_IsDecryptedDeterministically()
     {
@@ -16,6 +22,9 @@ public class ApiKeyProviderTests
         Assert.Equal(key, ApiKeyProvider.ApiKey);
     }
 
+    /// <summary>
+    /// Verifies the decrypted key hashes to the expected SHA-256 digest.
+    /// </summary>
     [Fact]
     public void ApiKey_MatchesExpectedDigest()
     {
@@ -27,6 +36,9 @@ public class ApiKeyProviderTests
         Assert.Equal(expectedDigest, actualDigest);
     }
 
+    /// <summary>
+    /// Verifies <c>Preload</c> eagerly decrypts and caches the key.
+    /// </summary>
     [Fact]
     public void Preload_DecryptsTheKey()
     {

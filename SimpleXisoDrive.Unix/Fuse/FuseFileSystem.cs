@@ -583,7 +583,7 @@ internal sealed class FuseFileSystem
     /// </summary>
     /// <param name="label">The raw volume label.</param>
     /// <returns>A short label without option separators or control characters.</returns>
-    internal static string SanitizeVolumeLabel(string label)
+    private static string SanitizeVolumeLabel(string label)
     {
         try
         {

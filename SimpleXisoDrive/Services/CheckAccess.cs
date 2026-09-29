@@ -5,7 +5,7 @@ namespace SimpleXisoDrive.Services;
 /// <summary>
 /// Provides helper methods to check access permissions for the current user.
 /// </summary>
-public static class CheckAccess
+internal static class CheckAccess
 {
     /// <summary>
     /// Determines whether the current user has administrator privileges.

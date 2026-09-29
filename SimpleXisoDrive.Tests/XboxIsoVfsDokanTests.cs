@@ -6,12 +6,18 @@ using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the Dokan operation layer backed by a <c>VfsContainer</c>.
+/// </summary>
 public class XboxIsoVfsDokanTests : IDisposable
 {
     private readonly string _imagePath;
     private readonly VfsContainer _vfs;
     private readonly XboxIsoVfsDokan _dokan;
 
+    /// <summary>
+    /// Creates a temporary XDVDFS image and a Dokan instance over it.
+    /// </summary>
     public XboxIsoVfsDokanTests()
     {
         _imagePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".iso");
@@ -26,6 +32,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         _dokan = new XboxIsoVfsDokan(_vfs);
     }
 
+    /// <summary>
+    /// Disposes the container and deletes the temporary image.
+    /// </summary>
     public void Dispose()
     {
         _vfs.Dispose();
@@ -37,6 +46,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         return string.Equals(file.FileName, name, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Verifies volume information reports the XISO label, file system and features.
+    /// </summary>
     [Fact]
     public void GetVolumeInformation_ReportsXisoVolume()
     {
@@ -51,6 +63,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.True(features.HasFlag(FileSystemFeatures.CasePreservedNames));
     }
 
+    /// <summary>
+    /// Verifies disk free space reports the volume size with no free bytes.
+    /// </summary>
     [Fact]
     public void GetDiskFreeSpace_ReportsReadOnlyCapacity()
     {
@@ -63,6 +78,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(0, totalNumberOfFreeBytes);
     }
 
+    /// <summary>
+    /// Verifies the root listing includes dot but not dot-dot.
+    /// </summary>
     [Fact]
     public void FindFiles_Root_IncludesDotButNotParent()
     {
@@ -76,6 +94,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.True(files.Single(file => HasName(file, "sub")).Attributes.HasFlag(FileAttributes.Directory));
     }
 
+    /// <summary>
+    /// Verifies a subdirectory listing includes the parent entry.
+    /// </summary>
     [Fact]
     public void FindFiles_Subdirectory_IncludesParentEntry()
     {
@@ -87,12 +108,18 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Contains(files, file => HasName(file, "data.bin") && file.Length == "nested"u8.Length);
     }
 
+    /// <summary>
+    /// Verifies missing paths report NotADirectory.
+    /// </summary>
     [Fact]
     public void FindFiles_MissingPath_ReturnsNotADirectory()
     {
         Assert.Equal(DokanResult.NotADirectory, _dokan.FindFiles("\\missing", out _, new MockDokanFileInfo()));
     }
 
+    /// <summary>
+    /// Verifies wildcard patterns filter the directory listing.
+    /// </summary>
     [Fact]
     public void FindFilesWithPattern_FiltersByWildcard()
     {
@@ -104,6 +131,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.DoesNotContain(files, file => HasName(file, "sub"));
     }
 
+    /// <summary>
+    /// Verifies file information reports size, attributes and volume times.
+    /// </summary>
     [Fact]
     public void GetFileInformation_ForFile_ReportsSizeAttributesAndTimes()
     {
@@ -118,6 +148,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(_vfs.VolumeCreationTime, fileInfo.LastWriteTime);
     }
 
+    /// <summary>
+    /// Verifies directories report a zero length.
+    /// </summary>
     [Fact]
     public void GetFileInformation_ForDirectory_ReportsZeroLength()
     {
@@ -128,6 +161,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.True(fileInfo.Attributes.HasFlag(FileAttributes.Directory));
     }
 
+    /// <summary>
+    /// Verifies missing entries report FileNotFound.
+    /// </summary>
     [Fact]
     public void GetFileInformation_MissingEntry_ReturnsFileNotFound()
     {
@@ -135,6 +171,9 @@ public class XboxIsoVfsDokanTests : IDisposable
             _dokan.GetFileInformation("\\missing.xbe", out _, new MockDokanFileInfo()));
     }
 
+    /// <summary>
+    /// Verifies special path segments resolve to the expected entries.
+    /// </summary>
     [Fact]
     public void NormalizePath_ResolvesSpecialSegments()
     {
@@ -145,6 +184,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies opening an existing file succeeds and stores the entry in the context.
+    /// </summary>
     [Fact]
     public void CreateFile_ExistingFile_Open_SucceedsAndSetsContext()
     {
@@ -157,6 +199,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.NotNull(info.Context);
     }
 
+    /// <summary>
+    /// Verifies opening a missing file reports FileNotFound.
+    /// </summary>
     [Fact]
     public void CreateFile_MissingFile_ReturnsFileNotFound_ForOpenMode()
     {
@@ -166,6 +211,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.FileNotFound, status);
     }
 
+    /// <summary>
+    /// Verifies write access requests are denied.
+    /// </summary>
     [Fact]
     public void CreateFile_WriteAccess_ReturnsAccessDenied()
     {
@@ -175,6 +223,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.AccessDenied, status);
     }
 
+    /// <summary>
+    /// Verifies CreateNew on an existing file reports AlreadyExists.
+    /// </summary>
     [Fact]
     public void CreateFile_ExistingFile_CreateNew_ReturnsAlreadyExists()
     {
@@ -184,6 +235,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.AlreadyExists, status);
     }
 
+    /// <summary>
+    /// Verifies reads return the expected bytes at an offset.
+    /// </summary>
     [Fact]
     public void ReadFile_ReadsAtOffset()
     {
@@ -199,6 +253,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal("xbox"u8.ToArray(), buffer[..4]);
     }
 
+    /// <summary>
+    /// Verifies reads at or beyond the end return zero bytes.
+    /// </summary>
     [Fact]
     public void ReadFile_AtOrBeyondEnd_ReturnsZeroBytes()
     {
@@ -212,6 +269,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(0, bytesRead);
     }
 
+    /// <summary>
+    /// Verifies reading a directory reports InvalidHandle.
+    /// </summary>
     [Fact]
     public void ReadFile_Directory_ReturnsInvalidHandle()
     {
@@ -225,6 +285,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(0, bytesRead);
     }
 
+    /// <summary>
+    /// Verifies all write operations are denied on the read-only volume.
+    /// </summary>
     [Fact]
     public void ReadOnlyOperations_ReturnAccessDenied()
     {
@@ -244,6 +307,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.AccessDenied, _dokan.SetAllocationSize("\\default.xbe", 0, info));
     }
 
+    /// <summary>
+    /// Verifies locking succeeds and alternate data streams are not implemented.
+    /// </summary>
     [Fact]
     public void LockingAndStreams_BehaveAsDocumented()
     {
@@ -255,6 +321,9 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Empty(streams);
     }
 
+    /// <summary>
+    /// Verifies the security descriptor grants read and execute access.
+    /// </summary>
     [Fact]
     public void GetFileSecurity_GrantsReadAndExecute()
     {

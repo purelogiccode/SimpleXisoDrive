@@ -10,7 +10,7 @@ namespace SimpleXisoDrive.Core.Vfs;
 /// ZArchive (<c>.zar</c>) file, resolving paths to archive nodes and serving decompressed
 /// file data to the Dokan layer.
 /// </summary>
-public sealed class ZarVfsVolume : IVfsVolume
+internal sealed class ZarVfsVolume : IVfsVolume
 {
     private readonly ZArchiveReader _reader;
     private readonly ConcurrentDictionary<string, ZarEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);

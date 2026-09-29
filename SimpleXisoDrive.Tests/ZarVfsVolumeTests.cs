@@ -4,6 +4,9 @@ using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the ZArchive-backed volume.
+/// </summary>
 public class ZarVfsVolumeTests
 {
     private static string CreateArchive(Action<ZArchiveWriter> build)
@@ -29,6 +32,9 @@ public class ZarVfsVolumeTests
         });
     }
 
+    /// <summary>
+    /// Verifies a non-archive file throws <c>InvalidImageException</c>.
+    /// </summary>
     [Fact]
     public void Constructor_ThrowsInvalidImageException_ForNonZarFile()
     {
@@ -44,6 +50,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies the root listing contains files and directories.
+    /// </summary>
     [Fact]
     public void GetFolderList_RootListsFilesAndDirectories()
     {
@@ -65,6 +74,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies nested paths resolve case-insensitively.
+    /// </summary>
     [Fact]
     public void GetEntry_ResolvesNestedPath_CaseInsensitively()
     {
@@ -85,6 +97,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies missing paths return null.
+    /// </summary>
     [Fact]
     public void GetEntry_ReturnsNull_ForMissingPath()
     {
@@ -100,6 +115,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads return the file contents at an offset.
+    /// </summary>
     [Fact]
     public void ReadFile_ReturnsFileContents_AtOffset()
     {
@@ -122,6 +140,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reading a directory returns zero.
+    /// </summary>
     [Fact]
     public void ReadFile_ReturnsZero_ForDirectories()
     {
@@ -141,6 +162,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies volume size sums the uncompressed file sizes.
+    /// </summary>
     [Fact]
     public void VolumeSize_SumsUncompressedFileSizes()
     {
@@ -158,6 +182,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads spanning multiple archive blocks return correct data.
+    /// </summary>
     [Fact]
     public void ReadFile_SpansMultipleBlocks()
     {
@@ -195,6 +222,9 @@ public class ZarVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies files and missing paths produce empty listings.
+    /// </summary>
     [Fact]
     public void GetFolderList_ReturnsEmpty_ForFilesAndMissingPaths()
     {

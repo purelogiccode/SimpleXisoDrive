@@ -4,6 +4,9 @@ using SimpleXisoDrive.Tests.Models;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the <c>XisoVfsVolume</c> directory tree: listing, resolution, attributes and concurrent reads.
+/// </summary>
 public class XisoVfsVolumeTreeTests
 {
     private static readonly TestImageEntry[] SampleEntries =
@@ -43,6 +46,9 @@ public class XisoVfsVolumeTreeTests
         return string.Equals(entry.FileName, name, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Verifies the root listing contains the expected entries.
+    /// </summary>
     [Fact]
     public void PathVolume_ListsRootEntries()
     {
@@ -66,6 +72,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies nested directories list their children.
+    /// </summary>
     [Fact]
     public void PathVolume_ListsNestedDirectories()
     {
@@ -89,6 +98,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies nested paths resolve case- and separator-insensitively.
+    /// </summary>
     [Fact]
     public void PathVolume_ResolvesNestedPaths_CaseAndSeparatorInsensitively()
     {
@@ -114,6 +126,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies empty directories list nothing.
+    /// </summary>
     [Fact]
     public void PathVolume_EmptyDirectory_ListsNothing()
     {
@@ -133,6 +148,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies zero-length files have zero size and read nothing.
+    /// </summary>
     [Fact]
     public void PathVolume_EmptyFile_HasZeroSizeAndReadsNothing()
     {
@@ -155,6 +173,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads crossing a sector boundary return correct data.
+    /// </summary>
     [Fact]
     public void PathVolume_ReadFile_CrossesSectorBoundary()
     {
@@ -179,6 +200,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads clamp to the file size.
+    /// </summary>
     [Fact]
     public void PathVolume_ReadFile_ClampsToFileSize()
     {
@@ -200,6 +224,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies entries resolve on a standard-layout image.
+    /// </summary>
     [Fact]
     public void PathVolume_StandardLayout_ResolvesNestedEntries()
     {
@@ -226,6 +253,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies XDVDFS attribute bytes map to Windows attributes.
+    /// </summary>
     [Fact]
     public void PathVolume_Attributes_MapXdvdfsFlags()
     {
@@ -260,6 +290,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies the volume creation time uses the descriptor value.
+    /// </summary>
     [Fact]
     public void PathVolume_VolumeCreationTime_UsesDescriptorValue()
     {
@@ -276,6 +309,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies a zero descriptor time maps to the epoch.
+    /// </summary>
     [Fact]
     public void PathVolume_VolumeCreationTime_ZeroFileTimeMapsToEpoch()
     {
@@ -291,6 +327,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies nested entries resolve and read on stream-backed volumes.
+    /// </summary>
     [Fact]
     public void StreamVolume_NestedEntries_ResolveAndRead()
     {
@@ -312,6 +351,9 @@ public class XisoVfsVolumeTreeTests
         Assert.Empty(volume.GetFolderList("\\empty"));
     }
 
+    /// <summary>
+    /// Verifies parallel reads return correct data on path-based volumes.
+    /// </summary>
     [Fact]
     public async Task PathVolume_ParallelReads_ReturnCorrectDataAsync()
     {
@@ -341,6 +383,9 @@ public class XisoVfsVolumeTreeTests
         }
     }
 
+    /// <summary>
+    /// Verifies parallel reads return correct data on stream-based volumes.
+    /// </summary>
     [Fact]
     public async Task StreamVolume_ParallelReads_ReturnCorrectDataAsync()
     {
@@ -365,6 +410,9 @@ public class XisoVfsVolumeTreeTests
         await Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// Verifies disposing the volume twice is safe.
+    /// </summary>
     [Fact]
     public void Dispose_IsIdempotent()
     {

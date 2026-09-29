@@ -8,7 +8,7 @@ namespace SimpleXisoDrive.Core.Services;
 /// and to the local error.log file. Sink failures are swallowed so logging
 /// can never crash the application or re-enter the logging pipeline.
 /// </summary>
-public sealed class BugReportSink : ILogEventSink
+internal sealed class BugReportSink : ILogEventSink
 {
     // The remote API allows 10 requests/minute per IP; stay below that.
     private const int MaxReportsPerMinute = 8;

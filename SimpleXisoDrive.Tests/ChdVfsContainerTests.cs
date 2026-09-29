@@ -29,6 +29,9 @@ public class ChdVfsContainerTests
         return chdPath;
     }
 
+    /// <summary>
+    /// Verifies a CHD file mounts its decompressed XDVDFS image.
+    /// </summary>
     [Fact]
     public void Constructor_WithChdFile_MountsXdvdfsImage()
     {
@@ -57,6 +60,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a standard-layout CHD image mounts.
+    /// </summary>
     [Fact]
     public void Constructor_WithStandardLayoutChd_MountsXdvdfsImage()
     {
@@ -81,6 +87,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies directories and files mount from a compressed CHD.
+    /// </summary>
     [Fact]
     public void Constructor_WithChdTree_MountsDirectoriesAndFiles()
     {
@@ -115,6 +124,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies the decompressed CHD is exposed as image.iso.
+    /// </summary>
     [Fact]
     public void Constructor_WithImageIsoOption_ExposesDecompressedChd()
     {
@@ -143,6 +155,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a non-Xbox CHD throws <c>InvalidImageException</c>.
+    /// </summary>
     [Fact]
     public void Constructor_WithNonXboxChd_ThrowsInvalidImageException()
     {
@@ -159,6 +174,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a renamed CHD still mounts via content detection.
+    /// </summary>
     [Fact]
     public void Constructor_WithRenamedChd_FallsBackToChdMount()
     {
@@ -181,6 +199,9 @@ public class ChdVfsContainerTests
         }
     }
 
+    /// <summary>
+    /// Verifies a missing CHD throws <c>FileNotFoundException</c>.
+    /// </summary>
     [Fact]
     public void Constructor_WithMissingChd_ThrowsFileNotFoundException()
     {

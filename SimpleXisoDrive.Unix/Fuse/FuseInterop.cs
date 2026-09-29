@@ -17,7 +17,7 @@ internal static class FuseInterop
     /// <summary>
     /// The logical library name used by every <see cref="DllImportAttribute"/> in this class.
     /// </summary>
-    internal const string LibraryName = "fuse3";
+    private const string LibraryName = "fuse3";
 
     private static int _resolverRegistered;
 

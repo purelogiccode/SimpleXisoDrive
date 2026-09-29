@@ -6,7 +6,7 @@ namespace SimpleXisoDrive;
 /// <summary>
 /// Adapter that routes DokanNet's internal logging into Serilog.
 /// </summary>
-public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
+internal sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
 {
     /// <summary>
     /// Gets a value indicating whether debug-level logging is enabled.

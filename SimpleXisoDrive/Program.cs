@@ -21,7 +21,7 @@ internal static class Program
     /// </summary>
     /// <param name="args">The command-line arguments: an image path, an optional mount path, and optional flags.</param>
     /// <returns>Zero on success; otherwise, a non-zero exit code.</returns>
-    public static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         try
         {

@@ -2,8 +2,14 @@ using SimpleXisoDrive.Core.Services;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests that bug reports contain the required environment, error and exception sections.
+/// </summary>
 public class BugReportTests
 {
+    /// <summary>
+    /// Verifies a report with an exception contains every required section and field.
+    /// </summary>
     [Theory]
     [InlineData("Warning")]
     [InlineData("Error")]
@@ -32,6 +38,9 @@ public class BugReportTests
         Assert.Contains("StackTrace: ", report);
     }
 
+    /// <summary>
+    /// Verifies missing exception details are reported as None placeholders.
+    /// </summary>
     [Fact]
     public void BuildReport_WithoutException_UsesNonePlaceholders()
     {
@@ -43,6 +52,9 @@ public class BugReportTests
         Assert.Contains("StackTrace: None", report);
     }
 
+    /// <summary>
+    /// Verifies the OS version line uses the current platform family name.
+    /// </summary>
     [Fact]
     public void BuildReport_NamesTheOsFamilyVersionLine()
     {

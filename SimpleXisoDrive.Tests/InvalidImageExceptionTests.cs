@@ -2,8 +2,14 @@ using SimpleXisoDrive.Core;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the constructors and exception semantics of <c>InvalidImageException</c>.
+/// </summary>
 public class InvalidImageExceptionTests
 {
+    /// <summary>
+    /// Verifies the constructor stores the supplied message.
+    /// </summary>
     [Fact]
     public void Constructor_SetsMessage()
     {
@@ -11,6 +17,9 @@ public class InvalidImageExceptionTests
         Assert.Equal("Test error", ex.Message);
     }
 
+    /// <summary>
+    /// Verifies the constructor stores the supplied inner exception.
+    /// </summary>
     [Fact]
     public void Constructor_SetsInnerException()
     {
@@ -21,6 +30,9 @@ public class InvalidImageExceptionTests
         Assert.Same(inner, ex.InnerException);
     }
 
+    /// <summary>
+    /// Verifies a null inner exception is allowed.
+    /// </summary>
     [Fact]
     public void Constructor_AllowsNullInnerException()
     {
@@ -29,6 +41,9 @@ public class InvalidImageExceptionTests
         Assert.Null(ex.InnerException);
     }
 
+    /// <summary>
+    /// Verifies <c>InvalidImageException</c> derives from <c>Exception</c>.
+    /// </summary>
     [Fact]
     public void IsException_DerivedFromException()
     {
@@ -36,6 +51,9 @@ public class InvalidImageExceptionTests
         Assert.IsType<Exception>(ex, exactMatch: false);
     }
 
+    /// <summary>
+    /// Verifies the exception can be caught as <c>Exception</c>.
+    /// </summary>
     [Fact]
     public void CanBeCaughtAsException()
     {

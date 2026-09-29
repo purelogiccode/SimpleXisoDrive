@@ -3,8 +3,14 @@ using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests the <c>image.iso</c> volume decorator.
+/// </summary>
 public class ImageIsoVfsVolumeTests
 {
+    /// <summary>
+    /// A raw image source that records whether it has been disposed.
+    /// </summary>
     private sealed class TrackingRawImageSource(byte[] data) : IRawImageSource
     {
         private readonly byte[] _data = data;
@@ -37,6 +43,9 @@ public class ImageIsoVfsVolumeTests
         return path;
     }
 
+    /// <summary>
+    /// Verifies the root listing adds the virtual image.iso alongside the real tree.
+    /// </summary>
     [Fact]
     public void GetFolderList_Root_IncludesVirtualImageIso()
     {
@@ -58,6 +67,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies image.iso resolves case-insensitively to the synthetic entry.
+    /// </summary>
     [Fact]
     public void GetEntry_ResolvesVirtualImageIso_CaseInsensitively()
     {
@@ -80,6 +92,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reading image.iso returns the raw image bytes at an offset.
+    /// </summary>
     [Fact]
     public void ReadFile_ReturnsRawImageBytes_AtOffset()
     {
@@ -105,6 +120,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies reads past the raw image end are clamped.
+    /// </summary>
     [Fact]
     public void ReadFile_ClampsToImageLength()
     {
@@ -129,6 +147,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies wrapped entries remain readable through the decorator.
+    /// </summary>
     [Fact]
     public void InnerEntries_RemainReadable()
     {
@@ -152,6 +173,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies a real image.iso file takes precedence over the synthetic one.
+    /// </summary>
     [Fact]
     public void RealImageIsoFile_WinsOverVirtualEntry()
     {
@@ -175,6 +199,9 @@ public class ImageIsoVfsVolumeTests
         }
     }
 
+    /// <summary>
+    /// Verifies disposal releases both the raw source and the wrapped volume.
+    /// </summary>
     [Fact]
     public void Dispose_DisposesSourceAndInnerVolume()
     {

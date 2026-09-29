@@ -14,7 +14,7 @@ namespace SimpleXisoDrive.Core.Vfs;
 internal sealed class ImageIsoVfsVolume : IVfsVolume
 {
     /// <summary>The name of the virtual raw image file.</summary>
-    internal const string ImageIsoName = "image.iso";
+    private const string ImageIsoName = "image.iso";
 
     private const string ImageIsoPath = "\\" + ImageIsoName;
 

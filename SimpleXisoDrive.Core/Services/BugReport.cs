@@ -36,9 +36,8 @@ public static class BugReport
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        // API logging is configured if the key can be decrypted and the URL is present.
-        IsApiLoggingConfigured = !string.IsNullOrWhiteSpace(ApiKeyProvider.ApiKey) &&
-                                 !string.IsNullOrWhiteSpace(BugReportApiUrl);
+        // API logging is configured if the key can be decrypted.
+        IsApiLoggingConfigured = !string.IsNullOrWhiteSpace(ApiKeyProvider.ApiKey);
 
         // Register for process exit to properly dispose HttpClient
         AppDomain.CurrentDomain.ProcessExit += static (_, _) => DisposeHttpClient();
@@ -47,7 +46,7 @@ public static class BugReport
     /// <summary>
     /// Disposes the static HttpClient instance. Called automatically on process exit.
     /// </summary>
-    public static void DisposeHttpClient()
+    private static void DisposeHttpClient()
     {
         if (_isDisposed) return;
 

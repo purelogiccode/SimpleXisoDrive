@@ -501,6 +501,10 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
         public ReadOnlySpan<byte> Data => _data ?? [];
     }
 
+    /// <summary>
+    /// A directory in the synthesized layout: its children plus the computed on-disk
+    /// table, sector allocation and serialized table bytes.
+    /// </summary>
     private sealed class DirectoryNode(string name)
     {
         public string Name { get; } = name;
@@ -522,6 +526,9 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
         public byte[] TableBytes { get; set; } = [];
     }
 
+    /// <summary>
+    /// A file in the synthesized layout: its archive node handle, size and allocated sector.
+    /// </summary>
     private sealed class FileNode(string name, uint node, uint size)
     {
         public string Name { get; } = name;

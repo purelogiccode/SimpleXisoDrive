@@ -2,8 +2,14 @@ using SimpleXisoDrive.Core;
 
 namespace SimpleXisoDrive.Tests;
 
+/// <summary>
+/// Tests image path resolution: extensions, directories and the current directory.
+/// </summary>
 public class ResolveImagePathTests
 {
+    /// <summary>
+    /// Verifies an existing path is returned unchanged.
+    /// </summary>
     [Fact]
     public void ReturnsOriginalPathWhenFileExists()
     {
@@ -19,6 +25,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a missing path without extension resolves to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenPathDoesNotExistAndNoExtension()
     {
@@ -27,6 +36,9 @@ public class ResolveImagePathTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Verifies the .iso extension is appended when that file exists.
+    /// </summary>
     [Fact]
     public void AppendsIsoExtensionWhenFileWithExtensionExists()
     {
@@ -44,6 +56,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies the .zar extension is appended when only it exists.
+    /// </summary>
     [Fact]
     public void AppendsZarExtensionWhenOnlyZarExists()
     {
@@ -61,6 +76,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies the .xiso extension is appended when only it exists.
+    /// </summary>
     [Fact]
     public void AppendsXisoExtensionWhenOnlyXisoExists()
     {
@@ -78,6 +96,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies .iso is preferred when several candidates exist.
+    /// </summary>
     [Fact]
     public void PrefersIsoOverZarWhenBothExtensionsExist()
     {
@@ -98,6 +119,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies the .cso extension is appended when only it exists.
+    /// </summary>
     [Fact]
     public void AppendsCsoExtensionWhenOnlyCsoExists()
     {
@@ -115,6 +139,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies the .chd extension is appended when only it exists.
+    /// </summary>
     [Fact]
     public void AppendsChdExtensionWhenOnlyChdExists()
     {
@@ -132,6 +159,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory containing one CHD resolves to it.
+    /// </summary>
     [Fact]
     public void ResolvesDirectoryContainingExactlyOneChd()
     {
@@ -151,6 +181,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a split CISO set resolves to its first part.
+    /// </summary>
     [Fact]
     public void ResolvesDirectoryContainingSplitCsoSet()
     {
@@ -172,6 +205,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies ambiguous image directories resolve to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenDirectoryContainsIsoAndCso()
     {
@@ -191,6 +227,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a bare file name resolves in the current directory.
+    /// </summary>
     [Fact]
     public void ResolvesFilenameInCurrentDirectoryWhenFileExists()
     {
@@ -213,6 +252,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a bare name resolves to the .iso file in the current directory.
+    /// </summary>
     [Fact]
     public void ResolvesFilenameWithIsoExtensionInCurrentDirectoryWhenFileExists()
     {
@@ -235,6 +277,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a bare name resolves to the .zar file in the current directory.
+    /// </summary>
     [Fact]
     public void ResolvesFilenameWithZarExtensionInCurrentDirectoryWhenFileExists()
     {
@@ -257,6 +302,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory containing one ISO resolves to it.
+    /// </summary>
     [Fact]
     public void ResolvesDirectoryContainingExactlyOneIso()
     {
@@ -276,6 +324,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory containing one ZAR resolves to it.
+    /// </summary>
     [Fact]
     public void ResolvesDirectoryContainingExactlyOneZar()
     {
@@ -295,6 +346,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory containing one XISO resolves to it.
+    /// </summary>
     [Fact]
     public void ResolvesDirectoryContainingExactlyOneXiso()
     {
@@ -314,6 +368,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory with multiple ISOs resolves to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenDirectoryContainsMultipleIsos()
     {
@@ -333,6 +390,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory with an ISO and a ZAR resolves to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenDirectoryContainsIsoAndZar()
     {
@@ -352,6 +412,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies a directory without images resolves to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenDirectoryContainsZeroIsos()
     {
@@ -370,6 +433,9 @@ public class ResolveImagePathTests
         }
     }
 
+    /// <summary>
+    /// Verifies directory scanning failures degrade gracefully to null.
+    /// </summary>
     [Fact]
     public void ReturnsNullWhenDirectoryScanThrowsException()
     {
