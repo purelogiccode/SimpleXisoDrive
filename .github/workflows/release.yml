@@ -28,7 +28,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Resolve and verify version
         id: version
@@ -55,7 +55,7 @@ jobs:
       - name: Setup .NET
         # 10.0.x, not `global-json-file`: the repo pins `10.0.0` with
         # rollForward latestMajor, which setup-dotnet cannot resolve.
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
           cache: true
@@ -113,10 +113,10 @@ jobs:
             project: SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj
             binary: SimpleXisoDrive
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
           cache: true
@@ -179,7 +179,7 @@ jobs:
           Get-Item -LiteralPath $zip | Select-Object Name, Length
 
       - name: Upload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.rid }}
           path: release_*.zip
@@ -194,7 +194,7 @@ jobs:
     needs: [verify, package]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Full history and tags so the previous release tag can be found for
           # the Full Changelog link.
@@ -264,7 +264,7 @@ jobs:
           Write-Output "release-notes.md written ($($notes.Length) chars, previous tag: '$previous')"
 
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*
           merge-multiple: true

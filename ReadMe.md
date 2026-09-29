@@ -31,14 +31,40 @@ The application is designed for extreme memory efficiency and supports **Windows
 *   **Update Checker:** Automatically checks for newer versions on GitHub to ensure you have the latest compatibility fixes.
 *   **Read-Only Safety:** Ensures the source ISO or ZAR remains unmodified.
 
-## Prerequisites
+## Install dependencies
 
-1.  **.NET Runtime:** Requires the **.NET 10.0 Runtime** (the base runtime; the Desktop Runtime is not required).
-2.  **Mount driver** (one of the following, depending on your operating system):
-    *   **Windows:** the Dokan user-mode file system library (version 2.x.x).
-        Download: [https://github.com/dokan-dev/dokany/releases](https://github.com/dokan-dev/dokany/releases).
-    *   **Linux:** FUSE 3 (the `libfuse3` library plus the `fuse3` tools that provide `fusermount3`), for example `sudo apt install libfuse3-3 fuse3`.
-    *   **macOS:** macFUSE. Download: [https://macfuse.io](https://macfuse.io). On macOS 15.4 or later the FSKit backend needs no kernel extension.
+The release bundles are **framework-dependent single-file executables**, so the .NET runtime and the
+mount driver for your platform must be installed before the app can run.
+
+### 1. Install the .NET 10.0 Runtime (all platforms)
+
+Download and install the **.NET 10.0 Runtime** (the base runtime; the Desktop Runtime is not required):
+
+*   <https://dotnet.microsoft.com/download/dotnet/10.0>
+
+Verify with:
+
+```shell
+dotnet --list-runtimes
+```
+
+Look for an entry such as `Microsoft.NETCore.App 10.x.x`.
+
+### 2. Install the mount driver
+
+| Platform | What to install | Verify |
+| --- | --- | --- |
+| **Windows** | [Dokan 2.x](https://github.com/dokan-dev/dokany/releases) - run the installer, then **restart Windows** so the driver loads. | `Test-Path "$env:SystemRoot\System32\dokan2.dll"` returns `True`. |
+| **Linux** | FUSE 3 - `sudo apt install libfuse3-3 fuse3` (Fedora: `sudo dnf install fuse3 fuse3-libs`; Arch: `sudo pacman -S fuse3`). | `/dev/fuse` exists (otherwise `sudo modprobe fuse`) and `fusermount3` is on `PATH`. |
+| **macOS** | [macFUSE](https://macfuse.io) - allow the system extension when prompted. macOS 15.4 or later can use the FSKit backend, which needs no kernel extension. | The app starts without a "macFUSE (libfuse3) was not found" error. |
+
+### 3. Download and extract
+
+1. Download the archive for your OS and CPU from the [latest release](https://github.com/purelogiccode/SimpleXisoDrive/releases): `win-x64`/`win-arm64`, `linux-x64`/`linux-arm64` or `osx-x64`/`osx-arm64`.
+2. Extract it to a folder of your choice (for example `C:\Tools\SimpleXisoDrive` or `~/opt/simplexisodrive`).
+3. On Linux and macOS the executable bit is already set; on Windows run `SimpleXisoDrive.exe`.
+
+See [Installation](docs/Installation.md) for the detailed, step-by-step guide.
 
 ## Documentation
 
@@ -53,36 +79,52 @@ the same Markdown sources:
 
 Start here:
 
-*   [Installation](docs/Installation.md) - requirements, Dokan setup, installing and upgrading.
+*   [Installation](docs/Installation.md) - dependency install steps (runtime, Dokan, FUSE), installing, upgrading.
 *   [Linux and macOS](docs/Linux-and-macOS.md) - FUSE/macFUSE prerequisites, usage, and platform notes.
 *   [Getting Started](docs/Getting-Started.md) - your first mount, drag-and-drop, unmounting.
 *   [Command-Line Reference](docs/Command-Line-Reference.md) - arguments, options, exit codes.
+*   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
+*   [FAQ](docs/FAQ.md) - short answers to common questions.
 *   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.
 *   [Building](docs/Building.md) - build, test, and the CI/release workflow.
 *   [What's New](WhatsNew.md) - release highlights.
 *   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
-*   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
 *   [Privacy and Networking](docs/Privacy-and-Networking.md) - telemetry, endpoints, offline use.
 
-## How to Use
+The full documentation map (Virtual File System, Services, Glossary, Testing, Contributing and
+Release History) is on [Home](docs/Home.md).
+
+## How to use
 
 ### Windows
 
-#### 1. Drag-and-Drop (Easiest)
-*   Drag your `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file and drop it onto `SimpleXisoDrive.exe`.
-*   The app will automatically find an available drive letter, mount the image, and open Windows Explorer.
-*   **To Unmount:** Return to the console window and press any key.
+#### Drag-and-drop (easiest)
 
-#### 2. Command-Line
-Run the application from a terminal for specific mount points:
+1. Drag an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file onto `SimpleXisoDrive.exe`.
+2. The app picks the first free drive letter from `M:` through `R:`, mounts the image read-only and opens File Explorer.
+3. **To unmount:** click the console window and press any key (or press `Ctrl+C`).
+
+#### Command line
 
 ```shell
-SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
+SimpleXisoDrive.exe <image-file> <mount-path> [options]
 ```
 
-**Arguments:**
-*   `<PathToImageFile>`: Full path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file.
-*   `<MountPoint>`: A drive letter (e.g., `Z:`) or a path to an empty NTFS folder.
+| Argument / option | Description |
+| --- | --- |
+| `<image-file>` | Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. The extension may be omitted when the file can be resolved. |
+| `<mount-path>` | Drive letter such as `Z:` or `Z:\`, or an existing empty NTFS folder. |
+| `-l`, `--launch` | Open Explorer at the mount path after mounting. |
+| `-d`, `--debug` | Show verbose Dokan debug output. |
+| `-i`, `--image-iso` | Also expose the raw Xbox image as `image.iso` at the mount root (for emulators such as xemu). |
+
+```shell
+SimpleXisoDrive.exe "D:\Games\Halo.iso" Z:
+SimpleXisoDrive.exe "D:\Games\Halo.chd" Z: --image-iso
+SimpleXisoDrive.exe "D:\Games\Halo.zar" "C:\Mounts\Halo" -l
+```
+
+Press `Ctrl+C` in the console to unmount.
 
 ### Linux and macOS
 
@@ -90,16 +132,21 @@ SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 SimpleXisoDrive <image-file> [mount-path] [options]
 ```
 
-**Arguments:**
 *   `<image-file>`: Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file.
-*   `<mount-path>`: An existing empty directory. When omitted, a temporary directory is created and printed after mounting.
+*   `<mount-path>`: An existing empty directory. When omitted, a temporary directory is created, printed after mounting, and removed on unmount.
+*   Every option listed above works the same on Linux and macOS.
 
-**Options (all platforms):**
-*   `-l`, `--launch`: Automatically opens the file manager at the mount point.
-*   `-d`, `--debug`: Enables verbose driver debug output in the console.
-*   `-i`, `--image-iso`: Also exposes the raw Xbox image as `image.iso` at the mount root (for emulators such as xemu).
+```shell
+mkdir -p ~/mnt/halo
+SimpleXisoDrive ~/Games/Halo.iso ~/mnt/halo
+SimpleXisoDrive ~/Games/Halo.chd ~/mnt/halo --image-iso
+SimpleXisoDrive ~/Games/Halo.zar --launch
+```
 
-Press **Ctrl+C** (or run `fusermount3 -u <mount-path>` / `umount <mount-path>`) to unmount.
+Unmount with `Ctrl+C`, `fusermount3 -u <mount-path>` (Linux) or `umount <mount-path>` (macOS).
+
+See [Getting Started](docs/Getting-Started.md) and the
+[Command-Line Reference](docs/Command-Line-Reference.md) for every behavior and exit code.
 
 ## Technical Details
 
@@ -112,13 +159,52 @@ Press **Ctrl+C** (or run `fusermount3 -u <mount-path>` / `umount <mount-path>`) 
 *   **Mount Sanitization:** Automatically handles mount point strings (e.g., converts `Z:\` to `Z:`) to satisfy Dokan driver requirements.
 *   **Smart Permissions:** Automatically adjusts Dokan options based on Administrator privileges to ensure the highest success rate for mounting.
 
-## Troubleshooting
+## Common failures and fixes
 
-*   **Administrator Privileges (Windows):** While the tool attempts to mount in user-mode, mounting a global drive letter often requires Administrator rights. If the mount fails, right-click the `.exe` and select "Run as Administrator."
-*   **Dokan Errors (Windows):** If you see "Dokan driver not found," ensure you have restarted your computer after installing the Dokan library.
-*   **FUSE Errors (Linux):** If `libfuse3` is reported missing, install the FUSE 3 package for your distribution. Ensure `/dev/fuse` exists (`sudo modprobe fuse`) and that `fusermount3` is on your `PATH`.
-*   **macFUSE Errors (macOS):** If macFUSE is reported missing, install it from [https://macfuse.io](https://macfuse.io) and allow the system extension when prompted. macOS may quarantine the downloaded binary; if it refuses to run, remove the quarantine attribute with `xattr -d com.apple.quarantine SimpleXisoDrive`.
-*   **Invalid Image:** If the app reports that the file is not a valid Xbox ISO/XISO image, the file is likely a standard PC ISO or an encrypted Redump-style image that has not been processed for XISO compatibility. A `.zar` file that fails to open is reported as an invalid ZArchive instead; a `.chd` file is reported as not an Xbox ISO CHD when its decompressed content is not XDVDFS (for example a CD or GD-ROM CHD).
+| Symptom | Fix |
+| --- | --- |
+| `The Dokan runtime library (dokan2.dll) was not found` | Install [Dokan](https://github.com/dokan-dev/dokany/releases) and restart Windows. |
+| `Warning: The Dokan driver (dokan2.sys) was not found` | Reinstall Dokan and restart; mounting may fail until the driver loads. |
+| `libfuse3 was not found` | Install FUSE 3 for your distribution (see [Install dependencies](#install-dependencies)). |
+| `/dev/fuse was not found` | Load the kernel module: `sudo modprobe fuse`. |
+| `fusermount3 was not found on PATH` | Install the `fuse3` tools package. |
+| `macFUSE (libfuse3) was not found` | Install [macFUSE](https://macfuse.io) and allow the system extension. |
+| `Image file not found at '<path>'` | Check the path and quote it if it contains spaces. A directory with exactly one image, or a missing extension, is resolved automatically. |
+| `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, incomplete, or uses an unsupported layout. Convert it to XISO first. |
+| `'<path>' is not an Xbox ISO CHD` | The decompressed CHD is not an Xbox ISO (for example a CD, GD-ROM or Xbox 360 image). A differential child CHD must be merged with its parent first. |
+| `'<path>' is not a valid ZArchive (.zar) file` | The archive is corrupt, is not a ZArchive, or uses an unsupported version. Re-create it from the original image. |
+| `Could not find an available drive letter (M-R)` | Free one of `M:`-`R:` or pass an explicit mount path. |
+| `fuse: mountpoint is not empty` | Use an empty directory as the mount path. |
+| `Something's wrong with the Dokan driver` | Right-click and **Run as Administrator**, reinstall or update Dokan, then restart. |
+| Write operations fail | The volume is read-only by design; copy files out to a writable location instead. |
+| macOS refuses to start the downloaded binary | Remove the quarantine attribute: `xattr -d com.apple.quarantine SimpleXisoDrive`. |
+
+The [Troubleshooting](docs/Troubleshooting.md) page lists every message in detail.
+
+## FAQ
+
+**What formats can I mount?** Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`, including split `.1.cso`
+sets), Xbox ISO CHD (`.chd`) and ZArchive (`.zar`, a directory tree or a single embedded XISO).
+
+**Does it modify my image?** No. The image or archive is opened read-only and every mutating
+operation is denied.
+
+**Can I copy files from the mounted volume?** Yes, copying out to a normal writable location works
+like any other read-only drive.
+
+**Can I mount several images at once?** Yes, start one instance per image; each gets its own mount
+point and console window.
+
+**Does it support Xbox 360 or Xbox One images?** The ISO/CHD parsers are XDVDFS-only. A `.zar` tree
+is exposed as-is whatever produced it, but its contents are not parsed.
+
+**Does it need an internet connection?** No; the update check, launch statistics and crash reporting
+are advisory and can be blocked (see [Privacy and Networking](docs/Privacy-and-Networking.md)).
+
+**Do I need FUSE on Linux and macOS?** Yes. Linux needs FUSE 3 (`libfuse3` plus the `fuse3` tools);
+macOS needs macFUSE. See [Install dependencies](#install-dependencies).
+
+More answers are in the [FAQ](docs/FAQ.md).
 
 ## Support the Project
 

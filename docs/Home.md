@@ -27,7 +27,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 
 | Page | What it covers |
 | --- | --- |
-| [Installation](Installation) | Requirements, Dokan and .NET runtime setup, installing and upgrading |
+| [Installation](Installation) | Dependency setup (.NET runtime, Dokan, FUSE, macFUSE), installing, first run and upgrading |
 | [Linux and macOS](Linux-and-macOS) | FUSE prerequisites, usage, unmounting and platform notes |
 | [Getting Started](Getting-Started) | Your first mount, drag-and-drop, unmounting, example workflows |
 | [Command-Line Reference](Command-Line-Reference) | Complete argument/option reference, path resolution, exit codes |

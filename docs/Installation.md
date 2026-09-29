@@ -1,7 +1,8 @@
 # Installation
 
-This page describes everything required to run SimpleXisoDrive on Windows. For Linux and macOS, see
-[Linux and macOS](Linux-and-macOS).
+This page is the one-stop install guide for every platform: the .NET runtime, the mount driver
+(Dokan on Windows, FUSE 3 on Linux, macFUSE on macOS), the application itself, and the first run.
+For Linux/macOS usage details see [Linux and macOS](Linux-and-macOS).
 
 ---
 
@@ -9,11 +10,10 @@ This page describes everything required to run SimpleXisoDrive on Windows. For L
 
 | Requirement | Details |
 | --- | --- |
-| Operating system | Windows 10 or Windows 11 (x64 or ARM64) |
-| Architecture | `x64` or `ARM64` |
+| Operating system | Windows 10 or 11 (x64/ARM64), Linux (x64/ARM64), macOS (Intel/Apple silicon) |
 | Runtime | .NET 10.0 Runtime (base runtime; self-contained builds bundle it) |
-| Driver | Dokan user-mode file system library 2.x (`dokan2.dll`) |
-| Privileges | Administrator recommended (required by most systems for drive letter mounts) |
+| Mount driver | Windows: Dokan 2.x; Linux: FUSE 3 (`libfuse3` plus the `fuse3` tools); macOS: macFUSE |
+| Privileges | Windows drive-letter mounts are most reliable elevated; Linux FUSE does not need `sudo`; macOS requires allowing the macFUSE system extension |
 | Disk usage | A few MB for the application; images are streamed, not copied |
 
 SimpleXisoDrive does not require a GPU, does not install a service of its own, and does not modify
@@ -21,9 +21,31 @@ the images it opens.
 
 ---
 
-## Step 1 - Install the Dokan library
+## Step 1 - Install the .NET 10.0 Runtime (all platforms)
 
-SimpleXisoDrive cannot run without Dokan. The application checks for
+Framework-dependent builds require the **.NET 10.0 Runtime** (the base runtime; the Desktop
+Runtime also works but is not required).
+
+1. Open <https://dotnet.microsoft.com/download/dotnet/10.0>.
+2. Choose the **.NET Runtime** for your architecture (`x64` or `ARM64`).
+3. Install it.
+4. Verify the installation:
+
+   ```shell
+   dotnet --list-runtimes
+   ```
+
+   Look for an entry such as `Microsoft.NETCore.App 10.x.x`.
+
+Self-contained release builds bundle the runtime and do not require this step.
+
+---
+
+## Step 2 - Install the mount driver
+
+### Windows - Dokan
+
+SimpleXisoDrive cannot run on Windows without Dokan. The application checks for
 `%SystemRoot%\System32\dokan2.dll` at startup and exits with instructions if the file is missing.
 
 1. Open the Dokan releases page:
@@ -43,29 +65,43 @@ Test-Path "$env:SystemRoot\System32\drivers\dokan2.sys"
 Both commands should print `True`. If only `dokan2.dll` is present, the application still runs but
 prints a warning that the driver (`dokan2.sys`) was not found; mounting may fail in that case.
 
-For more detail about Dokan, see the [official documentation](https://github.com/dokan-dev/dokany).
+### Linux - FUSE 3
 
----
+Linux mounting uses FUSE 3: the `libfuse3` library plus the `fuse3` tools that provide
+`fusermount3`.
 
-## Step 2 - Install the .NET runtime
+```shell
+# Debian / Ubuntu
+sudo apt install libfuse3-3 fuse3
 
-Framework-dependent builds require the **.NET 10.0 Runtime** (the base runtime; the Desktop
-Runtime also works but is not required).
+# Fedora
+sudo dnf install fuse3 fuse3-libs
 
-1. Download the runtime from <https://dotnet.microsoft.com/download/dotnet/10.0>.
-2. Choose the **.NET Runtime** for your architecture (`x64` or `ARM64`).
-3. Install it.
-
-Self-contained release builds bundle the runtime and do not require this step. If a release archive
-contains the runtime files alongside the executable, you can skip this step for that build.
-
-To verify an installed runtime:
-
-```powershell
-dotnet --list-runtimes
+# Arch
+sudo pacman -S fuse3
 ```
 
-Look for an entry such as `Microsoft.NETCore.App 10.x.x`.
+Verify that the kernel device exists:
+
+```shell
+ls -l /dev/fuse
+```
+
+If it is missing, load the module with `sudo modprobe fuse`. The application searches for the FUSE
+library in the standard locations; set `SIMPLEXISODRIVE_FUSE_LIBRARY` to an explicit path if it
+lives somewhere else.
+
+### macOS - macFUSE
+
+1. Download and install macFUSE from <https://macfuse.io>.
+2. Allow the system extension when macOS prompts for it (the installer restarts the system).
+3. On macOS 15.4 or later, choose the FSKit backend when prompted; it needs no kernel extension.
+
+macOS may quarantine a downloaded binary. If it refuses to start, remove the attribute:
+
+```shell
+xattr -d com.apple.quarantine SimpleXisoDrive
+```
 
 ---
 
@@ -73,30 +109,32 @@ Look for an entry such as `Microsoft.NETCore.App 10.x.x`.
 
 SimpleXisoDrive is a portable application; there is no installer and no registry footprint.
 
-1. Download the release archive for your architecture from
+1. Download the release archive for your platform and architecture from
    <https://github.com/purelogiccode/SimpleXisoDrive/releases>:
-   - `win-x64` for standard Intel/AMD PCs
-   - `win-arm64` for Windows on ARM devices
-2. Extract the archive to a folder of your choice, for example `C:\Tools\SimpleXisoDrive`.
-3. Optionally create a desktop shortcut to `SimpleXisoDrive.exe`.
 
-> **Tip:** Do not extract the application directly into `C:\Program Files` if you intend to run it
-> without administrator rights; the application writes log files next to the executable.
+   | Archive suffix | Platform | Typical devices |
+   | --- | --- | --- |
+   | `win-x64` | Windows x86-64 | Most desktops and laptops |
+   | `win-arm64` | Windows on ARM | Surface Pro X, Snapdragon-based laptops |
+   | `linux-x64` | Linux x86-64 | Most distributions |
+   | `linux-arm64` | Linux on ARM | Raspberry Pi 4/5 (64-bit), ARM servers |
+   | `osx-x64` | macOS Intel | Intel Macs |
+   | `osx-arm64` | macOS Apple silicon | M-series Macs |
 
-### Architecture notes
+2. Extract the archive to a folder of your choice, for example `C:\Tools\SimpleXisoDrive` or
+   `~/opt/simplexisodrive`. Each archive contains the single-file executable plus `ReadMe.md`,
+   `LICENSE.txt` and `WhatsNew.md`.
+3. On Linux and macOS the executable bit is already set. On Windows, optionally create a desktop
+   shortcut to `SimpleXisoDrive.exe`.
 
-The release names use the following conventions:
-
-| Archive suffix | Architecture | Typical devices |
-| --- | --- | --- |
-| `win-x64` | x86-64 | Most desktops and laptops |
-| `win-arm64` | ARM64 | Surface Pro X, Snapdragon-based laptops |
-
-The Dokan and .NET runtimes must match the application architecture.
+> **Tip:** Do not extract the Windows application directly into `C:\Program Files` if you intend
+> to run it without administrator rights; the application writes log files next to the executable.
 
 ---
 
 ## Step 4 - First run
+
+### Windows
 
 Open a terminal and run:
 
@@ -116,17 +154,27 @@ SimpleXisoDrive.exe "D:\Games\MyGame.iso" Z:
 
 See [Getting Started](Getting-Started) for a guided walkthrough.
 
+### Linux and macOS
+
+```shell
+SimpleXisoDrive ~/Games/MyGame.iso ~/mnt/mygame
+```
+
+When the mount path is omitted, a temporary directory is created and printed after mounting. The
+mount stays attached to the terminal; `Ctrl+C` (or `fusermount3 -u` / `umount`) unmounts cleanly.
+See [Linux and macOS](Linux-and-macOS) for the full platform guide.
+
 ---
 
 ## Upgrading
 
-1. Close any running instance of SimpleXisoDrive.
+1. Close any running instance of SimpleXisoDrive (press a key or `Ctrl+C` to unmount first).
 2. Replace the application files with the new release. Your `logs`, `error.log`, and
    `critical_error.log` files can be deleted or kept; they are not configuration.
-3. Optionally delete `logs\` to start a clean log history.
+3. Optionally delete `logs/` to start a clean log history.
 
-The application checks GitHub for newer releases on every start and offers to open the release page
-in your default browser. See [Services](Services) for details.
+The application checks GitHub for newer releases on every start and offers to open the release
+page in your default browser. See [Services](Services) for details.
 
 ---
 
@@ -134,7 +182,8 @@ in your default browser. See [Services](Services) for details.
 
 1. Unmount any active volumes (press a key in the console window, or press `Ctrl+C`).
 2. Delete the application folder.
-3. Optional: uninstall Dokan through **Windows Settings > Apps** if no other software uses it.
+3. Windows only: uninstall Dokan through **Windows Settings > Apps** if no other software uses it.
+   The Linux FUSE packages and macFUSE are usually left installed because other software uses them.
 
 No files outside the application folder are created, aside from logs written next to the
 executable and temporary files used by the .NET runtime.
@@ -145,9 +194,12 @@ executable and temporary files used by the .NET runtime.
 
 | Check | Expected result |
 | --- | --- |
-| `SimpleXisoDrive.exe` with no arguments | Usage text is printed, exit code 1 |
-| `%SystemRoot%\System32\dokan2.dll` exists | Dokan runtime is present |
-| `%SystemRoot%\System32\drivers\dokan2.sys` exists | Dokan driver is present (warning otherwise) |
-| A test mount | The volume appears in Explorer as `XBOX_ISO` |
+| `SimpleXisoDrive.exe` with no arguments (Windows) | Usage text is printed, exit code 1 |
+| `SimpleXisoDrive --help` (Linux/macOS) | Usage text is printed, exit code 0 |
+| `%SystemRoot%\System32\dokan2.dll` exists (Windows) | Dokan runtime is present |
+| `%SystemRoot%\System32\drivers\dokan2.sys` exists (Windows) | Dokan driver is present (warning otherwise) |
+| `ls -l /dev/fuse` (Linux) | The FUSE kernel device exists |
+| `command -v fusermount3` (Linux) | The FUSE tools are on `PATH` |
+| A test mount | The volume appears in the file manager as `XBOX_ISO` (ISO/CHD) or `XBOX_ZAR` (ZArchive) |
 
 If a check fails, see [Troubleshooting](Troubleshooting).

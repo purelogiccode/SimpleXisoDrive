@@ -10,6 +10,36 @@ A utility that mounts original Xbox ISO/XISO images, Xbox ISO CHD images (`.chd`
 (`.zar`) files as read-only virtual drives or folder mount points, so their contents can be browsed
 in the file manager or copied with normal tools.
 
+### How do I install it?
+
+1. Install the **.NET 10.0 Runtime** (base runtime): <https://dotnet.microsoft.com/download/dotnet/10.0>.
+2. Install the mount driver for your platform: **Dokan** on Windows, **FUSE 3** on Linux,
+   **macFUSE** on macOS (see the table below).
+3. Download and extract the archive for your OS and CPU from
+   <https://github.com/purelogiccode/SimpleXisoDrive/releases>.
+
+The step-by-step guide is in [Installation](Installation); Linux/macOS specifics are in
+[Linux and macOS](Linux-and-macOS).
+
+### Do I need to install FUSE on Linux or macOS?
+
+Yes.
+
+- **Linux:** install FUSE 3 (`libfuse3` plus the `fuse3` tools), for example
+  `sudo apt install libfuse3-3 fuse3`. Make sure `/dev/fuse` exists (`sudo modprobe fuse`) and
+  `fusermount3` is on `PATH`.
+- **macOS:** install [macFUSE](https://macfuse.io) and allow the system extension. On macOS 15.4 or
+  later the FSKit backend needs no kernel extension.
+
+### Where do I download the dependencies?
+
+| Dependency | Link |
+| --- | --- |
+| .NET 10.0 Runtime (all platforms) | <https://dotnet.microsoft.com/download/dotnet/10.0> |
+| Dokan (Windows) | <https://github.com/dokan-dev/dokany/releases> |
+| macFUSE (macOS) | <https://macfuse.io> |
+| FUSE 3 (Linux) | Your distribution's package manager (`libfuse3`, `fuse3`) |
+
 ### What is an XISO?
 
 "XISO" commonly refers to an Xbox disc image in the XDVDFS layout. SimpleXisoDrive supports both

@@ -2,9 +2,29 @@
 
 This page lists error messages and symptoms, their causes, and how to resolve them.
 
-> **Diagnostics tip:** run with `--debug` for verbose Dokan output, and inspect the files in
-> `logs\`, `error.log`, and `critical_error.log` next to `SimpleXisoDrive.exe`. See
-> [Services](Services).
+> **Diagnostics tip:** run with `--debug` for verbose mount-driver output, and inspect the files in
+> `logs/`, `error.log`, and `critical_error.log` next to the executable. See [Services](Services).
+
+---
+
+## Quick fixes for common failures
+
+| Symptom | Fix |
+| --- | --- |
+| `The Dokan runtime library (dokan2.dll) was not found` | Install [Dokan](https://github.com/dokan-dev/dokany/releases) and restart Windows. |
+| `Warning: The Dokan driver (dokan2.sys) was not found` | Reinstall Dokan and restart; mounting may fail until the driver loads. |
+| `libfuse3 was not found` | Install FUSE 3 for your distribution (see [Installation](Installation#linux---fuse-3)). |
+| `/dev/fuse was not found` | Load the kernel module: `sudo modprobe fuse`. |
+| `fusermount3 was not found on PATH` | Install the `fuse3` tools package. |
+| `macFUSE (libfuse3) was not found` | Install [macFUSE](https://macfuse.io) and allow the system extension. |
+| `Image file not found at '<path>'` | Check the path and quote it if it contains spaces; see [image path problems](#image-path-problems). |
+| Not a valid Xbox ISO, Xbox ISO CHD or ZArchive | See [image format problems](#image-format-problems). |
+| `Could not find an available drive letter (M-R)` | Free one of `M:`-`R:` or pass an explicit mount path. |
+| `fuse: mountpoint is not empty` | Use an empty directory as the mount path. |
+| `Something's wrong with the Dokan driver` | Run as Administrator, reinstall Dokan and restart. |
+| Write operations fail | The volume is read-only by design; copy files out to a writable location. |
+
+The sections below describe each failure in detail.
 
 ---
 

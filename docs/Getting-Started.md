@@ -4,9 +4,10 @@ This page walks through the two supported ways to mount an Xbox image on Windows
 the command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO
 CHD images (`.chd`) and ZArchive (`.zar`) files are supported.
 
-Before you begin, make sure [Dokan and the .NET runtime are installed](Installation). On Linux and
-macOS the workflow is command-line only with a directory mount point; see
-[Linux and macOS](Linux-and-macOS) for the platform-specific steps.
+Before you begin, make sure [the .NET runtime and your platform's mount driver are installed](Installation)
+(Dokan on Windows, FUSE 3 on Linux, macFUSE on macOS). On Linux and macOS the workflow is
+command-line only with a directory mount point; see [Linux and macOS](Linux-and-macOS) for the
+platform-specific steps.
 
 ---
 
