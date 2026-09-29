@@ -15,6 +15,20 @@ internal static class FuseAvailability
     /// <returns><see langword="true"/> when mounting can be attempted; otherwise <see langword="false"/>.</returns>
     public static bool Check(out string? libraryPath)
     {
+        try
+        {
+            return CheckCore(out libraryPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "FUSE availability check failed");
+            libraryPath = null;
+            return false;
+        }
+    }
+
+    private static bool CheckCore(out string? libraryPath)
+    {
         FuseInterop.RegisterResolver();
 
         if (!FuseInterop.TryLoadLibrary(out libraryPath))
@@ -74,9 +88,10 @@ internal static class FuseAvailability
                     return true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignore malformed PATH entries.
+                Log.Debug(ex, "Ignoring malformed PATH entry '{Directory}'", directory);
             }
         }
 

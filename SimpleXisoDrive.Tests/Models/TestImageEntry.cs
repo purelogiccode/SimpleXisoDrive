@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive.Tests;
+namespace SimpleXisoDrive.Tests.Models;
 
 /// <summary>
 /// Describes a file or directory to place in a test image. A <see langword="null"/>

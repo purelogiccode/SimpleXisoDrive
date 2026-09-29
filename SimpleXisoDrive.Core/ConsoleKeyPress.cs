@@ -1,3 +1,5 @@
+using Serilog;
+
 namespace SimpleXisoDrive.Core;
 
 /// <summary>
@@ -20,21 +22,31 @@ internal static class ConsoleKeyPress
     /// <returns>A task that completes on the next key press.</returns>
     public static Task<ConsoleKeyInfo> WaitAsync()
     {
-        if (Interlocked.Exchange(ref _readerStarted, 1) == 0)
+        try
         {
-            _ = Task.Run(static () =>
+            if (Interlocked.Exchange(ref _readerStarted, 1) == 0)
             {
-                try
+                _ = Task.Run(static () =>
                 {
-                    Pressed.TrySetResult(Console.ReadKey(true));
-                }
-                catch
-                {
-                    Pressed.TrySetResult(default);
-                }
-            });
-        }
+                    try
+                    {
+                        Pressed.TrySetResult(Console.ReadKey(true));
+                    }
+                    catch (Exception ex)
+                    {
+                        // Redirected input (or no console): complete immediately.
+                        Log.Debug(ex, "Console key read unavailable; completing immediately");
+                        Pressed.TrySetResult(default);
+                    }
+                });
+            }
 
-        return Pressed.Task;
+            return Pressed.Task;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to start the console key press reader");
+            throw;
+        }
     }
 }

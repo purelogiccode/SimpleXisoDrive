@@ -20,7 +20,7 @@ public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
     /// <param name="args">The values to substitute into the message template.</param>
     public void Debug(string message, params object[] args)
     {
-        Log.Debug(message, args);
+        Write(() => Log.Debug(message, args));
     }
 
     /// <summary>
@@ -30,7 +30,7 @@ public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
     /// <param name="args">The values to substitute into the message template.</param>
     public void Info(string message, params object[] args)
     {
-        Log.Information(message, args);
+        Write(() => Log.Information(message, args));
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
     /// <param name="args">The values to substitute into the message template.</param>
     public void Warn(string message, params object[] args)
     {
-        Log.Warning(message, args);
+        Write(() => Log.Warning(message, args));
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
     /// <param name="args">The values to substitute into the message template.</param>
     public void Error(string message, params object[] args)
     {
-        Log.Error(message, args);
+        Write(() => Log.Error(message, args));
     }
 
     /// <summary>
@@ -60,6 +60,19 @@ public sealed class SerilogDokanLogger : DokanNet.Logging.ILogger
     /// <param name="args">The values to substitute into the message template.</param>
     public void Fatal(string message, params object[] args)
     {
-        Log.Fatal(message, args);
+        Write(() => Log.Fatal(message, args));
+    }
+
+    private static void Write(Action action)
+    {
+        // Logging must never throw into Dokan's driver callbacks.
+        try
+        {
+            action();
+        }
+        catch
+        {
+            // Swallowed by design: a logging failure cannot be logged without recursion.
+        }
     }
 }

@@ -27,39 +27,47 @@ internal static class ChdImageSource
     /// </exception>
     public static ChdImageStream OpenOrThrow(string chdPath)
     {
-        var error = ChdFile.Open(chdPath, out var chd);
-        if (error != ChdError.Chderrnone || chd is null)
-        {
-            Log.Debug("CHD open failed for '{ImagePath}': {Error}", chdPath, error);
-            if (error == ChdError.Chderrfilenotfound)
-            {
-                throw new FileNotFoundException($"CHD file not found: '{chdPath}'", chdPath);
-            }
-
-            throw new InvalidImageException($"'{chdPath}' is not a readable CHD file: {error.GetMessage()}");
-        }
-
         try
         {
-            if (chd.IsCd || chd.IsGdRom)
+            var error = ChdFile.Open(chdPath, out var chd);
+            if (error != ChdError.Chderrnone || chd is null)
             {
-                var kind = chd.IsGdRom ? "GD-ROM" : "CD";
-                Log.Debug("Rejecting {Kind} CHD '{ImagePath}'", kind, chdPath);
-                throw new InvalidImageException(
-                    $"'{chdPath}' is a {kind} CHD; only Xbox ISO CHDs are supported.");
+                Log.Debug("CHD open failed for '{ImagePath}': {Error}", chdPath, error);
+                if (error == ChdError.Chderrfilenotfound)
+                {
+                    throw new FileNotFoundException($"CHD file not found: '{chdPath}'", chdPath);
+                }
+
+                throw new InvalidImageException($"'{chdPath}' is not a readable CHD file: {error.GetMessage()}");
             }
 
-            var streamError = ChdFile.OpenAsStream(chd, out var stream);
-            if (streamError != ChdError.Chderrnone || stream is null)
+            try
             {
-                throw new InvalidImageException($"Failed to open CHD image: {streamError.GetMessage()}");
-            }
+                if (chd.IsCd || chd.IsGdRom)
+                {
+                    var kind = chd.IsGdRom ? "GD-ROM" : "CD";
+                    Log.Debug("Rejecting {Kind} CHD '{ImagePath}'", kind, chdPath);
+                    throw new InvalidImageException(
+                        $"'{chdPath}' is a {kind} CHD; only Xbox ISO CHDs are supported.");
+                }
 
-            return stream;
+                var streamError = ChdFile.OpenAsStream(chd, out var stream);
+                if (streamError != ChdError.Chderrnone || stream is null)
+                {
+                    throw new InvalidImageException($"Failed to open CHD image: {streamError.GetMessage()}");
+                }
+
+                return stream;
+            }
+            catch
+            {
+                chd.Dispose();
+                throw;
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            chd.Dispose();
+            Log.Error(ex, "Failed to open CHD image '{ImagePath}'", chdPath);
             throw;
         }
     }

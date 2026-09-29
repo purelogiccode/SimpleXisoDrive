@@ -26,9 +26,10 @@ internal static class Program
         {
             LoggingSetup.ConfigureLogger();
         }
-        catch
+        catch (Exception ex)
         {
             // If Serilog cannot be configured, continue with the silent logger
+            Console.Error.WriteLine($"Failed to configure logging: {ex.Message}");
         }
 
         // Decrypt the API key up front so the first report never pays for it.
@@ -46,6 +47,21 @@ internal static class Program
 
     private static async Task<int> RunAsync(string[] args)
     {
+        try
+        {
+            return await RunCoreAsync(args);
+        }
+        catch (Exception ex)
+        {
+            // Only startup/validation failures that escape the mount flow reach this point.
+            Log.Error(ex, "Unhandled startup error");
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunCoreAsync(string[] args)
+    {
         SetupGlobalExceptionHandlers();
 
         Log.Information("=== SimpleXisoDrive Started (Unix) ===");
@@ -53,7 +69,7 @@ internal static class Program
         Log.Information("Working Directory: {WorkingDirectory}", Environment.CurrentDirectory);
 
         // Report launch statistics (fire and forget)
-        StatsService.ReportLaunchAsync();
+        StatsService.ReportLaunch();
 
         if (args.Any(static argument => argument is "-h" or "--help"))
         {
@@ -100,6 +116,12 @@ internal static class Program
         var debug = options.Contains("-d") || options.Contains("--debug");
         var launch = options.Contains("-l") || options.Contains("--launch");
         var imageIso = options.Contains("-i") || options.Contains("--image-iso");
+
+        if (debug)
+        {
+            LoggingSetup.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
+            Log.Information("Debug logging enabled (-d/--debug).");
+        }
 
         try
         {
@@ -233,6 +255,18 @@ internal static class Program
     }
 
     private static void PrintUsage()
+    {
+        try
+        {
+            PrintUsageCore();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to print usage information");
+        }
+    }
+
+    private static void PrintUsageCore()
     {
         Console.WriteLine(
             "Mounts an Xbox ISO/XISO (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file as a read-only virtual file system.");

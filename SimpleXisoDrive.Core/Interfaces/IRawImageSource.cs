@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive.Core.Vfs;
+namespace SimpleXisoDrive.Core.Interfaces;
 
 /// <summary>
 /// Provides read access to the raw bytes of the mounted Xbox image, served to

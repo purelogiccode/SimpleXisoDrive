@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 using XISOSharp;
 using XISOSharp.Models;
 
@@ -58,21 +59,29 @@ public sealed class XisoVfsVolume : IVfsVolume
 
         try
         {
-            // KeepOpen gives the volume one shared image handle for its lifetime;
-            // ReadWrite sharing lets scanners/indexers keep the file open while mounted.
-            _explorer = new XisoExplorer(isoPath, new XisoExplorerOptions
+            try
             {
-                KeepOpen = true,
-                Share = FileShare.ReadWrite,
-            });
-        }
-        catch (Exception ex) when (ex is XisoFormatException or InvalidDataException or EndOfStreamException)
-        {
-            Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", isoPath);
-            throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
-        }
+                // KeepOpen gives the volume one shared image handle for its lifetime;
+                // ReadWrite sharing lets scanners/indexers keep the file open while mounted.
+                _explorer = new XisoExplorer(isoPath, new XisoExplorerOptions
+                {
+                    KeepOpen = true,
+                    Share = FileShare.ReadWrite,
+                });
+            }
+            catch (Exception ex) when (ex is XisoFormatException or InvalidDataException or EndOfStreamException)
+            {
+                Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", isoPath);
+                throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
+            }
 
-        _volume = _explorer.Volume;
+            _volume = _explorer.Volume;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open Xbox ISO image '{ImagePath}'", isoPath);
+            throw;
+        }
     }
 
     /// <summary>
@@ -103,6 +112,7 @@ public sealed class XisoVfsVolume : IVfsVolume
         if (!_volume.IsValid)
         {
             DisposeStream(stream);
+            Log.Error("XDVDFS magic string not found in '{ImagePath}'", displayName);
             throw new InvalidImageException("XDVDFS magic string not found.");
         }
     }

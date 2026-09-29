@@ -1,4 +1,5 @@
 using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Tests.Models;
 using XISOSharp;
 using ZArchiveSharp;
 

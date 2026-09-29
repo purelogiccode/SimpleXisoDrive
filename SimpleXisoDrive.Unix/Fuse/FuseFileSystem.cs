@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Serilog;
 using SimpleXisoDrive.Core;
-using SimpleXisoDrive.Core.Vfs;
+using SimpleXisoDrive.Core.Interfaces;
 
 namespace SimpleXisoDrive.Fuse;
 
@@ -43,14 +43,22 @@ internal sealed class FuseFileSystem
     /// <param name="vfs">The volume to expose.</param>
     public FuseFileSystem(VfsContainer vfs)
     {
-        _vfs = vfs;
-        _getAttr = GetAttr;
-        _setAttrMac = SetAttrMac;
-        _open = Open;
-        _read = Read;
-        _statFs = StatFs;
-        _readDir = ReadDir;
-        _init = Init;
+        try
+        {
+            _vfs = vfs;
+            _getAttr = GetAttr;
+            _setAttrMac = SetAttrMac;
+            _open = Open;
+            _read = Read;
+            _statFs = StatFs;
+            _readDir = ReadDir;
+            _init = Init;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to create the FUSE file system");
+            throw;
+        }
     }
 
     /// <summary>
@@ -64,6 +72,20 @@ internal sealed class FuseFileSystem
     /// <param name="onMounted">Invoked once the FUSE session has started.</param>
     /// <returns>Zero on a clean unmount; otherwise, a non-zero exit code.</returns>
     public int Run(string mountPoint, bool debug, Action? onMounted)
+    {
+        try
+        {
+            return RunCore(mountPoint, debug, onMounted);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "FUSE session failed for '{MountPoint}'", mountPoint);
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int RunCore(string mountPoint, bool debug, Action? onMounted)
     {
         _mountPoint = mountPoint;
         _onMounted = onMounted;
@@ -238,9 +260,10 @@ internal sealed class FuseFileSystem
             {
                 FuseInterop.PokeMountPoint(_mountPoint);
             }
-            catch
+            catch (Exception ex)
             {
                 // The mount may already be gone; the loop then exits on its own.
+                Log.Debug(ex, "FUSE loop wake-up poke failed for '{MountPoint}'", _mountPoint);
             }
 
             Thread.Sleep(50);
@@ -532,8 +555,9 @@ internal sealed class FuseFileSystem
         {
             return Marshal.PtrToStringUTF8(path) ?? "<null>";
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Could not read a FUSE path pointer");
             return "<invalid>";
         }
     }
@@ -547,8 +571,9 @@ internal sealed class FuseFileSystem
                 : value.ToUniversalTime();
             return new DateTimeOffset(utc).ToUnixTimeSeconds();
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Could not convert '{Value}' to a Unix timestamp", value);
             return 0;
         }
     }
@@ -560,13 +585,21 @@ internal sealed class FuseFileSystem
     /// <returns>A short label without option separators or control characters.</returns>
     internal static string SanitizeVolumeLabel(string label)
     {
-        var filtered = label.Where(static c => !char.IsControl(c) && c is not ',' and not '/').ToArray();
-        var result = new string(filtered).Trim();
-        if (string.IsNullOrEmpty(result))
+        try
         {
+            var filtered = label.Where(static c => !char.IsControl(c) && c is not ',' and not '/').ToArray();
+            var result = new string(filtered).Trim();
+            if (string.IsNullOrEmpty(result))
+            {
+                return "SimpleXisoDrive";
+            }
+
+            return result.Length > 32 ? result[..32] : result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to sanitize the volume label '{Label}'", label);
             return "SimpleXisoDrive";
         }
-
-        return result.Length > 32 ? result[..32] : result;
     }
 }

@@ -2,7 +2,7 @@
 using DokanNet;
 using Serilog;
 using SimpleXisoDrive.Core;
-using SimpleXisoDrive.Core.Vfs;
+using SimpleXisoDrive.Core.Interfaces;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive;
@@ -163,9 +163,10 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             {
                 entry = info.Context as IVfsEntry;
             }
-            catch
+            catch (Exception ex)
             {
                 // Context is not a file entry, will try lookup
+                Log.Debug(ex, "Dokan context for '{FileName}' is not a file entry", fileName);
             }
 
             entry ??= _vfs.GetEntry(path);
@@ -217,16 +218,17 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var template = new FileInformation
             {
                 Attributes = FileAttributes.Directory | FileAttributes.ReadOnly,
-                CreationTime = _vfs.VolumeCreationTime, LastAccessTime = _vfs.VolumeCreationTime,
+                CreationTime = _vfs.VolumeCreationTime,
+                LastAccessTime = _vfs.VolumeCreationTime,
                 LastWriteTime = _vfs.VolumeCreationTime
             };
 
             internalFiles.Add(new FileInformation
-                { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
+            { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
             if (!string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
             {
                 internalFiles.Add(new FileInformation
-                    { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
+                { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
             }
 
             foreach (var entry in _vfs.GetFolderList(path))
@@ -591,7 +593,16 @@ public class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     /// <returns><see cref="DokanResult.NotImplemented"/>.</returns>
     public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
     {
-        streams = new List<FileInformation>();
-        return DokanResult.NotImplemented;
+        try
+        {
+            streams = new List<FileInformation>();
+            return DokanResult.NotImplemented;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "FindStreams failed for '{FileName}'", fileName);
+            streams = new List<FileInformation>();
+            return DokanResult.Error;
+        }
     }
 }

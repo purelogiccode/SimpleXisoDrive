@@ -1,3 +1,6 @@
+using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
+
 namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
@@ -28,19 +31,44 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
     /// <inheritdoc />
     public IVfsEntry? GetEntry(string path)
     {
-        return _inner.GetEntry(path);
+        try
+        {
+            return _inner.GetEntry(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ReaderOwningVfsVolume.GetEntry failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        return _inner.GetFolderList(path);
+        try
+        {
+            return _inner.GetFolderList(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ReaderOwningVfsVolume.GetFolderList failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        return _inner.ReadFile(entry, buffer, offset);
+        try
+        {
+            return _inner.ReadFile(entry, buffer, offset);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ReaderOwningVfsVolume.ReadFile failed for '{FileName}' at offset {Offset}",
+                entry.FileName, offset);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -50,9 +78,20 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
         {
             _inner.Dispose();
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ReaderOwningVfsVolume.Dispose failed for the wrapped volume");
+        }
         finally
         {
-            _owner.Dispose();
+            try
+            {
+                _owner.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "ReaderOwningVfsVolume.Dispose failed for the owning reader");
+            }
         }
     }
 }

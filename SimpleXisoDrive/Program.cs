@@ -27,9 +27,10 @@ internal static class Program
         {
             LoggingSetup.ConfigureLogger();
         }
-        catch
+        catch (Exception ex)
         {
             // If Serilog cannot be configured, continue with the silent logger
+            Console.Error.WriteLine($"Failed to configure logging: {ex.Message}");
         }
 
         // Decrypt the API key up front so the first report never pays for it.
@@ -47,30 +48,39 @@ internal static class Program
 
     private static async Task<int> RunAsync(string[] args)
     {
-        // Set Green CRT theme immediately
-        Console.BackgroundColor = ConsoleColor.Black;
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.Clear();
-
-        // Hook global exception handlers immediately to catch crashes
-        SetupGlobalExceptionHandlers();
-
-        Log.Information("=== SimpleXisoDrive Started ===");
-        Log.Information("Arguments: {Args}", string.Join(" | ", args));
-        Log.Information("Working Directory: {WorkingDirectory}", Environment.CurrentDirectory);
-
-        // Report launch statistics (fire and forget)
-        StatsService.ReportLaunchAsync();
-
-        if (!IsDokanInstalled())
+        try
         {
-            Log.Error("Dokan is not installed. Exiting.");
-            Console.WriteLine("\nPress any key to exit.");
-            await ConsoleKeyPress.WaitAsync();
+            // Set Green CRT theme immediately
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Clear();
+
+            // Hook global exception handlers immediately to catch crashes
+            SetupGlobalExceptionHandlers();
+
+            Log.Information("=== SimpleXisoDrive Started ===");
+            Log.Information("Arguments: {Args}", string.Join(" | ", args));
+            Log.Information("Working Directory: {WorkingDirectory}", Environment.CurrentDirectory);
+
+            // Report launch statistics (fire and forget)
+            StatsService.ReportLaunch();
+
+            if (!IsDokanInstalled())
+            {
+                Log.Error("Dokan is not installed. Exiting.");
+                Console.WriteLine("\nPress any key to exit.");
+                await ConsoleKeyPress.WaitAsync();
+                return 1;
+            }
+
+            await UpdateChecker.CheckForUpdateAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Startup initialization failed");
+            Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
         }
-
-        await UpdateChecker.CheckForUpdateAsync();
 
         var isDragAndDrop = false;
         var debug = false;
@@ -124,6 +134,12 @@ internal static class Program
                     break;
             }
 
+            if (debug)
+            {
+                LoggingSetup.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
+                Log.Information("Debug logging enabled (-d/--debug).");
+            }
+
             // Try to resolve the image path - handle cases where the user provides a path without an extension
             var resolvedIsoPath = ImagePathResolver.Resolve(isoPath);
             if (resolvedIsoPath == null)
@@ -166,7 +182,7 @@ internal static class Program
 
             if (isDragAndDrop)
             {
-                var mountTask = RunMount(isoPath, mountPath, debug, launch, imageIso);
+                var mountTask = RunMountAsync(isoPath, mountPath, debug, launch, imageIso);
 
                 // Wait for either the mount to fail OR the user to press a key
                 var keyPressTask = ConsoleKeyPress.WaitAsync();
@@ -191,7 +207,7 @@ internal static class Program
             {
                 // For standard command-line use, await the task directly.
                 // The user will stop it with Ctrl+C.
-                await RunMount(isoPath, mountPath, debug, launch, imageIso);
+                await RunMountAsync(isoPath, mountPath, debug, launch, imageIso);
             }
 
             return 0;
@@ -286,6 +302,19 @@ internal static class Program
     /// <returns>True if dokan2.dll is found; false otherwise.</returns>
     private static bool IsDokanInstalled()
     {
+        try
+        {
+            return IsDokanInstalledCore();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to check whether Dokan is installed");
+            return false;
+        }
+    }
+
+    private static bool IsDokanInstalledCore()
+    {
         var dokanDllPath = Path.Combine(Environment.SystemDirectory, "dokan2.dll");
         var dokanSysPath = Path.Combine(Environment.SystemDirectory, "drivers", "dokan2.sys");
 
@@ -356,6 +385,18 @@ internal static class Program
 
     private static void PrintUsage()
     {
+        try
+        {
+            PrintUsageCore();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to print usage information");
+        }
+    }
+
+    private static void PrintUsageCore()
+    {
         var mainModule = Process.GetCurrentProcess().MainModule;
         var exeName = mainModule != null
             ? Path.GetFileNameWithoutExtension(mainModule.FileName)
@@ -376,7 +417,7 @@ internal static class Program
         Console.WriteLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
     }
 
-    private static async Task RunMount(string isoPath, string mountPath, bool debug, bool launch, bool imageIso)
+    private static async Task RunMountAsync(string isoPath, string mountPath, bool debug, bool launch, bool imageIso)
     {
         // Check for admin rights for drive letter mounting
         if (mountPath.EndsWith(":\\", StringComparison.Ordinal) && !CheckAccess.IsAdministrator())

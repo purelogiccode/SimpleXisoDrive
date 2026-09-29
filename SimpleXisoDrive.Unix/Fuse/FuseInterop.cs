@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Serilog;
 
 #pragma warning disable MA0048 // Interop declarations share this file intentionally.
 
@@ -26,12 +27,20 @@ internal static class FuseInterop
     /// </summary>
     internal static void RegisterResolver()
     {
-        if (Interlocked.Exchange(ref _resolverRegistered, 1) != 0)
+        try
         {
-            return;
-        }
+            if (Interlocked.Exchange(ref _resolverRegistered, 1) != 0)
+            {
+                return;
+            }
 
-        NativeLibrary.SetDllImportResolver(typeof(FuseInterop).Assembly, Resolve);
+            NativeLibrary.SetDllImportResolver(typeof(FuseInterop).Assembly, Resolve);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to register the FUSE library resolver");
+            throw;
+        }
     }
 
     /// <summary>
@@ -41,17 +50,26 @@ internal static class FuseInterop
     /// <returns><see langword="true"/> when the library can be loaded; otherwise <see langword="false"/>.</returns>
     internal static bool TryLoadLibrary(out string? libraryPath)
     {
-        foreach (var candidate in EnumerateCandidates())
+        try
         {
-            if (NativeLibrary.TryLoad(candidate, out _))
+            foreach (var candidate in EnumerateCandidates())
             {
-                libraryPath = candidate;
-                return true;
+                if (NativeLibrary.TryLoad(candidate, out _))
+                {
+                    libraryPath = candidate;
+                    return true;
+                }
             }
-        }
 
-        libraryPath = null;
-        return false;
+            libraryPath = null;
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to probe the FUSE library locations");
+            libraryPath = null;
+            return false;
+        }
     }
 
     private static IntPtr Resolve(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
@@ -100,8 +118,9 @@ internal static class FuseInterop
             {
                 files = Directory.GetFiles(directory, "libfuse3.so.*");
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Debug(ex, "Could not scan '{Directory}' for FUSE libraries", directory);
                 continue;
             }
 
@@ -168,6 +187,11 @@ internal static class FuseInterop
         try
         {
             NativeStatFs(path, buffer);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "statfs poke failed for '{MountPoint}'", path);
+            throw;
         }
         finally
         {

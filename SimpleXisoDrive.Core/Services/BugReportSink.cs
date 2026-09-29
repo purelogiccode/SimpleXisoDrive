@@ -26,12 +26,15 @@ public sealed class BugReportSink : ILogEventSink
         try
         {
             if (logEvent.Level < LogEventLevel.Warning) return;
-            if (!RateLimitAllows()) return;
 
             var exception = logEvent.Exception;
             var report = BugReport.BuildReport(logEvent.Level.ToString(), logEvent.RenderMessage(), exception);
 
+            // Every Warning+ event is archived locally; only the remote API call is
+            // rate-limited (the API allows 10 requests/minute per IP).
             BugReport.WriteLocalErrorLog(report);
+
+            if (!RateLimitAllows()) return;
 
             _ = Task.Run(async () =>
             {

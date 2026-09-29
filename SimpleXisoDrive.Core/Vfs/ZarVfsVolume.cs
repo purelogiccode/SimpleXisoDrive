@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Core.Vfs;
@@ -66,22 +67,31 @@ public sealed class ZarVfsVolume : IVfsVolume
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid ZArchive.</exception>
     internal static ZArchiveReader OpenArchiveOrThrow(string archivePath)
     {
-        var reader = TryOpenArchive(archivePath, out var failure);
-        if (reader is not null)
+        try
         {
-            return reader;
-        }
+            var reader = TryOpenArchive(archivePath, out var failure);
+            if (reader is not null)
+            {
+                return reader;
+            }
 
-        throw failure switch
+            throw failure switch
+            {
+                ZArchiveOpenFailure.FileNotFound =>
+                    new FileNotFoundException($"ZArchive file not found: '{archivePath}'.", archivePath),
+                ZArchiveOpenFailure.AccessDenied or ZArchiveOpenFailure.ReadError =>
+                    new IOException($"Cannot read ZArchive '{archivePath}' ({failure})."),
+                ZArchiveOpenFailure.InvalidPath =>
+                    new ArgumentException($"Invalid ZArchive path '{archivePath}' ({failure}).",
+                        nameof(archivePath)),
+                _ => new InvalidImageException($"'{archivePath}' is not a valid ZArchive (.zar) file ({failure}).")
+            };
+        }
+        catch (Exception ex)
         {
-            ZArchiveOpenFailure.FileNotFound =>
-                new FileNotFoundException($"ZArchive file not found: '{archivePath}'.", archivePath),
-            ZArchiveOpenFailure.AccessDenied or ZArchiveOpenFailure.ReadError =>
-                new IOException($"Cannot read ZArchive '{archivePath}' ({failure})."),
-            ZArchiveOpenFailure.InvalidPath =>
-                new ArgumentException($"Invalid ZArchive path '{archivePath}' ({failure}).", nameof(archivePath)),
-            _ => new InvalidImageException($"'{archivePath}' is not a valid ZArchive (.zar) file ({failure}).")
-        };
+            Log.Debug(ex, "Failed to open ZArchive '{ArchivePath}'", archivePath);
+            throw;
+        }
     }
 
     /// <summary>
@@ -114,8 +124,9 @@ public sealed class ZarVfsVolume : IVfsVolume
         {
             return File.Exists(archivePath) ? File.GetCreationTime(archivePath) : DateTime.Now;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Could not read the creation time of '{ArchivePath}'; using the current time", archivePath);
             return DateTime.Now;
         }
     }
@@ -175,14 +186,27 @@ public sealed class ZarVfsVolume : IVfsVolume
 
         if (_childrenCache.TryGetValue(normalizedPath, out var cachedChildren))
         {
-            foreach (var entry in cachedChildren) yield return entry;
-
-            yield break;
+            return cachedChildren;
         }
 
+        try
+        {
+            var children = BuildFolderList(normalizedPath);
+            _childrenCache[normalizedPath] = children;
+            return children;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ZarVfsVolume.GetFolderList failed for '{Path}'", path);
+            return [];
+        }
+    }
+
+    private List<IVfsEntry> BuildFolderList(string normalizedPath)
+    {
         if (GetEntry(normalizedPath) is not ZarEntry { IsDirectory: true } directory)
         {
-            yield break;
+            return [];
         }
 
         var children = new List<IVfsEntry>();
@@ -205,10 +229,9 @@ public sealed class ZarVfsVolume : IVfsVolume
             var childEntry = new ZarEntry(childNode, child.Name, child.IsDirectory, size);
             CacheEntry(childPath, childEntry);
             children.Add(childEntry);
-            yield return childEntry;
         }
 
-        _childrenCache[normalizedPath] = children;
+        return children;
     }
 
     private static string NormalizePath(string path)

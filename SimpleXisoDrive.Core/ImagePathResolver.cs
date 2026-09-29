@@ -28,6 +28,19 @@ public static class ImagePathResolver
     /// <returns>The resolved image file path, or <see langword="null"/> when no file matches.</returns>
     public static string? Resolve(string imagePath)
     {
+        try
+        {
+            return ResolveCore(imagePath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to resolve image path '{ImagePath}'", imagePath);
+            throw;
+        }
+    }
+
+    private static string? ResolveCore(string imagePath)
+    {
         // 1. Check if the file exists as-is
         if (File.Exists(imagePath))
         {

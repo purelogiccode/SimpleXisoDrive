@@ -2,8 +2,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Security.Authentication;
-using System.Text.Json.Serialization;
 using Serilog;
+using SimpleXisoDrive.Core.Models;
 
 namespace SimpleXisoDrive.Core.Services;
 
@@ -12,7 +12,7 @@ namespace SimpleXisoDrive.Core.Services;
 /// </summary>
 public static class StatsService
 {
-    // Base URL for the stats API - points to the local ApplicationStats service
+    // Base URL for the stats API - points to the ApplicationStats service
     private const string StatsApiBaseUrl = "https://www.purelogiccode.com";
     private const string StatsEndpoint = "/ApplicationStats/stats";
 
@@ -41,32 +41,41 @@ public static class StatsService
     /// Reports application launch statistics to the central stats API.
     /// This is a fire-and-forget operation that runs in the background and does not block the application.
     /// </summary>
-    public static void ReportLaunchAsync()
+    public static void ReportLaunch()
     {
-        // Fire and forget - don't await, don't block startup
-        _ = ReportLaunchInternalAsync();
+        try
+        {
+            // Fire and forget - don't await, don't block startup
+            _ = ReportLaunchInternalAsync();
+        }
+        catch (Exception ex)
+        {
+            // Advisory only: log locally at Debug so the bug report sink stays out of it.
+            Log.Debug(ex, "Stats reporting could not be started (non-fatal)");
+        }
     }
 
     private static async Task ReportLaunchInternalAsync()
     {
         try
         {
-            // Get current version from assembly
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
+            // Get current version from the entry assembly (the Core assembly when the
+            // service is used from tests or tooling).
+            var version = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly())
+                .GetName().Version?.ToString() ?? "0.0.0";
 
             var request = new StatsRequest
             {
-                AppId = ApplicationId,
-                AppVersion = version
+                ApplicationId = ApplicationId,
+                Version = version
             };
 
-            // Set authorization header
-            Http.DefaultRequestHeaders.Authorization =
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{StatsApiBaseUrl}{StatsEndpoint}");
+            httpRequest.Content = JsonContent.Create(request);
+            httpRequest.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", ApiKeyProvider.ApiKey);
 
-            using var response = await Http.PostAsJsonAsync(
-                $"{StatsApiBaseUrl}{StatsEndpoint}",
-                request);
+            using var response = await Http.SendAsync(httpRequest);
 
             if (response.IsSuccessStatusCode)
             {
@@ -92,15 +101,5 @@ public static class StatsService
             // Advisory only: log locally at Debug so the bug report sink stays out of it.
             Log.Debug(ex, "Stats reporting skipped (non-fatal)");
         }
-    }
-
-    /// <summary>
-    /// Request model for the stats API.
-    /// </summary>
-    private sealed class StatsRequest
-    {
-        [JsonPropertyName("applicationId")] public string AppId { get; set; } = string.Empty;
-
-        [JsonPropertyName("version")] public string AppVersion { get; set; } = string.Empty;
     }
 }

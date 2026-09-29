@@ -1,5 +1,6 @@
 using CHDSharp.Encoder;
 using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Tests.Models;
 
 namespace SimpleXisoDrive.Tests;
 

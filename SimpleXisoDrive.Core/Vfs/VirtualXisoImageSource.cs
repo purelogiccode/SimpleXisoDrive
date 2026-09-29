@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 using XISOSharp;
 using XISOSharp.DataStructures;
 using XISOSharp.Models;
@@ -79,12 +80,14 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
         {
             return new VirtualXisoImageSource(reader, archivePath, fileTime);
         }
-        catch (InvalidImageException)
+        catch (InvalidImageException ex)
         {
+            Log.Error(ex, "Cannot synthesize image.iso for '{ArchivePath}'", archivePath);
             throw;
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to synthesize image.iso for '{ArchivePath}'", archivePath);
             throw new InvalidImageException(
                 $"Failed to synthesize an image.iso from the ZArchive tree '{archivePath}': {ex.Message}", ex);
         }
@@ -233,8 +236,9 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
                 ? (ulong)File.GetCreationTimeUtc(archivePath).ToFileTimeUtc()
                 : (ulong)DateTime.UtcNow.ToFileTimeUtc();
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Could not read the creation time of '{ArchivePath}'; using the current time", archivePath);
             return (ulong)DateTime.UtcNow.ToFileTimeUtc();
         }
     }

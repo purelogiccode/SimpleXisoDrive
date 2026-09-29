@@ -1,6 +1,7 @@
 using System.Security.AccessControl;
 using DokanNet;
 using SimpleXisoDrive.Core;
+using SimpleXisoDrive.Tests.Models;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SimpleXisoDrive.Tests;

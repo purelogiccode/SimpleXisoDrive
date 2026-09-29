@@ -1,9 +1,9 @@
-namespace SimpleXisoDrive.Core.Vfs;
+namespace SimpleXisoDrive.Core.Interfaces;
 
 /// <summary>
 /// A read-only volume that resolves paths to entries and serves file data to the Dokan layer.
-/// Implemented by <see cref="XisoVfsVolume"/> (Xbox ISO / XISO images) and
-/// <see cref="ZarVfsVolume"/> (ZArchive directory trees).
+/// Implemented by <see cref="SimpleXisoDrive.Core.Vfs.XisoVfsVolume"/> (Xbox ISO / XISO images) and
+/// <see cref="SimpleXisoDrive.Core.Vfs.ZarVfsVolume"/> (ZArchive directory trees).
 /// </summary>
 public interface IVfsVolume : IDisposable
 {

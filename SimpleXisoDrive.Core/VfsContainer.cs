@@ -1,3 +1,5 @@
+using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Core;
@@ -50,7 +52,15 @@ public class VfsContainer : IDisposable
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox image or ZArchive.</exception>
     public VfsContainer(string imagePath, bool exposeImageIso = false)
     {
-        _volume = VfsVolumeFactory.Open(imagePath, exposeImageIso);
+        try
+        {
+            _volume = VfsVolumeFactory.Open(imagePath, exposeImageIso);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open image '{ImagePath}' as a virtual volume", imagePath);
+            throw;
+        }
     }
 
     /// <summary>
@@ -60,7 +70,15 @@ public class VfsContainer : IDisposable
     /// <returns>The matching entry, or <see langword="null"/> if no entry exists at the path.</returns>
     public IVfsEntry? GetEntry(string path)
     {
-        return _volume.GetEntry(path);
+        try
+        {
+            return _volume.GetEntry(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "GetEntry failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <summary>
@@ -70,7 +88,15 @@ public class VfsContainer : IDisposable
     /// <returns>The entries contained in the directory; empty if the path is not a valid directory.</returns>
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        return _volume.GetFolderList(path);
+        try
+        {
+            return _volume.GetFolderList(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "GetFolderList failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <summary>
@@ -82,7 +108,15 @@ public class VfsContainer : IDisposable
     /// <returns>The number of bytes read, or zero if the read fails.</returns>
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        return _volume.ReadFile(entry, buffer, offset);
+        try
+        {
+            return _volume.ReadFile(entry, buffer, offset);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ReadFile failed for '{FileName}' at offset {Offset}", entry.FileName, offset);
+            throw;
+        }
     }
 
     /// <summary>
@@ -90,6 +124,13 @@ public class VfsContainer : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _volume.Dispose();
+        try
+        {
+            _volume.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to dispose the virtual volume");
+        }
     }
 }

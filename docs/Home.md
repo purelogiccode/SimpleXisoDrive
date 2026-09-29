@@ -79,7 +79,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Property | Value |
 | --- | --- |
 | Application name | SimpleXisoDrive |
-| Current version | 1.3.0 |
+| Current version | 1.4.0 |
 | Platform | Windows (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows`) |
 | File systems | XDVDFS (original Xbox disc format), ZArchive (`ZARCHIVE`) |

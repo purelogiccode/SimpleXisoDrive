@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using SimpleXisoDrive.Tests.Models;
 
 namespace SimpleXisoDrive.Tests;
 

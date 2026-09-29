@@ -61,7 +61,15 @@ internal static class ApiKeyProvider
     /// </summary>
     public static void Preload()
     {
-        _ = ApiKey;
+        try
+        {
+            _ = ApiKey;
+        }
+        catch (Exception ex)
+        {
+            // The getter is designed never to throw; this is a last-resort guard.
+            Log.Error(ex, "Failed to preload the API key");
+        }
     }
 
     private static string Decrypt()

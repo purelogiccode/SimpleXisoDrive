@@ -1,4 +1,5 @@
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 
 namespace SimpleXisoDrive.Core.Vfs;
 
@@ -21,14 +22,22 @@ internal sealed class StreamRawImageSource : IRawImageSource
     /// <exception cref="ArgumentException">Thrown when the stream is not seekable.</exception>
     public StreamRawImageSource(Stream stream)
     {
-        ArgumentNullException.ThrowIfNull(stream);
-        if (!stream.CanSeek)
+        try
         {
-            throw new ArgumentException("The raw image stream must be seekable.", nameof(stream));
-        }
+            ArgumentNullException.ThrowIfNull(stream);
+            if (!stream.CanSeek)
+            {
+                throw new ArgumentException("The raw image stream must be seekable.", nameof(stream));
+            }
 
-        _stream = stream;
-        Length = stream.Length;
+            _stream = stream;
+            Length = stream.Length;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to create the raw image source");
+            throw;
+        }
     }
 
     /// <inheritdoc />

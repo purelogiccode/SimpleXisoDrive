@@ -1,3 +1,4 @@
+using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Core.Vfs;
 
 namespace SimpleXisoDrive.Tests;

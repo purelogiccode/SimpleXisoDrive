@@ -1,4 +1,6 @@
+using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Core.Vfs;
+using SimpleXisoDrive.Tests.Models;
 
 namespace SimpleXisoDrive.Tests;
 
@@ -311,7 +313,7 @@ public class XisoVfsVolumeTreeTests
     }
 
     [Fact]
-    public async Task PathVolume_ParallelReads_ReturnCorrectData()
+    public async Task PathVolume_ParallelReads_ReturnCorrectDataAsync()
     {
         var path = WriteImage(SampleEntries);
         try
@@ -340,7 +342,7 @@ public class XisoVfsVolumeTreeTests
     }
 
     [Fact]
-    public async Task StreamVolume_ParallelReads_ReturnCorrectData()
+    public async Task StreamVolume_ParallelReads_ReturnCorrectDataAsync()
     {
         var image = TestImageFactory.CreateXdvdfsImage(SampleEntries);
         await using var stream = new MemoryStream(image);

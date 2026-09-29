@@ -1,5 +1,6 @@
 using CHDSharp;
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 using XISOSharp;
 using ZArchiveSharp;
 
@@ -30,55 +31,64 @@ internal static class VfsVolumeFactory
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO, Xbox ISO CHD or ZArchive.</exception>
     public static IVfsVolume Open(string imagePath, bool exposeImageIso = false)
     {
-        if (HasExtension(imagePath, ZarExtension))
-        {
-            return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(imagePath), imagePath, exposeImageIso);
-        }
-
-        if (HasExtension(imagePath, ChdExtension))
-        {
-            return OpenChd(imagePath, exposeImageIso);
-        }
-
-        XisoVfsVolume xisoVolume;
         try
         {
-            xisoVolume = new XisoVfsVolume(imagePath);
-        }
-        catch (InvalidImageException)
-        {
-            // A CHD or ZArchive renamed to .iso (or another extension) should still mount.
-            if (Chd.IsChdFile(imagePath))
+            if (HasExtension(imagePath, ZarExtension))
             {
-                Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
+                return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(imagePath), imagePath, exposeImageIso);
+            }
+
+            if (HasExtension(imagePath, ChdExtension))
+            {
                 return OpenChd(imagePath, exposeImageIso);
             }
 
-            var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
-            if (reader is null)
+            XisoVfsVolume xisoVolume;
+            try
             {
-                throw;
+                xisoVolume = new XisoVfsVolume(imagePath);
+            }
+            catch (InvalidImageException)
+            {
+                // A CHD or ZArchive renamed to .iso (or another extension) should still mount.
+                if (Chd.IsChdFile(imagePath))
+                {
+                    Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
+                    return OpenChd(imagePath, exposeImageIso);
+                }
+
+                var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
+                if (reader is null)
+                {
+                    throw;
+                }
+
+                Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
+                return OpenZar(reader, imagePath, exposeImageIso);
             }
 
-            Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
-            return OpenZar(reader, imagePath, exposeImageIso);
-        }
+            if (!exposeImageIso)
+            {
+                return xisoVolume;
+            }
 
-        if (!exposeImageIso)
-        {
-            return xisoVolume;
+            IRawImageSource? source = null;
+            try
+            {
+                source = OpenPathRawImageSource(imagePath);
+                return new ImageIsoVfsVolume(xisoVolume, source);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to expose '{ImagePath}' as image.iso; cleaning up", imagePath);
+                source?.Dispose();
+                xisoVolume.Dispose();
+                throw;
+            }
         }
-
-        IRawImageSource? source = null;
-        try
+        catch (Exception ex)
         {
-            source = OpenPathRawImageSource(imagePath);
-            return new ImageIsoVfsVolume(xisoVolume, source);
-        }
-        catch
-        {
-            source?.Dispose();
-            xisoVolume.Dispose();
+            Log.Error(ex, "Failed to open image '{ImagePath}'", imagePath);
             throw;
         }
     }
@@ -102,8 +112,9 @@ internal static class VfsVolumeFactory
                 embeddedSource = new StreamRawImageSource(reader.OpenRead(embeddedNode));
                 return new ImageIsoVfsVolume(embeddedVolume, embeddedSource);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Debug(ex, "Failed to expose the embedded XISO of '{ArchivePath}'", archivePath);
                 embeddedSource?.Dispose();
                 embeddedVolume.Dispose();
                 throw;
@@ -122,8 +133,9 @@ internal static class VfsVolumeFactory
             virtualSource = VirtualXisoImageSource.Create(reader, archivePath);
             return new ImageIsoVfsVolume(treeVolume, virtualSource);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Failed to synthesize image.iso for '{ArchivePath}'", archivePath);
             virtualSource?.Dispose();
             treeVolume.Dispose();
             throw;
@@ -150,8 +162,9 @@ internal static class VfsVolumeFactory
             source = new StreamRawImageSource(ChdImageSource.OpenOrThrow(imagePath));
             return new ImageIsoVfsVolume(xisoVolume, source);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Failed to expose CHD '{ImagePath}' as image.iso", imagePath);
             source?.Dispose();
             xisoVolume.Dispose();
             throw;

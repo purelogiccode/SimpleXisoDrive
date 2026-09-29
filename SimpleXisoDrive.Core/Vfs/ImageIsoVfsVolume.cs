@@ -1,4 +1,5 @@
 using Serilog;
+using SimpleXisoDrive.Core.Interfaces;
 
 namespace SimpleXisoDrive.Core.Vfs;
 
@@ -29,12 +30,20 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     /// <param name="source">The raw image backing the virtual <c>image.iso</c> file.</param>
     public ImageIsoVfsVolume(IVfsVolume inner, IRawImageSource source)
     {
-        ArgumentNullException.ThrowIfNull(inner);
-        ArgumentNullException.ThrowIfNull(source);
+        try
+        {
+            ArgumentNullException.ThrowIfNull(inner);
+            ArgumentNullException.ThrowIfNull(source);
 
-        _inner = inner;
-        _source = source;
-        _entry = new ImageIsoEntry(source.Length);
+            _inner = inner;
+            _source = source;
+            _entry = new ImageIsoEntry(source.Length);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to create the image.iso volume decorator");
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -52,31 +61,56 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     /// <inheritdoc />
     public IVfsEntry? GetEntry(string path)
     {
-        var existing = _inner.GetEntry(path);
-        return existing ?? (IsImageIsoPath(path) ? _entry : null);
+        try
+        {
+            var existing = _inner.GetEntry(path);
+            return existing ?? (IsImageIsoPath(path) ? _entry : null);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ImageIsoVfsVolume.GetEntry failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        var children = _inner.GetFolderList(path).ToList();
-
-        if (IsRoot(path) &&
-            !children.Exists(static child =>
-                string.Equals(child.FileName, ImageIsoName, StringComparison.OrdinalIgnoreCase)))
+        try
         {
-            children.Add(_entry);
-        }
+            var children = _inner.GetFolderList(path).ToList();
 
-        return children;
+            if (IsRoot(path) &&
+                !children.Exists(static child =>
+                    string.Equals(child.FileName, ImageIsoName, StringComparison.OrdinalIgnoreCase)))
+            {
+                children.Add(_entry);
+            }
+
+            return children;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ImageIsoVfsVolume.GetFolderList failed for '{Path}'", path);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        return ReferenceEquals(entry, _entry)
-            ? _source.Read(buffer, offset)
-            : _inner.ReadFile(entry, buffer, offset);
+        try
+        {
+            return ReferenceEquals(entry, _entry)
+                ? _source.Read(buffer, offset)
+                : _inner.ReadFile(entry, buffer, offset);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "ImageIsoVfsVolume.ReadFile failed for '{FileName}' at offset {Offset}",
+                entry.FileName, offset);
+            throw;
+        }
     }
 
     private static bool IsImageIsoPath(string path)

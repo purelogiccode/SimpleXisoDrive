@@ -14,7 +14,7 @@ path-resolution logic. The tests run without Dokan installed and without any rea
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 89 (version 1.3.0) |
+| Test count | 123 (version 1.4.0) |
 
 The application exposes internals to the test project through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, which allows tests to use the internal
