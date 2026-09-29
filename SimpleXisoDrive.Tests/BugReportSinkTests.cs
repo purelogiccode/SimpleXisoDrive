@@ -1,4 +1,3 @@
-using Serilog.Core;
 using Serilog.Events;
 using SimpleXisoDrive.Core.Services;
 

@@ -36,17 +36,8 @@ internal sealed class BugReportSink : ILogEventSink
 
             if (!RateLimitAllows()) return;
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await BugReport.SendToApiAsync(report, exception?.ToString() ?? "No exception attached.");
-                }
-                catch
-                {
-                    // Never let a reporting failure surface through the sink
-                }
-            });
+            // Tracked so shutdown can wait for in-flight reports; never throws.
+            _ = BugReport.SendTrackedAsync(report, exception?.ToString() ?? "No exception attached.");
         }
         catch
         {

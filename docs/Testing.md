@@ -15,7 +15,7 @@ any real image file.
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 250 (version 1.4.0): 234 core + 16 FUSE |
+| Test count | 287 (version 1.4.0): 263 core + 24 FUSE |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -44,8 +44,8 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 234, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
-`Passed: 16, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
+A healthy run reports `Passed: 263, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+`Passed: 24, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 
@@ -55,27 +55,32 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 
 | Test file | Area | Examples |
 | --- | --- | --- |
-| `XisoVfsVolumeTests` | XISO volume over XISOSharp | Standard sector-32 and rebuilt sector-0 images, entry lookup, directory listing, reads at offsets and past EOF, attribute mapping, descriptor creation time, image-handle release on dispose, stream-backed (embedded) images, path variants (`/`, `//`), foreign entries, post-dispose lookups, listing cache identity, missing files |
+| `XisoVfsVolumeTests` | XISO volume over XISOSharp | Standard sector-32 and rebuilt sector-0 images, entry lookup, directory listing, reads at offsets and past EOF, attribute mapping, descriptor creation time, image-handle release on dispose, stream-backed (embedded) images, path variants (`/`, `//`), foreign entries, post-dispose lookups, listing cache identity, missing files, null/empty path guards, I/O failures that are not masked as invalid images |
 | `XisoVfsVolumeTreeTests` | Directory trees and reads | Multi-file and nested-directory images, separators and case-insensitivity, empty files/directories, reads across sector boundaries, clamped reads, attribute-flag mapping, descriptor FILETIME values, parallel reads (path and stream modes), idempotent dispose |
-| `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering (`*`, `?`, literal, no-match), metadata for files/directories/root, `CreateFile` access and creation modes, `ReadFile` offsets/clamping/directories/empty buffers/missing entries, normalized special segments, read-only denials, locking, alternate-stream reporting, security descriptors for files, directories and missing entries |
+| `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering (`*`, `*.*` including extensionless files, `?`, literal, no-match), metadata for files/directories/root (root reports the volume label), `CreateFile` access and creation modes (failed opens leave no handle context), `ReadFile` offsets/clamping/directories/empty buffers/missing entries/negative offsets (`InvalidParameter`), normalized special and interior path segments (including the context-less fallback), read-only denials, successful no-op flush, locking, alternate-stream reporting, security descriptors for files/directories and `FileNotFound` for missing entries |
 | `ApiKeyProviderTests` | API key protection | Deterministic decryption of the double-encrypted key, expected key digest (without storing the key), preload behavior |
-| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup |
-| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, invalid archive errors, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
-| `ChdVfsContainerTests` | Xbox ISO CHD mounts | CHD mount of rebuilt and standard-layout images, nested directory trees, `--image-iso` decompressed image, non-Xbox CHD rejection, renamed `.chd` fallback, missing file errors |
-| `ImageIsoVfsVolumeTests` | Virtual `image.iso` decorator | Root listing and case-insensitive lookup, raw reads at offsets with clamping, inner tree entries remain readable, a real `image.iso` entry wins, metadata delegation, size accumulation, subdirectory listings, null arguments, rewritten exception behavior, idempotent disposal |
+| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup, null-path guard, case-insensitive extension resolution |
+| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, content-detection fallbacks (ISO renamed to `.chd`/`.zar`, ZAR renamed to `.chd`), invalid archive errors, null/empty path guards, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
+| `ChdVfsContainerTests` | Xbox ISO CHD mounts | CHD mount of rebuilt and standard-layout images, nested directory trees, `--image-iso` decompressed image, non-Xbox CHD rejection, renamed `.chd` and renamed `.zar` fallbacks, missing file errors |
+| `ImageIsoVfsVolumeTests` | Virtual `image.iso` decorator | Root listing (cached instance) and case-insensitive lookup, raw reads at offsets with clamping, inner tree entries remain readable, a real `image.iso` entry wins, metadata delegation, size policy (no double count for the mounted image, added for synthesized ZArchive images), subdirectory listings, null arguments, rewritten exception behavior, idempotent disposal |
 | `ReaderOwningVfsVolumeTests` | Reader-owning decorator | Property/lookup/listing/read delegation, disposal order (inner volume then owner), owner disposal when the inner volume throws, swallowed owner failures, rethrown inner failures |
 | `StreamRawImageSourceTests` | Raw stream source | Non-seekable/null rejection, offset reads across sector boundaries, end clamping, empty buffers/streams, failure degradation to zero, disposal once, swallowed stream-disposal failures, parallel reads |
-| `VirtualXisoImageSourceTests` | Synthesized ZAR XISO | Byte-identical to `XisoWriter.PackFromDirectory` for nested trees (sector-crossing files, empty files/directories), XISOSharp readability, unaligned reads across extents, unwritten-gap zeros, out-of-range reads, sector-aligned length, descriptor FILETIME fallback, caller-owned reader survival, disposal |
-| `ZarVfsVolumeTests` | ZArchive volume | Tree listing, case-insensitive nested lookup, file reads at offsets, directory reads, multi-block reads, volume size, invalid/missing archives, path variants, attribute mapping, invalid ranges, foreign entries, idempotent dispose |
+| `VirtualXisoImageSourceTests` | Synthesized ZAR XISO | Byte-identical to `XisoWriter.PackFromDirectory` for nested trees (sector-crossing files, empty files/directories), XISOSharp readability, unaligned reads across extents, unwritten-gap zeros, out-of-range reads, sector-aligned length, descriptor last-write-time fallback, caller-owned reader survival, disposal |
+| `ZarVfsVolumeTests` | ZArchive volume | Tree listing, case-insensitive nested lookup, file reads at offsets, directory reads, multi-block reads, volume size, invalid/missing archives, path variants, attribute mapping, invalid ranges, foreign entries, archive last-write timestamp, idempotent dispose |
 | `RequestModelTests` | JSON wire format | `applicationId`/`version` and `message`/`applicationName`/... property names for the stats and bug report APIs, default values |
-| `ConsoleKeyPressTests` | Interactive wait | Redirected input completes the shared wait immediately with a default key instead of blocking |
-| `LoggingSetupTests` | Logging surface | Console level switch defaults to Information and can be raised (global sinks intentionally not attached in tests) |
+| `ConsoleKeyPressTests` | Interactive wait | Redirected input completes the shared wait immediately with a default key instead of blocking; `Reset` starts a fresh wait |
+| `LoggingSetupTests` | Logging surface | Console level switch defaults to Information and can be raised (the global logger is deliberately not configured in tests — attaching the real sinks would forward events to the live bug report API, so idempotence is verified by inspection) |
 | `SerilogDokanLoggerTests` | Dokan log adapter | Debug-enabled probing and level-by-level forwarding of Dokan messages into a collecting Serilog sink |
 | `BugReportSinkTests` | Sink guard rails | Sub-Warning events are ignored and malformed events are swallowed (Warning+ intentionally not emitted: it would call the live API) |
+| `BugReportHttpTests` | Bug report API | Stubbed request shaping (endpoint, method, `X-API-KEY` header, JSON body) and the idle pending-reports wait |
+| `StatsServiceHttpTests` | Stats API | Stubbed request shaping (endpoint, bearer token, `applicationId`/`version` body) and rejection handling |
+| `UpdateCheckerHttpTests` | Update check API | Stubbed endpoint/user-agent, malformed response swallowing and error-status handling (no live traffic, no prompts) |
 | `CheckAccessTests` | Privilege probe | Administrator probe returns without throwing on any privilege level |
-| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, missing-library probing, availability guidance and loader failures; `PosixErrorTests` pins the errno values |
+| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, version-ordered library candidates, missing-library probing, availability guidance and loader failures; `FuseMountArgumentsTests` covers `fsname`/`volname` label exposure, debug flags and label sanitization; `PosixErrorTests` pins the errno values; `ProgramNameTests` covers the usage-text executable name |
 | `TestImageFactory` / `TestImageEntry` | Shared test fixtures | Builders for minimal rebuilt (sector 0) and standard (sector 32) images with arbitrary nested file/directory trees, raw attribute bytes, and descriptor FILETIME values |
 | `FakeVfsVolume` / `FakeVfsEntry` / `TrackingRawImageSource` / `RecordingDisposable` | Shared test doubles | Configurable failure injection and disposal counting for decorator tests |
+| `StubHttpMessageHandler` | Shared HTTP double | Records outbound method/URI/headers/body and returns a canned response, so API services are tested without live traffic |
+| `BoundedCacheTests` | Cache budget | Round-trip get/set, case-insensitive keys, stopping new entries at the limit, updating existing entries at the limit, non-positive limit rejection |
 | `InvalidImageExceptionTests` | Exception contract | Default, message, null-message and inner-exception constructors, inheritance, catchability |
 
 ### Testing techniques
@@ -99,6 +104,10 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
   native `fuse_args`/`fuse_operations` layouts and delegate calling conventions, so a wrong field
   order fails the build's tests instead of crashing a real mount. Loader-dependent assertions
   (library probing, availability guidance) run only on hosts without FUSE 3.
+- **Stubbed HTTP, no live traffic**: the API services expose internal overloads that take an
+  `HttpClient`. `StubHttpMessageHandler` records the outbound method, URI, headers and body and
+  returns a canned response, so request shaping and failure handling are verified without network
+  access (`BugReportHttpTests`, `StatsServiceHttpTests`, `UpdateCheckerHttpTests`).
 - **No driver dependency**: nothing in the test suite requires a mounted volume, FUSE, or admin rights.
 
 ---
@@ -113,10 +122,11 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --collect:"XPlat 
 
 Results are written under `SimpleXisoDrive.Tests/TestResults/` as Cobertura XML.
 
-Note that Dokan callbacks (`XboxIsoVfsDokan`), the application entry points, the FUSE callbacks
-themselves (they need a real mount), and the live HTTP services are not covered by unit tests
-because they require a driver, a running process, a kernel mount, or network access. The FUSE
-struct layouts, resolver and error constants are covered by `SimpleXisoDrive.Unix.Tests`.
+Note that Dokan callbacks (`XboxIsoVfsDokan`), the application entry points and the FUSE callbacks
+themselves (they need a real mount) are not covered by unit tests because they require a driver, a
+running process, or a kernel mount. The HTTP services are covered through stubbed clients rather
+than live traffic. The FUSE struct layouts, resolver and error constants are covered by
+`SimpleXisoDrive.Unix.Tests`.
 
 ---
 

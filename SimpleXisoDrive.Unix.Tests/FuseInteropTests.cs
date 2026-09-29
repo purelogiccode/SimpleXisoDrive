@@ -80,6 +80,20 @@ public class FuseInteropTests
     }
 
     /// <summary>
+    /// Verifies library candidates are ordered by numeric version so double-digit
+    /// suffixes outrank single-digit ones and unparsable names sort lowest.
+    /// </summary>
+    [Fact]
+    public void CompareLibraryFileNames_OrdersByNumericVersion()
+    {
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so.9", "libfuse3.so.10") < 0);
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so.3", "libfuse3.so.3.14.0") < 0);
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so.10", "libfuse3.so.3.14.0") > 0);
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.dylib", "libfuse3.so.3") < 0);
+        Assert.Equal(0, FuseInterop.CompareLibraryFileNames("libfuse3.so.3", "/usr/lib/other/libfuse3.so.3"));
+    }
+
+    /// <summary>
     /// Runs an action with the library override variable set to the specified path.
     /// </summary>
     /// <param name="path">The override path to expose to the probe.</param>

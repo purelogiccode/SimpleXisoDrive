@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -88,19 +89,22 @@ public class SerilogDokanLoggerTests
     }
 
     /// <summary>
-    /// A Serilog sink that records the emitted events for assertions.
+    /// A thread-safe Serilog sink that records the emitted events for assertions.
+    /// Logging from parallel tests can reach the sink while it is being read.
     /// </summary>
     private sealed class CollectingSink : ILogEventSink
     {
+        private readonly ConcurrentQueue<LogEvent> _events = new();
+
         /// <summary>
-        /// Gets the emitted events.
+        /// Gets a snapshot of the emitted events.
         /// </summary>
-        public List<LogEvent> Events { get; } = [];
+        public IReadOnlyCollection<LogEvent> Events => _events.ToArray();
 
         /// <inheritdoc />
         public void Emit(LogEvent logEvent)
         {
-            Events.Add(logEvent);
+            _events.Enqueue(logEvent);
         }
     }
 }

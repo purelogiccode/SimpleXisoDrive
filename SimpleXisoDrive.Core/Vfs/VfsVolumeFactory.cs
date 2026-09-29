@@ -28,67 +28,106 @@ internal static class VfsVolumeFactory
     /// virtual <c>image.iso</c> file for emulators that only accept disc images.
     /// </param>
     /// <returns>The volume that exposes the image's file system.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="imagePath"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO, Xbox ISO CHD or ZArchive.</exception>
     public static IVfsVolume Open(string imagePath, bool exposeImageIso = false)
     {
+        ArgumentException.ThrowIfNullOrEmpty(imagePath);
+
         try
         {
+            // The extension selects the fast path; when the content does not match it,
+            // OpenDetected still mounts the image by sniffing the content, so renamed
+            // files (any combination of .iso/.chd/.zar) are supported.
             if (HasExtension(imagePath, ZarExtension))
             {
-                return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(imagePath), imagePath, exposeImageIso);
+                try
+                {
+                    return OpenZar(ZarVfsVolume.OpenArchiveOrThrow(imagePath), imagePath, exposeImageIso);
+                }
+                catch (InvalidImageException ex)
+                {
+                    Log.Information(ex, "'{ImagePath}' is not a ZArchive; detecting the image by content", imagePath);
+                    return OpenDetected(imagePath, exposeImageIso, ex);
+                }
             }
 
             if (HasExtension(imagePath, ChdExtension))
             {
-                return OpenChd(imagePath, exposeImageIso);
-            }
-
-            XisoVfsVolume xisoVolume;
-            try
-            {
-                xisoVolume = new XisoVfsVolume(imagePath);
-            }
-            catch (InvalidImageException)
-            {
-                // A CHD or ZArchive renamed to .iso (or another extension) should still mount.
-                if (Chd.IsChdFile(imagePath))
+                try
                 {
-                    Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
                     return OpenChd(imagePath, exposeImageIso);
                 }
-
-                var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
-                if (reader is null)
+                catch (InvalidImageException ex) when (!Chd.IsChdFile(imagePath))
                 {
-                    throw;
+                    Log.Information(ex, "'{ImagePath}' is not an Xbox ISO CHD; detecting the image by content",
+                        imagePath);
+                    return OpenDetected(imagePath, exposeImageIso, ex);
                 }
-
-                Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
-                return OpenZar(reader, imagePath, exposeImageIso);
             }
 
-            if (!exposeImageIso)
-            {
-                return xisoVolume;
-            }
-
-            IRawImageSource? source = null;
-            try
-            {
-                source = OpenPathRawImageSource(imagePath);
-                return new ImageIsoVfsVolume(xisoVolume, source);
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Failed to expose '{ImagePath}' as image.iso; cleaning up", imagePath);
-                source?.Dispose();
-                xisoVolume.Dispose();
-                throw;
-            }
+            return OpenDetected(imagePath, exposeImageIso, extensionFailure: null);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to open image '{ImagePath}'", imagePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens <paramref name="imagePath"/> by detecting its content: XDVDFS first (the
+    /// common case), then CHD, then ZArchive. <paramref name="extensionFailure"/> is the
+    /// failure of the extension-specific opener, if any; when no content is recognized it
+    /// is surfaced in preference to the generic "not an Xbox ISO" error.
+    /// </summary>
+    private static IVfsVolume OpenDetected(string imagePath, bool exposeImageIso, InvalidImageException? extensionFailure)
+    {
+        XisoVfsVolume xisoVolume;
+        try
+        {
+            xisoVolume = new XisoVfsVolume(imagePath);
+        }
+        catch (InvalidImageException) when (Chd.IsChdFile(imagePath))
+        {
+            // A CHD or ZArchive renamed to .iso (or another extension) should still mount.
+            Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
+            return OpenChd(imagePath, exposeImageIso);
+        }
+        catch (InvalidImageException)
+        {
+            var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
+            if (reader is null)
+            {
+                if (extensionFailure is not null)
+                {
+                    // The extension-specific failure is more specific than "not an Xbox ISO".
+                    throw extensionFailure;
+                }
+
+                throw;
+            }
+
+            Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
+            return OpenZar(reader, imagePath, exposeImageIso);
+        }
+
+        if (!exposeImageIso)
+        {
+            return xisoVolume;
+        }
+
+        IRawImageSource? source = null;
+        try
+        {
+            source = OpenPathRawImageSource(imagePath);
+            return new ImageIsoVfsVolume(xisoVolume, source);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to expose '{ImagePath}' as image.iso; cleaning up", imagePath);
+            source?.Dispose();
+            xisoVolume.Dispose();
             throw;
         }
     }
@@ -131,7 +170,7 @@ internal static class VfsVolumeFactory
         try
         {
             virtualSource = VirtualXisoImageSource.Create(reader, archivePath);
-            return new ImageIsoVfsVolume(treeVolume, virtualSource);
+            return new ImageIsoVfsVolume(treeVolume, virtualSource, rawImageIsAdditionalContent: true);
         }
         catch (Exception ex)
         {

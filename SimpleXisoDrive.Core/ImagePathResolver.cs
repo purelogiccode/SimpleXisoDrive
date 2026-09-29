@@ -26,8 +26,11 @@ public static class ImagePathResolver
     /// </summary>
     /// <param name="imagePath">The image path supplied by the user.</param>
     /// <returns>The resolved image file path, or <see langword="null"/> when no file matches.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="imagePath"/> is <see langword="null"/>.</exception>
     public static string? Resolve(string imagePath)
     {
+        ArgumentNullException.ThrowIfNull(imagePath);
+
         try
         {
             return ResolveCore(imagePath);
@@ -74,13 +77,11 @@ public static class ImagePathResolver
         // 3. If no extension provided, try appending each supported extension
         if (string.IsNullOrEmpty(Path.GetExtension(imagePath)))
         {
-            foreach (var candidate in EnumerateExtensionCandidates(imagePath))
+            var candidate = FindFileWithImageExtension(imagePath);
+            if (candidate is not null)
             {
-                if (File.Exists(candidate))
-                {
-                    Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
-                    return candidate;
-                }
+                Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
+                return candidate;
             }
         }
 
@@ -98,13 +99,11 @@ public static class ImagePathResolver
             // Also try each supported extension in the current directory
             if (string.IsNullOrEmpty(Path.GetExtension(imagePath)))
             {
-                foreach (var candidate in EnumerateExtensionCandidates(inCurrentDir))
+                var candidate = FindFileWithImageExtension(inCurrentDir);
+                if (candidate is not null)
                 {
-                    if (File.Exists(candidate))
-                    {
-                        Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
-                        return candidate;
-                    }
+                    Log.Debug("Resolved '{ImagePath}' to '{Resolved}'", imagePath, candidate);
+                    return candidate;
                 }
             }
         }
@@ -116,11 +115,10 @@ public static class ImagePathResolver
     private static List<string> FindImageFiles(string directory)
     {
         var imageFiles = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var extension in ImageExtensions)
         {
-            foreach (var file in Directory.GetFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly))
+            foreach (var file in EnumerateFilesByExtension(directory, extension))
             {
                 // A split CISO set (game.1.cso, game.2.cso, ...) is one image; the
                 // entry point is the first part, so continuation parts are ignored.
@@ -129,14 +127,92 @@ public static class ImagePathResolver
                     continue;
                 }
 
-                if (seen.Add(file))
-                {
-                    imageFiles.Add(file);
-                }
+                imageFiles.Add(file);
             }
         }
 
         return imageFiles;
+    }
+
+    private static IEnumerable<string> EnumerateFilesByExtension(string directory, string extension)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+        {
+            if (string.Equals(Path.GetExtension(file), extension, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the image file matching <paramref name="path"/> plus one of the supported
+    /// extensions, preferring the exact candidate and then falling back to a
+    /// case-insensitive directory scan so case-sensitive file systems (Linux, macOS)
+    /// resolve, for example, <c>GAME</c> to <c>GAME.CHD</c>.
+    /// </summary>
+    private static string? FindFileWithImageExtension(string path)
+    {
+        foreach (var candidate in EnumerateExtensionCandidates(path))
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        var fileName = Path.GetFileName(path);
+        if (fileName.Length == 0)
+        {
+            return null;
+        }
+
+        var directory = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(directory))
+        {
+            directory = ".";
+        }
+
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        try
+        {
+            var matches = new List<string>();
+            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!string.Equals(Path.GetFileNameWithoutExtension(file), fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (ImageExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                {
+                    matches.Add(file);
+                }
+            }
+
+            // Preserve the documented extension preference order.
+            foreach (var extension in ImageExtensions)
+            {
+                foreach (var match in matches)
+                {
+                    if (string.Equals(Path.GetExtension(match), extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return match;
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Error scanning directory for image candidates of '{ImagePath}'", path);
+            return null;
+        }
     }
 
     private static bool IsCsoContinuationPart(string path)

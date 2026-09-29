@@ -602,4 +602,58 @@ public class ResolveImagePathTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies a null path is rejected with <c>ArgumentNullException</c>.
+    /// </summary>
+    [Fact]
+    public void ThrowsArgumentNullExceptionForNullPath()
+    {
+        Assert.Throws<ArgumentNullException>(() => ImagePathResolver.Resolve(null!));
+    }
+
+    /// <summary>
+    /// Verifies an extensionless path finds an image whose extension differs in case
+    /// (exercised on case-sensitive file systems; a no-op on case-insensitive ones).
+    /// </summary>
+    [Fact]
+    public void ResolvesUppercaseExtensionForExtensionlessPath()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.CHD");
+        File.WriteAllText(tempFile, string.Empty);
+        var pathWithoutExtension = tempFile[..^4];
+
+        try
+        {
+            // On case-insensitive file systems the fast path returns the candidate
+            // spelling; on case-sensitive ones the directory scan returns the real name.
+            Assert.Equal(tempFile, ImagePathResolver.Resolve(pathWithoutExtension), ignoreCase: true);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a directory scan finds images with mixed-case extensions
+    /// (exercised on case-sensitive file systems; a no-op on case-insensitive ones).
+    /// </summary>
+    [Fact]
+    public void ResolvesDirectoryContainingUppercaseExtension()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var tempIso = Path.Combine(tempDir, "GAME.ISO");
+        File.WriteAllText(tempIso, string.Empty);
+
+        try
+        {
+            Assert.Equal(tempIso, ImagePathResolver.Resolve(tempDir));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

@@ -18,10 +18,17 @@ public class VirtualXisoImageSourceTests
     private static string CreateZar(Action<ZArchiveWriter> build)
     {
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zar");
-        using var stream = File.Create(path);
-        using var writer = new ZArchiveWriter(stream);
-        build(writer);
-        writer.Finalize();
+        using (var stream = File.Create(path))
+        using (var writer = new ZArchiveWriter(stream))
+        {
+            build(writer);
+            writer.Finalize();
+        }
+
+        // The synthesized descriptor uses the archive file's last-write time; pin it so
+        // byte comparisons with XisoWriter.PackFromDirectory(fileTime: FixedFileTime) hold.
+        // The stream must be closed first: closing a written handle can update the mtime.
+        File.SetLastWriteTimeUtc(path, DateTime.FromFileTimeUtc((long)FixedFileTime));
 
         return path;
     }
@@ -96,7 +103,7 @@ public class VirtualXisoImageSourceTests
             }
 
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
             var virtualBytes = ReadAll(source);
             var writerBytes = File.ReadAllBytes(writerIso);
 
@@ -128,7 +135,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
             using var imageStream = new MemoryStream(ReadAll(source));
 
             Assert.True(XisoReader.GetVolumeInfo(imageStream, "image.iso").IsValid);
@@ -169,7 +176,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
             var full = ReadAll(source);
 
             foreach (var (offset, requestedLength) in new[] { (0, 100), (12345, 777), (70000, 4096), (530000, 8192) })
@@ -206,7 +213,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            var source = VirtualXisoImageSource.Create(reader, zarPath);
             source.Dispose();
 
             Assert.Equal(0, source.Read(new byte[16], 0));
@@ -241,7 +248,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             Assert.Equal(0, source.Length % Constants.SectorSize);
             Assert.True(source.Length > 0);
@@ -267,7 +274,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             var buffer = new byte[256];
             var offset = (long)Constants.HeaderOffset + Constants.SectorSize + 128;
@@ -295,7 +302,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             Assert.Equal(0, source.Read(new byte[8], -1));
             Assert.Equal(0, source.Read(new byte[8], source.Length));
@@ -322,7 +329,7 @@ public class VirtualXisoImageSourceTests
         try
         {
             using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
-            var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+            var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             source.Dispose();
 
@@ -335,10 +342,10 @@ public class VirtualXisoImageSourceTests
     }
 
     /// <summary>
-    /// Verifies the descriptor falls back to the archive's creation time when no time is given.
+    /// Verifies the descriptor falls back to the archive file's last-write time.
     /// </summary>
     [Fact]
-    public void Descriptor_DefaultsToArchiveCreationTime()
+    public void Descriptor_DefaultsToArchiveLastWriteTime()
     {
         var zarPath = CreateZar(writer =>
         {
@@ -356,7 +363,7 @@ public class VirtualXisoImageSourceTests
             Assert.Equal(8, source.Read(fileTimeBytes, descriptorFileTimeOffset));
 
             var fileTime = BinaryPrimitives.ReadInt64LittleEndian(fileTimeBytes);
-            var expected = File.GetCreationTimeUtc(zarPath);
+            var expected = File.GetLastWriteTimeUtc(zarPath);
             var actual = DateTime.FromFileTimeUtc(fileTime);
 
             Assert.True((actual - expected).Duration() < TimeSpan.FromMinutes(5));

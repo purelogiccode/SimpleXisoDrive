@@ -93,16 +93,16 @@ flowchart TD
    - `TaskScheduler.UnobservedTaskException`
 
    Both route exceptions to `BugReport.LogFatalException`.
-3. The application reports launch statistics (`StatsService.ReportLaunchAsync`, fire-and-forget) and
+3. The application reports launch statistics (`StatsService.ReportLaunch`, fire-and-forget) and
    verifies the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`).
-4. `UpdateChecker.CheckForUpdateAsync` runs and may prompt the user.
-5. Arguments are parsed and the image path is resolved (see
+4. Arguments are parsed and the image path is resolved (see
    [Command-Line Reference](Command-Line-Reference)).
+5. `UpdateChecker.CheckForUpdateAsync` runs and may prompt the user.
 6. `RunMount` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`) and
    mounts the Dokan file system.
 7. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), or a failure.
-8. On shutdown the `VfsContainer` is disposed, the file stream is closed, and `Log.CloseAndFlush()`
-   is called.
+8. On shutdown the `VfsContainer` is disposed, the file stream is closed, pending bug reports get a
+   bounded grace period (`BugReport.WaitForPendingReportsAsync`), and `Log.CloseAndFlush()` is called.
 
 ---
 

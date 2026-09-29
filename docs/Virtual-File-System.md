@@ -15,10 +15,10 @@ per mount and disposed on unmount. The actual storage is an `IVfsVolume` impleme
 
 | Input | Detection | Volume |
 | --- | --- | --- |
-| `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates | `XisoVfsVolume` |
-| `.chd` | CHDSharp opens the container (CD/GD-ROM rejected); the decompressed image must validate as XDVDFS | `XisoVfsVolume` over a `ChdImageStream` |
-| `.zar` | ZArchive footer validates | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |
-| Any other extension | XISO probe first; a renamed CHD or ZArchive falls back to the matching format | as above |
+| `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates; a renamed CHD or ZArchive falls back to the matching format | `XisoVfsVolume` |
+| `.chd` | CHDSharp opens the container (CD/GD-ROM rejected); the decompressed image must validate as XDVDFS. A file whose content is not a CHD is detected by content instead | `XisoVfsVolume` over a `ChdImageStream` |
+| `.zar` | ZArchive footer validates. A file whose content is not an archive is detected by content instead | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |
+| Any other extension | Content detection: XISO probe first; a renamed CHD or ZArchive falls back to the matching format | as above |
 
 ### Construction
 
@@ -47,8 +47,9 @@ per handle. A CHD whose decompressed image is not XDVDFS fails with
 
 1. `ZArchiveReader.TryOpen` validates the archive footer and loads the offset records, name table,
    and file tree. Failure throws `InvalidImageException`.
-2. The uncompressed volume size is computed by summing every file in the tree; the creation time
-   comes from the `.zar` file's timestamp.
+2. The uncompressed volume size is computed by summing every file in the tree; the timestamp
+   is the `.zar` file's last-write time (the format stores none, and `DateTime.MinValue` is
+   reported when it is unavailable).
 3. The root ZArchive node is cached.
 
 For an embedded XISO, the factory opens a seekable stream over the single archive file with
@@ -60,7 +61,7 @@ ISO; `ReaderOwningVfsVolume` keeps the archive reader alive and closes it with t
 | Member | Behavior |
 | --- | --- |
 | `VolumeSize` | ISO length in bytes (CHD: the decompressed image size), or the summed uncompressed size of a ZArchive tree. |
-| `VolumeCreationTime` | Timestamp from the volume descriptor (ISO/CHD) or the archive file (ZAR); `DateTime.MinValue` when the descriptor timestamp is invalid. |
+| `VolumeCreationTime` | Timestamp from the volume descriptor (ISO/CHD); for ZAR, the archive file's last-write time (the format stores none). `DateTime.MinValue` when unavailable or invalid. |
 | `GetEntry(path)` | Resolves a virtual path to an `IVfsEntry`, or `null`. Never throws. |
 | `GetFolderList(path)` | Lazily enumerates the children of a directory. Returns nothing when the path is not a valid directory. |
 | `ReadFile(entry, buffer, offset)` | Reads file data (decompressing ZAR blocks or CHD hunks as needed); returns the number of bytes read, or `0` on failure. |
@@ -143,6 +144,14 @@ The library's TOC walk is hardened:
 Safety: directory counts are capped at 100,000 entries and the underlying reader validates node
 counts against the file-tree bounds, so a crafted archive cannot make the enumeration run away.
 
+### Cache policy
+
+Both volumes cache resolved path entries and directory listings. The caches are bounded: at most
+4,096 path entries and 512 directory listings are kept per volume, and once a budget is exhausted
+new entries are not stored (existing ones can still be updated), so a large tree cannot grow memory
+without limit for the mount lifetime. Cached listings are returned as the same list instance, so
+callers must treat the returned sequence as read-only.
+
 `XboxIsoVfsDokan.FindFiles` augments directory listings with Windows-style virtual entries:
 
 | Entry | When added |
@@ -164,15 +173,15 @@ it can return.
 | Operation | Behavior | Status codes |
 | --- | --- | --- |
 | `CreateFile` | Opens a handle; resolves the path and stores the `IVfsEntry` in `info.Context`. Denies write access, creation, and truncation. Directory/file type mismatches are reported precisely. | `Success`, `FileNotFound`, `AccessDenied`, `AlreadyExists`, `PathNotFound`, `NotADirectory`, `Error` |
-| `ReadFile` | Reads up to the buffer size, clamped to the remaining file size. Returns `InvalidHandle` for directories. A read at or beyond the file size returns `Success` with 0 bytes. | `Success`, `InvalidHandle`, `Error` |
-| `GetFileInformation` | Returns name, attributes, size, and timestamps. Directories report length 0. An empty name is reported as `Unknown`. | `Success`, `FileNotFound`, `Error` |
+| `ReadFile` | Reads up to the buffer size, clamped to the remaining file size. Returns `InvalidHandle` for directories and `InvalidParameter` for negative offsets. A read at or beyond the file size returns `Success` with 0 bytes. | `Success`, `InvalidParameter`, `InvalidHandle`, `Error` |
+| `GetFileInformation` | Returns name, attributes, size, and timestamps. Directories report length 0. The synthetic root (empty name) reports the volume label. | `Success`, `FileNotFound`, `Error` |
 | `FindFiles` | Lists `.`, `..`, and all real children. Requires a directory. | `Success`, `NotADirectory`, `Error` |
-| `FindFilesWithPattern` | Lists children matching a wildcard translated to a case-insensitive regex with a 1-second match timeout. `.` and `..` are always included. | `Success`, `NotADirectory`, `Error` |
-| `GetFileSecurity` | Builds a `FileSecurity` or `DirectorySecurity` granting `Everyone` read and execute access. | `Success`, `Error` |
+| `FindFilesWithPattern` | Lists children matching a wildcard translated to a case-insensitive regex with a 1-second match timeout. `*` and `*.*` match every file, including names without an extension; `.` and `..` are always included. | `Success`, `NotADirectory`, `Error` |
+| `GetFileSecurity` | Builds a `FileSecurity` or `DirectorySecurity` granting `Everyone` read and execute access. Missing entries report `FileNotFound`. | `Success`, `FileNotFound`, `Error` |
 | `GetVolumeInformation` | Returns the volume label and file system name for the active volume: `XBOX_ISO`/`XDVDFS` for images, `XBOX_ZAR`/`ZARCHIVE` for ZArchive trees (an embedded XISO keeps the image values). Maximum component length 255, features `ReadOnlyVolume | CasePreservedNames | UnicodeOnDisk`. | `Success`, `Error` |
 | `GetDiskFreeSpace` | Reports the ISO size as total capacity and `0` free bytes. | `Success`, `Error` |
 | `FindStreams` | Alternate data streams are not supported. | `NotImplemented` |
-| `LockFile` / `UnlockFile` | No-op, reported as successful. | `Success` |
+| `LockFile` / `UnlockFile` / `FlushFileBuffers` | No-op, reported as successful (Windows flushes on handle close; a read-only volume accepts it). | `Success` |
 
 ### Lifecycle operations
 
@@ -186,7 +195,6 @@ it can return.
 | Operation | Status |
 | --- | --- |
 | `WriteFile` | `AccessDenied` (bytes written = 0) |
-| `FlushFileBuffers` | `AccessDenied` |
 | `SetFileAttributes` | `AccessDenied` |
 | `SetFileTime` | `AccessDenied` |
 | `DeleteFile` | `AccessDenied` |

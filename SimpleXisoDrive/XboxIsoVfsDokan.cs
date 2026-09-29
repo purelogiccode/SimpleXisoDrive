@@ -37,19 +37,30 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 
     private static string NormalizePath(string path)
     {
-        var normalized = path.Replace('/', '\\');
-        if (normalized is @"\." or @"\..") return @"\";
-
-        if (normalized.EndsWith(@"\.", StringComparison.Ordinal))
-            return Path.GetDirectoryName(normalized) ?? @"\";
-
-        if (normalized.EndsWith(@"\..", StringComparison.Ordinal))
+        // Collapse "." and interior ".." segments so paths such as
+        // "\sub\..\default.xbe" resolve like their canonical form.
+        var segments = new List<string>();
+        foreach (var segment in path.Replace('/', '\\').Split('\\'))
         {
-            var parent = Path.GetDirectoryName(normalized);
-            return parent == null ? @"\" : Path.GetDirectoryName(parent) ?? @"\";
+            if (segment.Length == 0 || string.Equals(segment, ".", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(segment, "..", StringComparison.Ordinal))
+            {
+                if (segments.Count > 0)
+                {
+                    segments.RemoveAt(segments.Count - 1);
+                }
+
+                continue;
+            }
+
+            segments.Add(segment);
         }
 
-        return normalized;
+        return "\\" + string.Join('\\', segments);
     }
 
     /// <summary>
@@ -86,9 +97,6 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
                 return mode == FileMode.Open ? DokanResult.FileNotFound : DokanResult.AccessDenied;
             }
 
-            info.IsDirectory = entry.IsDirectory;
-            info.Context = entry;
-
             // Deny write access (Read-Only FS)
             if ((access & (FileAccess.GenericWrite | FileAccess.WriteData | FileAccess.AppendData |
                            FileAccess.Delete)) != FileAccess.None)
@@ -96,12 +104,22 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
                 return DokanResult.AccessDenied;
             }
 
-            return mode switch
+            var modeResult = mode switch
             {
                 FileMode.CreateNew => DokanResult.AlreadyExists,
                 FileMode.Create or FileMode.Truncate => DokanResult.AccessDenied,
                 _ => DokanResult.Success
             };
+            if (modeResult != DokanResult.Success)
+            {
+                return modeResult;
+            }
+
+            // Only a successful open may leave the entry in the handle context; failed
+            // opens must not leave stale state behind.
+            info.IsDirectory = entry.IsDirectory;
+            info.Context = entry;
+            return DokanResult.Success;
         });
     }
 
@@ -119,9 +137,11 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         var internalBytesRead = 0;
         var result = ExecuteWithReporting(nameof(ReadFile), fileName, () =>
         {
+            if (offset < 0) return DokanResult.InvalidParameter;
+
             if (info.Context is not IVfsEntry entry)
             {
-                entry = _vfs.GetEntry(fileName) ?? throw new InvalidOperationException("File entry missing");
+                entry = _vfs.GetEntry(NormalizePath(fileName)) ?? throw new InvalidOperationException("File entry missing");
                 info.Context = entry;
             }
 
@@ -158,26 +178,17 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var path = NormalizePath(fileName);
 
             // Safely get entry from context or lookup in VFS
-            IVfsEntry? entry = null;
-            try
-            {
-                entry = info.Context as IVfsEntry;
-            }
-            catch (Exception ex)
-            {
-                // Context is not a file entry, will try lookup
-                Log.Debug(ex, "Dokan context for '{FileName}' is not a file entry", fileName);
-            }
-
+            var entry = info.Context as IVfsEntry;
             entry ??= _vfs.GetEntry(path);
 
             if (entry == null) return DokanResult.FileNotFound;
 
-            // Ensure FileName is never null
+            // The synthetic root has an empty name; report the volume label instead
+            // of a placeholder that is not a real entry name.
             var safeFileName = entry.FileName;
             if (string.IsNullOrEmpty(safeFileName))
             {
-                safeFileName = "Unknown";
+                safeFileName = _vfs.VolumeLabel;
             }
 
             internalInfo = new FileInformation
@@ -270,6 +281,9 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
             var status = FindFiles(fileName, out var allFiles, info);
             if (status != DokanResult.Success) return status;
 
+            // Windows/DOS semantics: "*.*" means "all files", including names without
+            // an extension, which the generic wildcard translation cannot express.
+            var matchesAll = searchPattern is "*" or "*.*";
             var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(searchPattern)
                 .Replace("\\*", ".*")
                 .Replace("\\?", ".") + "$";
@@ -278,7 +292,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
 
             foreach (var f in allFiles)
             {
-                if (f.FileName is "." or ".." || regex.IsMatch(f.FileName))
+                if (f.FileName is "." or ".." || matchesAll || regex.IsMatch(f.FileName))
                     filteredFiles.Add(f);
             }
 
@@ -296,7 +310,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     /// <param name="security">When this method returns, the security descriptor for the entry.</param>
     /// <param name="sections">The sections of the security descriptor requested.</param>
     /// <param name="info">Dokan file information for the operation.</param>
-    /// <returns><see cref="DokanResult.Success"/> when the descriptor is built.</returns>
+    /// <returns><see cref="DokanResult.Success"/> when the descriptor is built; <see cref="DokanResult.FileNotFound"/> for a missing entry.</returns>
     public NtStatus GetFileSecurity(string fileName, out FileSystemSecurity? security, AccessControlSections sections,
         IDokanFileInfo info)
     {
@@ -304,7 +318,9 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         var result = ExecuteWithReporting(nameof(GetFileSecurity), fileName, () =>
         {
             var entry = _vfs.GetEntry(NormalizePath(fileName));
-            internalSecurity = entry is { IsDirectory: true } ? new DirectorySecurity() : new FileSecurity();
+            if (entry is null) return DokanResult.FileNotFound;
+
+            internalSecurity = entry.IsDirectory ? new DirectorySecurity() : new FileSecurity();
 
             var everyone =
                 new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid,
@@ -337,15 +353,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
         features = FileSystemFeatures.ReadOnlyVolume | FileSystemFeatures.CasePreservedNames |
                    FileSystemFeatures.UnicodeOnDisk;
 
-        try
-        {
-            return DokanResult.Success;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "GetVolumeInformation failed");
-            return DokanResult.Error;
-        }
+        return DokanResult.Success;
     }
 
     /// <summary>
@@ -359,21 +367,10 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalNumberOfBytes,
         out long totalNumberOfFreeBytes, IDokanFileInfo info)
     {
-        try
-        {
-            totalNumberOfBytes = (long)_vfs.VolumeSize;
-            freeBytesAvailable = 0;
-            totalNumberOfFreeBytes = 0;
-            return DokanResult.Success;
-        }
-        catch (Exception ex)
-        {
-            freeBytesAvailable = 0;
-            totalNumberOfBytes = 0;
-            totalNumberOfFreeBytes = 0;
-            Log.Error(ex, "GetDiskFreeSpace failed");
-            return DokanResult.Error;
-        }
+        totalNumberOfBytes = (long)_vfs.VolumeSize;
+        freeBytesAvailable = 0;
+        totalNumberOfFreeBytes = 0;
+        return DokanResult.Success;
     }
 
     // Boilerplate / Read-Only Enforcement
@@ -403,15 +400,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     /// <returns><see cref="DokanResult.Success"/> when the callback completes.</returns>
     public NtStatus Mounted(string mountPoint, IDokanFileInfo info)
     {
-        try
-        {
-            return DokanResult.Success;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Mounted callback failed for '{MountPoint}'", mountPoint);
-            return DokanResult.Error;
-        }
+        return DokanResult.Success;
     }
 
     /// <summary>
@@ -421,15 +410,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     /// <returns><see cref="DokanResult.Success"/> when the callback completes.</returns>
     public NtStatus Unmounted(IDokanFileInfo info)
     {
-        try
-        {
-            return DokanResult.Success;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Unmounted callback failed");
-            return DokanResult.Error;
-        }
+        return DokanResult.Success;
     }
 
     /// <summary>
@@ -448,14 +429,15 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     }
 
     /// <summary>
-    /// Denies flushing because the volume is read-only.
+    /// Reports success; Windows issues a flush when a handle is closed, and a read-only
+    /// volume treats flushing as a no-op.
     /// </summary>
     /// <param name="fileName">The path of the file.</param>
     /// <param name="info">Dokan file information for the operation.</param>
-    /// <returns><see cref="DokanResult.AccessDenied"/>.</returns>
+    /// <returns><see cref="DokanResult.Success"/>.</returns>
     public NtStatus FlushFileBuffers(string fileName, IDokanFileInfo info)
     {
-        return DokanResult.AccessDenied;
+        return DokanResult.Success;
     }
 
     /// <summary>
@@ -593,16 +575,7 @@ internal sealed class XboxIsoVfsDokan(VfsContainer vfs) : IDokanOperations
     /// <returns><see cref="DokanResult.NotImplemented"/>.</returns>
     public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
     {
-        try
-        {
-            streams = new List<FileInformation>();
-            return DokanResult.NotImplemented;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "FindStreams failed for '{FileName}'", fileName);
-            streams = new List<FileInformation>();
-            return DokanResult.Error;
-        }
+        streams = [];
+        return DokanResult.NotImplemented;
     }
 }

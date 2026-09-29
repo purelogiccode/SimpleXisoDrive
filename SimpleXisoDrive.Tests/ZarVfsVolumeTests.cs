@@ -345,17 +345,19 @@ public class ZarVfsVolumeTests
     }
 
     /// <summary>
-    /// Verifies the volume creation time reflects the archive file's creation time.
+    /// Verifies the volume creation time reflects the archive file's last-write time
+    /// (ZArchive stores no timestamps of its own).
     /// </summary>
     [Fact]
-    public void VolumeCreationTime_ReflectsArchiveFile()
+    public void VolumeCreationTime_ReflectsArchiveFileTimestamp()
     {
         var path = CreateSampleArchive();
         try
         {
+            var expected = File.GetLastWriteTime(path);
             using var volume = new ZarVfsVolume(path);
 
-            Assert.True((DateTime.Now - volume.VolumeCreationTime).Duration() < TimeSpan.FromMinutes(5));
+            Assert.True((expected - volume.VolumeCreationTime).Duration() < TimeSpan.FromSeconds(2));
         }
         finally
         {

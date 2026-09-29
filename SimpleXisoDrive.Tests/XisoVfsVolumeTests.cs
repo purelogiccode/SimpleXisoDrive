@@ -349,6 +349,38 @@ public class XisoVfsVolumeTests
     }
 
     /// <summary>
+    /// Verifies the path constructor rejects null and empty paths.
+    /// </summary>
+    [Fact]
+    public void PathVolume_WithNullOrEmptyPath_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new XisoVfsVolume(null!));
+        Assert.Throws<ArgumentException>(() => new XisoVfsVolume(string.Empty));
+    }
+
+    /// <summary>
+    /// Verifies an I/O failure on the embedded stream is not masked as an invalid image
+    /// and still disposes the stream.
+    /// </summary>
+    [Fact]
+    public void StreamVolume_WithIoFailure_PropagatesAndDisposesStream()
+    {
+        var stream = new ThrowingLengthStream();
+
+        Assert.Throws<IOException>(() => new XisoVfsVolume(stream, "embedded.iso"));
+        Assert.False(stream.CanRead);
+    }
+
+    /// <summary>
+    /// A stream whose length probe always fails with an I/O error.
+    /// </summary>
+    private sealed class ThrowingLengthStream : MemoryStream
+    {
+        /// <inheritdoc />
+        public override long Length => throw new IOException("Simulated I/O failure");
+    }
+
+    /// <summary>
     /// Verifies a missing image file surfaces a <c>FileNotFoundException</c>.
     /// </summary>
     [Fact]

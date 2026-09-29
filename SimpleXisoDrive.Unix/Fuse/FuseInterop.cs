@@ -124,7 +124,7 @@ internal static class FuseInterop
                 continue;
             }
 
-            Array.Sort(files, StringComparer.Ordinal);
+            Array.Sort(files, CompareLibraryFileNames);
             for (var i = files.Length - 1; i >= 0; i--)
             {
                 yield return files[i];
@@ -186,7 +186,12 @@ internal static class FuseInterop
         var buffer = Marshal.AllocHGlobal(512);
         try
         {
-            NativeStatFs(path, buffer);
+            var result = NativeStatFs(path, buffer);
+            if (result != 0)
+            {
+                // The poke still woke the loop in most cases; log for diagnostics.
+                Log.Debug("statfs poke for '{MountPoint}' returned {Result}", path, result);
+            }
         }
         catch (Exception ex)
         {
@@ -197,6 +202,59 @@ internal static class FuseInterop
         {
             Marshal.FreeHGlobal(buffer);
         }
+    }
+
+    /// <summary>
+    /// Orders two FUSE library file names by their numeric version suffixes (ascending);
+    /// callers iterate the sorted array in reverse so the newest library is tried first.
+    /// </summary>
+    /// <param name="left">The first file name or path.</param>
+    /// <param name="right">The second file name or path.</param>
+    /// <returns>A signed comparison result for an ascending version sort.</returns>
+    internal static int CompareLibraryFileNames(string left, string right)
+    {
+        var comparison = CompareVersions(ParseLibraryVersion(left), ParseLibraryVersion(right));
+        return comparison != 0
+            ? comparison
+            : string.CompareOrdinal(Path.GetFileName(left), Path.GetFileName(right));
+    }
+
+    private static int CompareVersions(int[] left, int[] right)
+    {
+        var sharedLength = Math.Min(left.Length, right.Length);
+        for (var i = 0; i < sharedLength; i++)
+        {
+            var comparison = left[i].CompareTo(right[i]);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+
+        return left.Length.CompareTo(right.Length);
+    }
+
+    private static int[] ParseLibraryVersion(string path)
+    {
+        var name = Path.GetFileName(path);
+        var marker = name.IndexOf(".so.", StringComparison.Ordinal);
+        if (marker < 0)
+        {
+            return [];
+        }
+
+        var parts = name[(marker + 4)..].Split('.');
+        var version = new int[parts.Length];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!int.TryParse(parts[i], System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out version[i]))
+            {
+                return [];
+            }
+        }
+
+        return version;
     }
 }
 

@@ -250,15 +250,46 @@ public class ImageIsoVfsVolumeTests
     }
 
     /// <summary>
-    /// Verifies the reported volume size adds the raw image length to the inner size.
+    /// Verifies the raw image does not double-count the wrapped volume's size when both
+    /// are backed by the same image (plain ISO/XISO/CISO, CHD or embedded XISO).
     /// </summary>
     [Fact]
-    public void VolumeSize_AddsRawImageLength()
+    public void VolumeSize_ForSameImage_DoesNotDoubleCount()
     {
         var inner = new FakeVfsVolume { VolumeSize = 100 };
-        using var volume = new ImageIsoVfsVolume(inner, new TrackingRawImageSource(new byte[8]));
+        using var volume = new ImageIsoVfsVolume(inner, new TrackingRawImageSource(new byte[100]));
+
+        Assert.Equal(100ul, volume.VolumeSize);
+    }
+
+    /// <summary>
+    /// Verifies a raw image that is additional content (a synthesized ZArchive image)
+    /// still counts towards the reported volume size.
+    /// </summary>
+    [Fact]
+    public void VolumeSize_ForAdditionalImage_AddsRawImageLength()
+    {
+        var inner = new FakeVfsVolume { VolumeSize = 100 };
+        using var volume = new ImageIsoVfsVolume(inner, new TrackingRawImageSource(new byte[8]),
+            rawImageIsAdditionalContent: true);
 
         Assert.Equal(108ul, volume.VolumeSize);
+    }
+
+    /// <summary>
+    /// Verifies the decorated root listing is cached and returned as the same instance,
+    /// matching the other volumes' listing-cache policy.
+    /// </summary>
+    [Fact]
+    public void GetFolderList_Root_IsCached()
+    {
+        var inner = new FakeVfsVolume();
+        using var volume = new ImageIsoVfsVolume(inner, new TrackingRawImageSource(new byte[8]));
+
+        var first = volume.GetFolderList("\\");
+        var second = volume.GetFolderList("\\");
+
+        Assert.Same(first, second);
     }
 
     /// <summary>

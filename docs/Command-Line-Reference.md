@@ -18,7 +18,7 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 | --- | --- | --- |
 | `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`, `.chd`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
 | `<mount-path>` | No | Drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`. Required when options are supplied. |
-| `[options...]` | No | Zero or more option flags. All arguments after the mount path are scanned for options. |
+| `[options...]` | No | Zero or more option flags. All arguments after the mount path must be recognized options; extra positional arguments are rejected. |
 
 ## Options
 
@@ -28,8 +28,9 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 | `--launch` | `-l` | Opens Windows Explorer at the mount path after a successful mount. |
 | `--image-iso` | `-i` | Also exposes the raw Xbox image as a virtual read-only `image.iso` file at the mount root, for emulators that only accept a disc image (such as xemu). See [Virtual image.iso](#virtual-imageiso). |
 
-Option matching is case-insensitive. Any token after the mount path that is not a recognized option
-is ignored rather than treated as an error.
+Option matching is case-insensitive and options may appear in any order after the mount path.
+Unknown options and unexpected positional arguments are rejected with an error and the usage text,
+matching the Unix front end.
 
 > In single-argument (drag-and-drop) mode, `--launch` is implied and `--debug`/`--image-iso` are not
 > available. Use the two-argument form if you need those options.
@@ -49,6 +50,10 @@ while the normal file tree remains browsable. The raw image bytes are served as 
 
 If the mounted image already contains a real file named `image.iso`, that real file is shown instead
 of the synthetic one.
+
+The synthetic file counts towards the reported volume size only when it is additional content
+(a ZArchive directory tree). For plain images, CISO and CHD, `image.iso` is the same image the
+volume is already mounted from, so its length is not added twice.
 
 ## Behavior by argument count
 
@@ -74,6 +79,8 @@ of the synthetic one.
 - The application stays attached to the console and is stopped with `Ctrl+C`.
 - `Ctrl+C` is intercepted: it does not terminate the process abruptly, it requests an unmount and
   then exits cleanly with code `0`.
+- Unknown options and unexpected positional arguments print an error and the usage text, then exit
+  with code `1` (matching the Unix front end).
 - If the mount path is a drive letter (`X:\`) and the process is not elevated, a warning is printed
   suggesting that administrator privileges may be required for a successful mount.
 
@@ -97,8 +104,9 @@ If none of the strategies match, the error output includes contextual hints:
 - an extension-appended variant was tried and not found;
 - the path contains spaces but was not quoted.
 
-Resolution is case-insensitive in practice because Windows file system lookups are case-insensitive;
-the matching logic itself only performs literal `File.Exists`/`Directory.Exists` checks.
+Matching is case-insensitive: Windows file system lookups ignore case, and on case-sensitive file
+systems (Linux, macOS) the resolver scans directory entries with a case-insensitive comparison, so
+`game` finds `GAME.CHD` and a directory containing `GAME.ISO` still resolves.
 
 ---
 

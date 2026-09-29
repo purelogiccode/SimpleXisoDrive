@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Serilog;
 using SimpleXisoDrive.Core.Interfaces;
 using XISOSharp;
@@ -24,15 +23,21 @@ internal sealed class XisoVfsVolume : IVfsVolume
     /// <summary>Raw XDVDFS attribute byte for a directory entry.</summary>
     private const byte DirectoryAttribute = 0x10;
 
+    /// <summary>Maximum number of cached path entries before new entries stop being stored.</summary>
+    private const int EntryCacheLimit = 4096;
+
+    /// <summary>Maximum number of cached directory listings before new listings stop being stored.</summary>
+    private const int ChildrenCacheLimit = 512;
+
     private readonly XisoExplorer? _explorer;
     private readonly Stream? _stream;
     private readonly string _displayName;
     private readonly VolumeInfo _volume;
     private readonly Lock _streamLock = new();
-    private readonly ConcurrentDictionary<string, XisoEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedCache<string, XisoEntry> _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
 
-    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
+        new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);
 
     private bool _disposed;
 
@@ -52,9 +57,12 @@ internal sealed class XisoVfsVolume : IVfsVolume
     /// Initializes a new instance of the <see cref="XisoVfsVolume"/> class for the specified ISO file.
     /// </summary>
     /// <param name="isoPath">The path to the Xbox ISO file to open.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="isoPath"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox ISO image.</exception>
     public XisoVfsVolume(string isoPath)
     {
+        ArgumentException.ThrowIfNullOrEmpty(isoPath);
+
         _displayName = isoPath;
 
         try
@@ -79,7 +87,8 @@ internal sealed class XisoVfsVolume : IVfsVolume
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to open Xbox ISO image '{ImagePath}'", isoPath);
+            // The factory logs the user-visible error; keep the full detail in the debug log.
+            Log.Debug(ex, "Failed to open Xbox ISO image '{ImagePath}'", isoPath);
             throw;
         }
     }
@@ -102,11 +111,19 @@ internal sealed class XisoVfsVolume : IVfsVolume
         {
             _volume = XisoReader.GetVolumeInfo(stream, displayName);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is XisoFormatException or InvalidDataException or EndOfStreamException)
         {
             DisposeStream(stream);
             Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", displayName);
             throw new InvalidImageException($"Failed to read Xbox ISO: {ex.Message}", ex);
+        }
+        catch (Exception ex)
+        {
+            // I/O and other environment failures keep their natural type, matching the
+            // path-based constructor; only genuinely invalid images are remapped.
+            DisposeStream(stream);
+            Log.Error(ex, "Failed to read Xbox ISO image '{ImagePath}'", displayName);
+            throw;
         }
 
         if (!_volume.IsValid)
@@ -187,7 +204,7 @@ internal sealed class XisoVfsVolume : IVfsVolume
 
     private XisoEntry CacheEntry(string normalizedPath, XisoEntry entry)
     {
-        _entryCache[normalizedPath] = entry;
+        _entryCache.Set(normalizedPath, entry);
         return entry;
     }
 
@@ -238,7 +255,7 @@ internal sealed class XisoVfsVolume : IVfsVolume
                 }
             }
 
-            _childrenCache[normalizedPath] = children;
+            _childrenCache.Set(normalizedPath, children);
             Log.Debug("[GetFolderList] Cached {Count} children for '{NormalizedPath}'", children.Count,
                 normalizedPath);
             return children;

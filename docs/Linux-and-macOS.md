@@ -48,7 +48,7 @@ SimpleXisoDrive <image-file> [mount-path] [options]
 *   `<image-file>` — path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. A directory
     containing exactly one image, or a path without an extension, is also resolved.
 *   `<mount-path>` — an existing empty directory. When omitted, the application creates
-    a temporary directory and prints it after mounting.
+    a temporary directory, prints it after mounting, and removes it again on unmount.
 *   `-l`, `--launch` — open the file manager (`xdg-open` or `open`) at the mount point.
 *   `-d`, `--debug` — show verbose FUSE debug output.
 *   `-i`, `--image-iso` — also expose the raw Xbox image as `image.iso` at the mount root.
@@ -94,9 +94,11 @@ SIGTERM and SIGHUP also trigger a clean unmount.
 *   The volume is mounted read-only. `open` rejects write access and macOS `setattr`
     returns `EROFS`.
 *   Files are exposed with read permissions for everyone (`0444` for files, `0555` for
-    directories). Timestamps are taken from the image or archive creation time.
-*   On macOS, the volume name is taken from the image; use the `volname` mount option
-    indirectly through the application (the label is sanitized automatically).
+    directories). Timestamps are taken from the image descriptor; ZArchive trees use the
+    `.zar` file's last-write time.
+*   The volume label is exposed through the mount options: `fsname` on Linux and
+    `volname` on macOS (the label is sanitized automatically, falling back to the
+    application name when the volume has none).
 *   Linux mounts are performed through `fusermount3`, so unprivileged users can mount
     without `sudo`.
 *   macOS may quarantine a downloaded binary. If it refuses to start, remove the

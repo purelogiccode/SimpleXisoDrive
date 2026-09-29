@@ -24,6 +24,7 @@ public static class BugReport
     private static readonly bool IsApiLoggingConfigured;
     private static readonly Lock FileLock = new();
     private static bool _isDisposed;
+    private static int _pendingReports;
 
     private static readonly string BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
     private static readonly string ErrorLogFilePath = Path.Combine(BaseDirectory, "error.log");
@@ -31,10 +32,7 @@ public static class BugReport
 
     static BugReport()
     {
-        HttpClientInstance = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+        HttpClientInstance = ApiHttpClientFactory.Create(TimeSpan.FromSeconds(30));
 
         // API logging is configured if the key can be decrypted.
         IsApiLoggingConfigured = !string.IsNullOrWhiteSpace(ApiKeyProvider.ApiKey);
@@ -123,7 +121,7 @@ public static class BugReport
             return "Linux";
         }
 
-        return OperatingSystem.IsMacOS() ? "MacOsX" : "OperatingSystem";
+        return OperatingSystem.IsMacOS() ? "macOS" : "OperatingSystem";
     }
 
     /// <summary>
@@ -150,7 +148,21 @@ public static class BugReport
     /// <summary>
     /// Sends a bug report to the remote BugReport API.
     /// </summary>
-    public static async Task SendToApiAsync(string report, string stackTrace)
+    /// <param name="report">The rendered report body.</param>
+    /// <param name="stackTrace">The stack trace to attach, or a placeholder.</param>
+    public static Task SendToApiAsync(string report, string stackTrace)
+    {
+        return SendToApiAsync(report, stackTrace, HttpClientInstance);
+    }
+
+    /// <summary>
+    /// Sends a bug report through the supplied client. Used by tests to verify request
+    /// shaping and failure handling without live traffic.
+    /// </summary>
+    /// <param name="report">The rendered report body.</param>
+    /// <param name="stackTrace">The stack trace to attach, or a placeholder.</param>
+    /// <param name="http">The HTTP client to send through.</param>
+    internal static async Task SendToApiAsync(string report, string stackTrace, HttpClient http)
     {
         if (!IsApiLoggingConfigured) return;
 
@@ -173,11 +185,11 @@ public static class BugReport
             request.Headers.Add("X-API-KEY", ApiKeyProvider.ApiKey);
             request.Content = httpContent;
 
-            using var response = await HttpClientInstance.SendAsync(request);
+            using var response = await http.SendAsync(request).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode) return;
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             WriteToCriticalLog(
                 new HttpRequestException(
                     $"API request failed with status code {response.StatusCode}. Response: {responseContent}"),
@@ -186,6 +198,44 @@ public static class BugReport
         catch (Exception apiEx)
         {
             WriteToCriticalLog(apiEx, "Exception occurred while sending log to API.");
+        }
+    }
+
+    /// <summary>
+    /// Sends a report while counting it as pending, so shutdown can wait for in-flight
+    /// reports before the process exits. Never throws.
+    /// </summary>
+    /// <param name="report">The rendered report body.</param>
+    /// <param name="stackTrace">The stack trace to attach, or a placeholder.</param>
+    internal static async Task SendTrackedAsync(string report, string stackTrace)
+    {
+        Interlocked.Increment(ref _pendingReports);
+        try
+        {
+            await SendToApiAsync(report, stackTrace, HttpClientInstance).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _pendingReports);
+        }
+    }
+
+    /// <summary>
+    /// Gets the number of bug reports currently in flight.
+    /// </summary>
+    internal static int PendingReports => Volatile.Read(ref _pendingReports);
+
+    /// <summary>
+    /// Waits up to <paramref name="timeout"/> for in-flight remote bug reports to finish
+    /// so a clean shutdown does not cut them off.
+    /// </summary>
+    /// <param name="timeout">The maximum time to wait.</param>
+    public static async Task WaitForPendingReportsAsync(TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (Volatile.Read(ref _pendingReports) > 0 && DateTimeOffset.UtcNow < deadline)
+        {
+            await Task.Delay(50).ConfigureAwait(false);
         }
     }
 
@@ -205,20 +255,10 @@ public static class BugReport
 
             WriteLocalErrorLog(report);
 
-            // Report to API (fire-and-forget since this is a sync method)
+            // Report to API (tracked so shutdown can wait for it; never throws)
             if (IsApiLoggingConfigured)
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await SendToApiAsync(report, ex.ToString());
-                    }
-                    catch
-                    {
-                        // Ignore API errors in fatal handler
-                    }
-                });
+                _ = SendTrackedAsync(report, ex.ToString());
             }
         }
         catch (Exception writeEx)
@@ -244,7 +284,10 @@ public static class BugReport
             criticalContent.AppendLine(CultureInfo.InvariantCulture, $"Stack Trace:\n{ex.StackTrace}");
             criticalContent.AppendLine("--------------------------------------------------\n");
 
-            File.AppendAllText(CriticalLogFilePath, criticalContent.ToString(), Encoding.UTF8);
+            lock (FileLock)
+            {
+                File.AppendAllText(CriticalLogFilePath, criticalContent.ToString(), Encoding.UTF8);
+            }
         }
         catch (Exception writeEx)
         {

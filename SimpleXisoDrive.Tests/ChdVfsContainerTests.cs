@@ -263,6 +263,31 @@ public class ChdVfsContainerTests
     }
 
     /// <summary>
+    /// Verifies an Xbox ISO CHD renamed to .zar still mounts by content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithChdRenamedToZar_StillMounts()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("chd as zar"u8.ToArray());
+        var chdPath = CreateChd(image);
+        var renamedPath = Path.ChangeExtension(chdPath, ".zar");
+        File.Move(chdPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("chd as zar"u8.Length, file.Size);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
     /// Verifies a CD CHD is rejected with a CD-specific message.
     /// </summary>
     [Fact]

@@ -67,7 +67,8 @@ internal static class ChdImageSource
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to open CHD image '{ImagePath}'", chdPath);
+            // The factory logs the user-visible error; keep the full detail in the debug log.
+            Log.Debug(ex, "Failed to open CHD image '{ImagePath}'", chdPath);
             throw;
         }
     }

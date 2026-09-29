@@ -49,18 +49,15 @@ public class VfsContainer : IDisposable
     /// <c>image.iso</c> file at the volume root, for emulators that only accept a disc image
     /// (such as xemu). ZArchive directory trees are synthesized into a virtual XISO image in memory.
     /// </param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="imagePath"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="InvalidImageException">Thrown when the file is not a valid Xbox image or ZArchive.</exception>
     public VfsContainer(string imagePath, bool exposeImageIso = false)
     {
-        try
-        {
-            _volume = VfsVolumeFactory.Open(imagePath, exposeImageIso);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to open image '{ImagePath}' as a virtual volume", imagePath);
-            throw;
-        }
+        ArgumentException.ThrowIfNullOrEmpty(imagePath);
+
+        // VfsVolumeFactory logs the failure with its image context; re-logging here
+        // would produce duplicate entries for the same failure.
+        _volume = VfsVolumeFactory.Open(imagePath, exposeImageIso);
     }
 
     /// <summary>
@@ -70,15 +67,7 @@ public class VfsContainer : IDisposable
     /// <returns>The matching entry, or <see langword="null"/> if no entry exists at the path.</returns>
     public IVfsEntry? GetEntry(string path)
     {
-        try
-        {
-            return _volume.GetEntry(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "GetEntry failed for '{Path}'", path);
-            throw;
-        }
+        return _volume.GetEntry(path);
     }
 
     /// <summary>
@@ -88,15 +77,7 @@ public class VfsContainer : IDisposable
     /// <returns>The entries contained in the directory; empty if the path is not a valid directory.</returns>
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        try
-        {
-            return _volume.GetFolderList(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "GetFolderList failed for '{Path}'", path);
-            throw;
-        }
+        return _volume.GetFolderList(path);
     }
 
     /// <summary>
@@ -108,15 +89,7 @@ public class VfsContainer : IDisposable
     /// <returns>The number of bytes read, or zero if the read fails.</returns>
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        try
-        {
-            return _volume.ReadFile(entry, buffer, offset);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ReadFile failed for '{FileName}' at offset {Offset}", entry.FileName, offset);
-            throw;
-        }
+        return _volume.ReadFile(entry, buffer, offset);
     }
 
     /// <summary>

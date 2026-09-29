@@ -31,44 +31,19 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
     /// <inheritdoc />
     public IVfsEntry? GetEntry(string path)
     {
-        try
-        {
-            return _inner.GetEntry(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ReaderOwningVfsVolume.GetEntry failed for '{Path}'", path);
-            throw;
-        }
+        return _inner.GetEntry(path);
     }
 
     /// <inheritdoc />
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        try
-        {
-            return _inner.GetFolderList(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ReaderOwningVfsVolume.GetFolderList failed for '{Path}'", path);
-            throw;
-        }
+        return _inner.GetFolderList(path);
     }
 
     /// <inheritdoc />
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        try
-        {
-            return _inner.ReadFile(entry, buffer, offset);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ReaderOwningVfsVolume.ReadFile failed for '{FileName}' at offset {Offset}",
-                entry.FileName, offset);
-            throw;
-        }
+        return _inner.ReadFile(entry, buffer, offset);
     }
 
     /// <inheritdoc />

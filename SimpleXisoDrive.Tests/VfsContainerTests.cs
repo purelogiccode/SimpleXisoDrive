@@ -732,4 +732,92 @@ public class VfsContainerTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// Verifies null and empty paths are rejected up front.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithNullOrEmptyPath_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new VfsContainer(null!));
+        Assert.Throws<ArgumentException>(() => new VfsContainer(string.Empty));
+    }
+
+    /// <summary>
+    /// Verifies an Xbox ISO renamed to .chd still mounts by content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithIsoRenamedToChd_StillMountsAsXdvdfs()
+    {
+        var isoPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".iso");
+        File.WriteAllBytes(isoPath, TestImageFactory.CreateMinimalXdvdfsImage("renamed chd"u8.ToArray()));
+        var renamedPath = Path.ChangeExtension(isoPath, ".chd");
+        File.Move(isoPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("renamed chd"u8.Length, file.Size);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies an Xbox ISO renamed to .zar still mounts by content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithIsoRenamedToZar_StillMountsAsXdvdfs()
+    {
+        var isoPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".iso");
+        File.WriteAllBytes(isoPath, TestImageFactory.CreateMinimalXdvdfsImage("renamed zar"u8.ToArray()));
+        var renamedPath = Path.ChangeExtension(isoPath, ".zar");
+        File.Move(isoPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("renamed zar"u8.Length, file.Size);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a ZArchive renamed to .chd still mounts as an archive by content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithZarRenamedToChd_StillMountsAsArchive()
+    {
+        var zarPath = CreateZar(".zar", writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("zar as chd"u8);
+        });
+        var renamedPath = Path.ChangeExtension(zarPath, ".chd");
+        File.Move(zarPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("zar as chd"u8.Length, file.Size);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
 }

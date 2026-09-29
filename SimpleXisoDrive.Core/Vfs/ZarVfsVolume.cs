@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Serilog;
 using SimpleXisoDrive.Core.Interfaces;
 using ZArchiveSharp;
@@ -12,11 +11,19 @@ namespace SimpleXisoDrive.Core.Vfs;
 /// </summary>
 internal sealed class ZarVfsVolume : IVfsVolume
 {
-    private readonly ZArchiveReader _reader;
-    private readonly ConcurrentDictionary<string, ZarEntry> _entryCache = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Maximum number of cached path entries before new entries stop being stored.</summary>
+    private const int EntryCacheLimit = 4096;
 
-    private readonly ConcurrentDictionary<string, List<IVfsEntry>> _childrenCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Maximum number of cached directory listings before new listings stop being stored.</summary>
+    private const int ChildrenCacheLimit = 512;
+
+    private readonly ZArchiveReader _reader;
+    private readonly BoundedCache<string, ZarEntry> _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
+
+    private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
+        new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);
+
+    private bool _disposed;
 
     /// <inheritdoc />
     public ulong VolumeSize { get; }
@@ -113,7 +120,8 @@ internal sealed class ZarVfsVolume : IVfsVolume
         catch (Exception ex)
         {
             _reader.Dispose();
-            Log.Error(ex, "Failed to read ZArchive '{ArchivePath}'", archivePath);
+            // The factory logs the user-visible error; keep the full detail in the debug log.
+            Log.Debug(ex, "Failed to read ZArchive '{ArchivePath}'", archivePath);
             throw new InvalidImageException($"Failed to read ZArchive: {ex.Message}", ex);
         }
     }
@@ -122,18 +130,22 @@ internal sealed class ZarVfsVolume : IVfsVolume
     {
         try
         {
-            return File.Exists(archivePath) ? File.GetCreationTime(archivePath) : DateTime.Now;
+            // ZArchive stores no timestamps. The archive file's own last-write time is
+            // the closest truthful value (copies keep it, unlike creation time); when it
+            // is unavailable the time is reported as unknown instead of "now".
+            return File.Exists(archivePath) ? File.GetLastWriteTime(archivePath) : DateTime.MinValue;
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "Could not read the creation time of '{ArchivePath}'; using the current time", archivePath);
-            return DateTime.Now;
+            Log.Debug(ex, "Could not read the timestamp of '{ArchivePath}'; reporting an unknown time",
+                archivePath);
+            return DateTime.MinValue;
         }
     }
 
     private void CacheEntry(string path, ZarEntry entry)
     {
-        _entryCache[path] = entry;
+        _entryCache.Set(path, entry);
     }
 
     /// <inheritdoc />
@@ -192,7 +204,7 @@ internal sealed class ZarVfsVolume : IVfsVolume
         try
         {
             var children = BuildFolderList(normalizedPath);
-            _childrenCache[normalizedPath] = children;
+            _childrenCache.Set(normalizedPath, children);
             return children;
         }
         catch (Exception ex)
@@ -260,10 +272,17 @@ internal sealed class ZarVfsVolume : IVfsVolume
     }
 
     /// <summary>
-    /// Closes the underlying archive.
+    /// Closes the underlying archive. Disposing more than once is a no-op.
     /// </summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         try
         {
             _reader.Dispose();

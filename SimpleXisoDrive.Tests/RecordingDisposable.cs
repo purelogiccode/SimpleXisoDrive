@@ -6,6 +6,8 @@ namespace SimpleXisoDrive.Tests;
 /// <param name="throwOnDispose">Whether <see cref="Dispose"/> throws after recording the call.</param>
 internal sealed class RecordingDisposable(bool throwOnDispose = false) : IDisposable
 {
+    private readonly bool _throwOnDispose = throwOnDispose;
+
     /// <summary>
     /// Gets the number of <see cref="Dispose"/> calls.
     /// </summary>
@@ -16,7 +18,7 @@ internal sealed class RecordingDisposable(bool throwOnDispose = false) : IDispos
     {
         DisposeCount++;
 
-        if (throwOnDispose)
+        if (_throwOnDispose)
         {
             throw new InvalidOperationException("owner dispose failure");
         }

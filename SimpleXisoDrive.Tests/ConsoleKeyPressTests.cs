@@ -30,4 +30,21 @@ public class ConsoleKeyPressTests
             Console.SetIn(originalInput);
         }
     }
+
+    /// <summary>
+    /// Verifies a reset starts a fresh wait so future prompts work after the first key press.
+    /// </summary>
+    [Fact]
+    public async Task Reset_StartsFreshWait_ThatStillCompletesWithRedirectedInput()
+    {
+        await ConsoleKeyPress.WaitAsync();
+
+        ConsoleKeyPress.Reset();
+
+        var task = ConsoleKeyPress.WaitAsync();
+        var completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10)));
+
+        Assert.Same(task, completed);
+        Assert.Equal(default, await task);
+    }
 }

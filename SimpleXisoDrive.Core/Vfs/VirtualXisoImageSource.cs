@@ -30,7 +30,7 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
     /// <inheritdoc />
     public long Length { get; }
 
-    private VirtualXisoImageSource(ZArchiveReader reader, string archivePath, ulong? fileTime)
+    private VirtualXisoImageSource(ZArchiveReader reader, string archivePath)
     {
         _reader = reader;
 
@@ -55,7 +55,7 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
         var extents = new List<Extent>
         {
             new(0, BuildHeader((uint)totalSectors)),
-            new(Constants.HeaderOffset, BuildDescriptor(root, fileTime ?? GetArchiveFileTime(archivePath))),
+            new(Constants.HeaderOffset, BuildDescriptor(root, GetArchiveFileTime(archivePath))),
         };
 
         CollectTableExtents(root, extents);
@@ -65,20 +65,20 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
     }
 
     /// <summary>
-    /// Builds the virtual image for the archive tree.
+    /// Builds the virtual image for the archive tree. The descriptor timestamp is the
+    /// archive file's last-write time, since ZArchive stores no timestamps itself.
     /// </summary>
     /// <param name="reader">The open archive reader (owned by the caller).</param>
     /// <param name="archivePath">The archive path used in log and error messages.</param>
-    /// <param name="fileTime">Optional fixed XISO volume FILETIME (tests); defaults to the archive's creation time.</param>
     /// <returns>A read-only source that serves the synthesized image.</returns>
     /// <exception cref="InvalidImageException">Thrown when the tree cannot be represented as an XISO image.</exception>
-    public static VirtualXisoImageSource Create(ZArchiveReader reader, string archivePath, ulong? fileTime = null)
+    public static VirtualXisoImageSource Create(ZArchiveReader reader, string archivePath)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
         try
         {
-            return new VirtualXisoImageSource(reader, archivePath, fileTime);
+            return new VirtualXisoImageSource(reader, archivePath);
         }
         catch (InvalidImageException ex)
         {
@@ -232,14 +232,16 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
     {
         try
         {
+            // ZArchive stores no timestamps; the archive file's last-write time is the
+            // closest truthful value. A zero FILETIME signals "unknown" when unavailable.
             return File.Exists(archivePath)
-                ? (ulong)File.GetCreationTimeUtc(archivePath).ToFileTimeUtc()
-                : (ulong)DateTime.UtcNow.ToFileTimeUtc();
+                ? (ulong)File.GetLastWriteTimeUtc(archivePath).ToFileTimeUtc()
+                : 0;
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "Could not read the creation time of '{ArchivePath}'; using the current time", archivePath);
-            return (ulong)DateTime.UtcNow.ToFileTimeUtc();
+            Log.Debug(ex, "Could not read the timestamp of '{ArchivePath}'; reporting an unknown time", archivePath);
+            return 0;
         }
     }
 

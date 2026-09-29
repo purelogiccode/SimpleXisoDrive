@@ -1,7 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Reflection;
-using System.Security.Authentication;
 using Serilog;
 using SimpleXisoDrive.Core.Models;
 
@@ -23,18 +22,7 @@ public static class StatsService
 
     static StatsService()
     {
-        var handler = new SocketsHttpHandler
-        {
-            SslOptions = new System.Net.Security.SslClientAuthenticationOptions
-            {
-                EnabledSslProtocols = SslProtocols.None
-            }
-        };
-
-        Http = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
+        Http = ApiHttpClientFactory.Create(TimeSpan.FromSeconds(10));
     }
 
     /// <summary>
@@ -46,7 +34,7 @@ public static class StatsService
         try
         {
             // Fire and forget - don't await, don't block startup
-            _ = ReportLaunchInternalAsync();
+            _ = ReportLaunchAsync(Http);
         }
         catch (Exception ex)
         {
@@ -55,8 +43,20 @@ public static class StatsService
         }
     }
 
-    private static async Task ReportLaunchInternalAsync()
+    /// <summary>
+    /// Reports launch statistics through the supplied client. Used by tests to verify
+    /// request shaping without live traffic.
+    /// </summary>
+    /// <param name="http">The HTTP client to send through.</param>
+    internal static async Task ReportLaunchAsync(HttpClient http)
     {
+        if (string.IsNullOrWhiteSpace(ApiKeyProvider.ApiKey))
+        {
+            // Without a usable key the API would reject the request with 401.
+            Log.Debug("Stats reporting skipped: API key unavailable.");
+            return;
+        }
+
         try
         {
             // Get current version from the entry assembly (the Core assembly when the
@@ -75,7 +75,7 @@ public static class StatsService
             httpRequest.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", ApiKeyProvider.ApiKey);
 
-            using var response = await Http.SendAsync(httpRequest);
+            using var response = await http.SendAsync(httpRequest).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {

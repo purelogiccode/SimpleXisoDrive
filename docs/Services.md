@@ -82,8 +82,8 @@ logging is off.
 `BuildReport` produces a text report with three sections:
 
 1. **Environment details** - date/time with offset, application name and version, OS description,
-   OS and process architecture, process/OS bitness, Windows version string, processor count, base
-   directory, and temp path.
+   OS and process architecture, process/OS bitness, operating system name and version string,
+   processor count, base directory, and temp path.
 2. **Error details** - severity level and message.
 3. **Exception details** - type, message, source, and stack trace (or `None` placeholders).
 
@@ -110,7 +110,9 @@ logging is off.
 
 The request carries an API key header and uses a 30-second timeout. Non-success responses and
 exceptions are written to `critical_error.log`. The static `HttpClient` is registered for disposal
-on process exit and can also be disposed explicitly through `DisposeHttpClient`.
+on process exit and can also be disposed explicitly through `DisposeHttpClient`. All API clients
+(bug report, stats, update check) are created by the shared `ApiHttpClientFactory`, which reuses one
+connection pool and TLS configuration.
 
 ### When reports are sent
 
@@ -123,6 +125,10 @@ on process exit and can also be disposed explicitly through `DisposeHttpClient`.
 Update checker network failures are deliberately logged at Information level only and are **not**
 forwarded. See [Privacy and Networking](Privacy-and-Networking) for the full data-flow description.
 
+Remote reports are tracked while in flight (`BugReport.PendingReports`), and both front ends call
+`BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5))` during shutdown so a clean exit does
+not cut off a report that is already being sent.
+
 ---
 
 ## BugReportSink
@@ -134,7 +140,7 @@ forwarded. See [Privacy and Networking](Privacy-and-Networking) for the full dat
 | Threshold | Attached at `Warning`; ignores lower levels |
 | Rate limit | Maximum 8 reports per minute per process (the API permits 10) |
 | Local output | Every accepted report is appended to `error.log` |
-| Remote output | Fire-and-forget `SendToApiAsync` on a background task |
+| Remote output | Tracked background send (`SendTrackedAsync`); shutdown can wait for it via `WaitForPendingReportsAsync` |
 | Failure policy | All exceptions are swallowed; a sink must never break logging |
 
 Rate limiting uses a static queue of timestamps, trimmed to a one-minute window.
@@ -158,8 +164,9 @@ The result controls two behaviors:
 
 ## StatsService
 
-`StatsService.ReportLaunchAsync()` reports an anonymous launch event. It is fire-and-forget and never
-blocks startup.
+`StatsService.ReportLaunch()` reports an anonymous launch event. It is fire-and-forget and never
+blocks startup; the internal `ReportLaunchAsync(HttpClient)` overload is the awaitable, testable
+core and skips the request when no API key is available.
 
 | Property | Value |
 | --- | --- |
@@ -183,9 +190,9 @@ No user, machine, or file information is included in this request.
 | Request | `GET https://api.github.com/repos/purelogiccode/SimpleXisoDrive/releases/latest` with `User-Agent: SimpleXisoDrive-UpdateChecker` |
 | Timeout | 5 seconds |
 | Parsing | Extracts `tag_name` and `html_url`, then matches `\d+\.\d+\.\d+` (1-second regex timeout) |
-| Comparison | Newer than the running assembly version wins |
+| Comparison | Newer than the entry assembly version wins |
 | Prompt | `Open the release page in your browser? [Y/n]`; pressing `n`/`N` cancels |
-| Redirected input | The prompt is skipped entirely |
+| Redirected input | The version details are printed, the prompt is skipped, and the download URL is shown instead |
 | Browser launch | Uses the default browser via shell execute |
 | Failure handling | Logged at Information level only and never forwarded to the bug report API |
 

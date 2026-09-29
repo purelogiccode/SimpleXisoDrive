@@ -9,8 +9,7 @@ namespace SimpleXisoDrive.Core;
 /// </summary>
 internal static class ConsoleKeyPress
 {
-    private static readonly TaskCompletionSource<ConsoleKeyInfo> Pressed =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource<ConsoleKeyInfo> _pressed = CreateSource();
 
     private static int _readerStarted;
 
@@ -22,31 +21,39 @@ internal static class ConsoleKeyPress
     /// <returns>A task that completes on the next key press.</returns>
     public static Task<ConsoleKeyInfo> WaitAsync()
     {
-        try
+        if (Interlocked.Exchange(ref _readerStarted, 1) == 0)
         {
-            if (Interlocked.Exchange(ref _readerStarted, 1) == 0)
+            _ = Task.Run(static () =>
             {
-                _ = Task.Run(static () =>
+                try
                 {
-                    try
-                    {
-                        Pressed.TrySetResult(Console.ReadKey(true));
-                    }
-                    catch (Exception ex)
-                    {
-                        // Redirected input (or no console): complete immediately.
-                        Log.Debug(ex, "Console key read unavailable; completing immediately");
-                        Pressed.TrySetResult(default);
-                    }
-                });
-            }
+                    _pressed.TrySetResult(Console.ReadKey(true));
+                }
+                catch (Exception ex)
+                {
+                    // Redirected input (or no console): complete immediately.
+                    Log.Debug(ex, "Console key read unavailable; completing immediately");
+                    _pressed.TrySetResult(default);
+                }
+            });
+        }
 
-            return Pressed.Task;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to start the console key press reader");
-            throw;
-        }
+        return _pressed.Task;
+    }
+
+    /// <summary>
+    /// Resets the shared wait so a future key press can be awaited again (for example
+    /// after a clean unmount). Only safe when no caller is still blocked on the
+    /// previous wait.
+    /// </summary>
+    internal static void Reset()
+    {
+        _pressed = CreateSource();
+        Interlocked.Exchange(ref _readerStarted, 0);
+    }
+
+    private static TaskCompletionSource<ConsoleKeyInfo> CreateSource()
+    {
+        return new TaskCompletionSource<ConsoleKeyInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

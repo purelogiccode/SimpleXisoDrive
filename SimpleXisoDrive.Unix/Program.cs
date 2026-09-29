@@ -41,6 +41,9 @@ internal static class Program
         }
         finally
         {
+            // Give fire-and-forget bug reports a bounded grace period before the
+            // process (and its HTTP client) goes away.
+            await BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5));
             Log.CloseAndFlush();
         }
     }
@@ -147,57 +150,69 @@ internal static class Program
                 return 1;
             }
 
-            if (mountPath is null)
-            {
-                mountPath = Path.Combine(Path.GetTempPath(), $"simplexisodrive-{Environment.ProcessId}");
-                Directory.CreateDirectory(mountPath);
-            }
-            else if (!Directory.Exists(mountPath))
-            {
-                await Console.Error.WriteLineAsync($"Error: Mount path '{mountPath}' is not an existing directory.");
-                await Console.Error.WriteLineAsync("Create the directory first (for example: mkdir -p /mnt/xiso).");
-                return 1;
-            }
-
-            if (!FuseAvailability.Check(out _))
-            {
-                return 1;
-            }
-
-            await UpdateChecker.CheckForUpdateAsync();
-
-            _vfsContainer = new VfsContainer(resolvedIsoPath, imageIso);
+            string? temporaryMountPath = null;
             try
             {
-                var fileSystem = new FuseFileSystem(_vfsContainer);
-                var exitCode = fileSystem.Run(mountPath, debug, () =>
+                if (mountPath is null)
                 {
-                    Console.WriteLine($"Mounted '{resolvedIsoPath}' at '{mountPath}'.");
-                    if (imageIso)
-                    {
-                        Console.WriteLine($"Raw image available at: {Path.Combine(mountPath, "image.iso")}");
-                    }
-
-                    if (launch)
-                    {
-                        LaunchFileManager(mountPath);
-                    }
-                });
-
-                if (exitCode != 0)
+                    mountPath = Path.Combine(Path.GetTempPath(), $"simplexisodrive-{Environment.ProcessId}");
+                    Directory.CreateDirectory(mountPath);
+                    temporaryMountPath = mountPath;
+                }
+                else if (!Directory.Exists(mountPath))
                 {
-                    Console.Error.WriteLine($"Error: FUSE exited with code {exitCode}.");
-                    Log.Error("FUSE exited with code {ExitCode}", exitCode);
+                    await Console.Error.WriteLineAsync($"Error: Mount path '{mountPath}' is not an existing directory.");
+                    await Console.Error.WriteLineAsync("Create the directory first (for example: mkdir -p /mnt/xiso).");
                     return 1;
                 }
 
-                Log.Information("Unmounted.");
-                return 0;
+                if (!FuseAvailability.Check(out _))
+                {
+                    return 1;
+                }
+
+                await UpdateChecker.CheckForUpdateAsync();
+
+                _vfsContainer = new VfsContainer(resolvedIsoPath, imageIso);
+                try
+                {
+                    var fileSystem = new FuseFileSystem(_vfsContainer);
+                    var exitCode = fileSystem.Run(mountPath, debug, () =>
+                    {
+                        Console.WriteLine($"Mounted '{resolvedIsoPath}' at '{mountPath}'.");
+                        if (imageIso)
+                        {
+                            Console.WriteLine($"Raw image available at: {Path.Combine(mountPath, "image.iso")}");
+                        }
+
+                        if (launch)
+                        {
+                            LaunchFileManager(mountPath);
+                        }
+                    });
+
+                    if (exitCode != 0)
+                    {
+                        Console.Error.WriteLine($"Error: FUSE exited with code {exitCode}.");
+                        Log.Error("FUSE exited with code {ExitCode}", exitCode);
+                        return 1;
+                    }
+
+                    Log.Information("Unmounted.");
+                    return 0;
+                }
+                finally
+                {
+                    _vfsContainer.Dispose();
+                    _vfsContainer = null;
+                }
             }
             finally
             {
-                _vfsContainer.Dispose();
-                _vfsContainer = null;
+                if (temporaryMountPath is not null)
+                {
+                    RemoveTemporaryMountDirectory(temporaryMountPath);
+                }
             }
         }
         catch (InvalidImageException ex)
@@ -239,6 +254,40 @@ internal static class Program
         };
     }
 
+    /// <summary>
+    /// Removes the auto-created temporary mount directory after unmounting. A
+    /// non-empty directory (for example when FUSE left something behind) is kept
+    /// and only logged, so cleanup can never mask the mount result.
+    /// </summary>
+    /// <param name="mountPath">The temporary directory to remove.</param>
+    private static void RemoveTemporaryMountDirectory(string mountPath)
+    {
+        try
+        {
+            Directory.Delete(mountPath, recursive: false);
+            Log.Debug("Removed temporary mount directory '{MountPath}'", mountPath);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Already gone; nothing to clean up.
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not remove temporary mount directory '{MountPath}'", mountPath);
+        }
+    }
+
+    /// <summary>
+    /// Gets the executable name used in the usage text, independent of how the process
+    /// was launched.
+    /// </summary>
+    /// <returns>The executable name without extension, or <c>SimpleXisoDrive</c> when unavailable.</returns>
+    internal static string GetExecutableName()
+    {
+        var name = Path.GetFileNameWithoutExtension(Environment.ProcessPath);
+        return string.IsNullOrEmpty(name) ? "SimpleXisoDrive" : name;
+    }
+
     private static void LaunchFileManager(string mountPath)
     {
         try
@@ -268,10 +317,11 @@ internal static class Program
 
     private static void PrintUsageCore()
     {
+        var exeName = GetExecutableName();
         Console.WriteLine(
             "Mounts an Xbox ISO/XISO (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file as a read-only virtual file system.");
         Console.WriteLine("");
-        Console.WriteLine("Usage: SimpleXisoDrive <image-file> [mount-path] [options]");
+        Console.WriteLine($"Usage: {exeName} <image-file> [mount-path] [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
         Console.WriteLine(

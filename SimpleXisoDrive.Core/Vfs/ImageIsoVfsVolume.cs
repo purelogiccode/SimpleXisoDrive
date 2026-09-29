@@ -21,14 +21,34 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     private readonly IVfsVolume _inner;
     private readonly IRawImageSource _source;
     private readonly ImageIsoEntry _entry;
+    private readonly bool _rawImageIsAdditionalContent;
+    private List<IVfsEntry>? _rootListing;
     private bool _disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ImageIsoVfsVolume"/> class for
+    /// mounts where the raw image is the same image the wrapped volume is mounted
+    /// from (plain ISO/XISO/CISO, CHD, embedded XISO).
+    /// </summary>
+    /// <param name="inner">The volume that serves the mounted file tree.</param>
+    /// <param name="source">The raw image backing the virtual <c>image.iso</c> file.</param>
+    public ImageIsoVfsVolume(IVfsVolume inner, IRawImageSource source)
+        : this(inner, source, rawImageIsAdditionalContent: false)
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ImageIsoVfsVolume"/> class.
     /// </summary>
     /// <param name="inner">The volume that serves the mounted file tree.</param>
     /// <param name="source">The raw image backing the virtual <c>image.iso</c> file.</param>
-    public ImageIsoVfsVolume(IVfsVolume inner, IRawImageSource source)
+    /// <param name="rawImageIsAdditionalContent">
+    /// When <see langword="true"/>, the raw image is extra content on top of the
+    /// wrapped volume (a ZArchive directory tree synthesized into an XISO) and its
+    /// length counts towards the reported volume size. When <see langword="false"/>,
+    /// the raw image is the same image the wrapped volume already accounts for.
+    /// </param>
+    public ImageIsoVfsVolume(IVfsVolume inner, IRawImageSource source, bool rawImageIsAdditionalContent)
     {
         try
         {
@@ -37,6 +57,7 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
 
             _inner = inner;
             _source = source;
+            _rawImageIsAdditionalContent = rawImageIsAdditionalContent;
             _entry = new ImageIsoEntry(source.Length);
         }
         catch (Exception ex)
@@ -47,7 +68,9 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     }
 
     /// <inheritdoc />
-    public ulong VolumeSize => _inner.VolumeSize + (ulong)_source.Length;
+    public ulong VolumeSize => _rawImageIsAdditionalContent
+        ? _inner.VolumeSize + (ulong)_source.Length
+        : _inner.VolumeSize;
 
     /// <inheritdoc />
     public DateTime VolumeCreationTime => _inner.VolumeCreationTime;
@@ -61,56 +84,43 @@ internal sealed class ImageIsoVfsVolume : IVfsVolume
     /// <inheritdoc />
     public IVfsEntry? GetEntry(string path)
     {
-        try
-        {
-            var existing = _inner.GetEntry(path);
-            return existing ?? (IsImageIsoPath(path) ? _entry : null);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ImageIsoVfsVolume.GetEntry failed for '{Path}'", path);
-            throw;
-        }
+        var existing = _inner.GetEntry(path);
+        return existing ?? (IsImageIsoPath(path) ? _entry : null);
     }
 
     /// <inheritdoc />
     public IEnumerable<IVfsEntry> GetFolderList(string path)
     {
-        try
+        if (IsRoot(path))
         {
-            var children = _inner.GetFolderList(path).ToList();
-
-            if (IsRoot(path) &&
-                !children.Exists(static child =>
-                    string.Equals(child.FileName, ImageIsoName, StringComparison.OrdinalIgnoreCase)))
-            {
-                children.Add(_entry);
-            }
-
-            return children;
+            // Directory listings are cached instances, matching the other volumes;
+            // callers must treat them as read-only.
+            _rootListing ??= BuildRootListing();
+            return _rootListing;
         }
-        catch (Exception ex)
+
+        return _inner.GetFolderList(path);
+    }
+
+    private List<IVfsEntry> BuildRootListing()
+    {
+        var children = _inner.GetFolderList("\\").ToList();
+
+        if (!children.Exists(static child =>
+                string.Equals(child.FileName, ImageIsoName, StringComparison.OrdinalIgnoreCase)))
         {
-            Log.Error(ex, "ImageIsoVfsVolume.GetFolderList failed for '{Path}'", path);
-            throw;
+            children.Add(_entry);
         }
+
+        return children;
     }
 
     /// <inheritdoc />
     public int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset)
     {
-        try
-        {
-            return ReferenceEquals(entry, _entry)
-                ? _source.Read(buffer, offset)
-                : _inner.ReadFile(entry, buffer, offset);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "ImageIsoVfsVolume.ReadFile failed for '{FileName}' at offset {Offset}",
-                entry.FileName, offset);
-            throw;
-        }
+        return ReferenceEquals(entry, _entry)
+            ? _source.Read(buffer, offset)
+            : _inner.ReadFile(entry, buffer, offset);
     }
 
     private static bool IsImageIsoPath(string path)

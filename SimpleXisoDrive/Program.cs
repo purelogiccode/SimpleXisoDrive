@@ -42,6 +42,9 @@ internal static class Program
         }
         finally
         {
+            // Give fire-and-forget bug reports a bounded grace period before the
+            // process (and its HTTP client) goes away.
+            await BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5));
             Log.CloseAndFlush();
         }
     }
@@ -53,7 +56,12 @@ internal static class Program
             // Set Green CRT theme immediately
             Console.BackgroundColor = ConsoleColor.Black;
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Clear();
+
+            // Console.Clear throws IOException when the output is redirected (no console buffer).
+            if (!Console.IsOutputRedirected)
+            {
+                Console.Clear();
+            }
 
             // Hook global exception handlers immediately to catch crashes
             SetupGlobalExceptionHandlers();
@@ -68,12 +76,9 @@ internal static class Program
             if (!IsDokanInstalled())
             {
                 Log.Error("Dokan is not installed. Exiting.");
-                Console.WriteLine("\nPress any key to exit.");
-                await ConsoleKeyPress.WaitAsync();
+                await WaitForExitKeyPressAsync();
                 return 1;
             }
-
-            await UpdateChecker.CheckForUpdateAsync();
         }
         catch (Exception ex)
         {
@@ -84,39 +89,33 @@ internal static class Program
 
         var isDragAndDrop = false;
         var debug = false;
+        var launch = false;
         var imageIso = false;
 
         try
         {
             string isoPath;
             string mountPath;
-            bool launch; // Initialize launch to false
             switch (args.Length)
             {
                 case 0:
                     PrintUsage();
                     Console.WriteLine(
                         "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
-                    Console.WriteLine("\nPress any key to exit.");
-                    await ConsoleKeyPress.WaitAsync();
+                    await WaitForExitKeyPressAsync();
                     return 1;
 
                 case 1:
                     isDragAndDrop = true;
                     isoPath = args[0];
-                    if (string.IsNullOrEmpty(isoPath))
-                        throw new ArgumentException("ISO path cannot be null or empty");
-                    if (isoPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-                        throw new ArgumentException("Invalid path characters detected");
+                    ValidateImagePath(isoPath);
 
                     var availableMountPath = FindAvailableDriveLetter();
                     if (availableMountPath is null)
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
                         await Console.Error.WriteLineAsync("Error: Could not find an available drive letter (M-R).");
-                        // For drag-and-drop, wait for a key press before exiting on error.
-                        Console.WriteLine("\nPress any key to exit.");
-                        await ConsoleKeyPress.WaitAsync();
+                        await WaitForExitKeyPressAsync();
                         return 1;
                     }
 
@@ -125,13 +124,42 @@ internal static class Program
                     break;
 
                 default:
-                    isoPath = args[0];
-                    mountPath = args[1];
-                    var options = new HashSet<string>(args.Skip(2), StringComparer.OrdinalIgnoreCase);
-                    debug = options.Contains("-d") || options.Contains("--debug");
-                    launch = options.Contains("-l") || options.Contains("--launch");
-                    imageIso = options.Contains("-i") || options.Contains("--image-iso");
-                    break;
+                    {
+                        isoPath = args[0];
+                        mountPath = args[1];
+                        ValidateImagePath(isoPath);
+
+                        foreach (var argument in args.Skip(2))
+                        {
+                            if (MatchesAny(argument, "-d", "--debug"))
+                            {
+                                debug = true;
+                            }
+                            else if (MatchesAny(argument, "-l", "--launch"))
+                            {
+                                launch = true;
+                            }
+                            else if (MatchesAny(argument, "-i", "--image-iso"))
+                            {
+                                imageIso = true;
+                            }
+                            else if (argument.StartsWith('-'))
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                await Console.Error.WriteLineAsync($"Error: unknown option '{argument}'.");
+                                PrintUsage();
+                                return 1;
+                            }
+                            else
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                await Console.Error.WriteLineAsync($"Error: unexpected argument '{argument}'.");
+                                return 1;
+                            }
+                        }
+
+                        break;
+                    }
             }
 
             if (debug)
@@ -170,15 +198,16 @@ internal static class Program
                 // Report this to the API so the developer knows the path was invalid
                 Log.Error(new FileNotFoundException(errorMsg), "Mount attempt failed: File not found.");
 
-                if (!isDragAndDrop) return 1;
-
-                Console.WriteLine("\nPress any key to exit.");
-                await ConsoleKeyPress.WaitAsync();
+                await WaitForExitKeyPressAsync();
                 return 1;
             }
 
             // Use the resolved path for mounting
             isoPath = resolvedIsoPath;
+
+            // Check for updates only after the arguments and image path have been
+            // validated, matching the Unix front end.
+            await UpdateChecker.CheckForUpdateAsync();
 
             if (isDragAndDrop)
             {
@@ -218,10 +247,7 @@ internal static class Program
             await Console.Error.WriteLineAsync($"Error: {ex.Message}");
             Log.Debug(ex, "Invalid Xbox ISO image");
 
-            if (!isDragAndDrop) return 1;
-
-            Console.WriteLine("\nPress any key to exit.");
-            await ConsoleKeyPress.WaitAsync();
+            await WaitForExitKeyPressAsync();
             return 1;
         }
         catch (DokanException ex)
@@ -229,10 +255,8 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Green;
             await Console.Error.WriteLineAsync($"Dokan Error: {ex.Message}");
             Log.Error(ex, "A Dokan-specific error occurred during mounting.");
-            if (!isDragAndDrop) return 1;
 
-            Console.WriteLine("\nPress any key to exit.");
-            await ConsoleKeyPress.WaitAsync();
+            await WaitForExitKeyPressAsync();
 
             return 1;
         }
@@ -252,10 +276,7 @@ internal static class Program
             Console.Error.WriteLine("  5. Re-run SimpleXisoDrive");
 
             Log.Error(ex, "Unable to load dokan2.dll or its dependencies.");
-            if (!isDragAndDrop) return 1;
-
-            Console.WriteLine("\nPress any key to exit.");
-            await ConsoleKeyPress.WaitAsync();
+            await WaitForExitKeyPressAsync();
             return 1;
         }
         catch (Exception ex)
@@ -265,15 +286,28 @@ internal static class Program
 
             Log.Error(ex, "Fatal error in Main");
 
-            // If we are in a context where the window might disappear (Drag & Drop or single arg)
-            if (isDragAndDrop || args.Length <= 1)
-            {
-                Console.WriteLine("\nPress any key to exit.");
-                await ConsoleKeyPress.WaitAsync();
-            }
+            // Wait when the process owns an interactive console (double-click, drag &
+            // drop or shortcut); scripted/redirected runs exit immediately.
+            await WaitForExitKeyPressAsync();
 
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Waits for a key press before exiting when the process owns an interactive
+    /// console, so the error message cannot vanish with the console window. Returns
+    /// immediately for redirected or non-interactive runs.
+    /// </summary>
+    private static async Task WaitForExitKeyPressAsync()
+    {
+        if (!Environment.UserInteractive || Console.IsInputRedirected || Console.IsOutputRedirected)
+        {
+            return;
+        }
+
+        Console.WriteLine("\nPress any key to exit.");
+        await ConsoleKeyPress.WaitAsync();
     }
 
     private static void SetupGlobalExceptionHandlers()
@@ -358,7 +392,9 @@ internal static class Program
         {
             // Get all existing drive letters
             var usedLetters = DriveInfo.GetDrives()
-                .Select(static d => d.Name[0])
+                .Select(static d => d.Name)
+                .Where(static name => name.Length > 0)
+                .Select(static name => name[0])
                 .ToHashSet();
 
             char[] preferredLetters = ['M', 'N', 'O', 'P', 'Q', 'R'];
@@ -381,6 +417,39 @@ internal static class Program
             Log.Error(ex, "Error checking drive letters");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Validates the image path supplied on the command line, matching the checks
+    /// applied by the drag-and-drop branch.
+    /// </summary>
+    /// <param name="isoPath">The image path to validate.</param>
+    /// <exception cref="ArgumentException">Thrown when the path is empty or contains invalid characters.</exception>
+    private static void ValidateImagePath(string isoPath)
+    {
+        if (string.IsNullOrEmpty(isoPath))
+        {
+            throw new ArgumentException("ISO path cannot be null or empty");
+        }
+
+        if (isoPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            throw new ArgumentException("Invalid path characters detected");
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a command-line argument matches one of two option spellings,
+    /// ignoring case.
+    /// </summary>
+    /// <param name="value">The argument to test.</param>
+    /// <param name="first">The first accepted spelling.</param>
+    /// <param name="second">The second accepted spelling.</param>
+    /// <returns><see langword="true"/> when the argument matches either spelling.</returns>
+    private static bool MatchesAny(string value, string first, string second)
+    {
+        return string.Equals(value, first, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(value, second, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void PrintUsage()

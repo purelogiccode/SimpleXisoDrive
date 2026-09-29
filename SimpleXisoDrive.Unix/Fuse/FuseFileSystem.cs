@@ -124,22 +124,30 @@ internal sealed class FuseFileSystem
 
     private string[] BuildArguments(bool debug)
     {
+        return BuildMountArguments(_isMacOs, debug, _vfs.VolumeLabel);
+    }
+
+    /// <summary>
+    /// Builds the libfuse argument vector for a mount. macOS exposes the volume label
+    /// through <c>volname</c>; Linux has no such option, so the label is exposed through
+    /// <c>fsname</c>, which <c>mount</c> and file managers display.
+    /// </summary>
+    /// <param name="isMacOs">Whether the process targets macOS.</param>
+    /// <param name="debug">When <see langword="true"/>, enables libfuse debug output.</param>
+    /// <param name="volumeLabel">The volume label reported by the VFS.</param>
+    /// <returns>The argument vector passed to <c>fuse_new</c>.</returns>
+    internal static string[] BuildMountArguments(bool isMacOs, bool debug, string volumeLabel)
+    {
         var arguments = new List<string> { "SimpleXisoDrive", "-o", "ro" };
         if (debug)
         {
             arguments.Add("-d");
         }
 
-        if (_isMacOs)
-        {
-            arguments.Add("-o");
-            arguments.Add($"volname={SanitizeVolumeLabel(_vfs.VolumeLabel)}");
-        }
-        else
-        {
-            arguments.Add("-o");
-            arguments.Add("fsname=SimpleXisoDrive");
-        }
+        arguments.Add("-o");
+        arguments.Add(isMacOs
+            ? $"volname={SanitizeVolumeLabel(volumeLabel)}"
+            : $"fsname={SanitizeVolumeLabel(volumeLabel)}");
 
         return [.. arguments];
     }

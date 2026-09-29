@@ -24,6 +24,7 @@ public class XboxIsoVfsDokanTests : IDisposable
         File.WriteAllBytes(_imagePath, TestImageFactory.CreateXdvdfsImage(
         [
             new TestImageEntry("default.xbe", "hello xbox"u8.ToArray()),
+            new TestImageEntry("default", "no extension"u8.ToArray()),
             new TestImageEntry("sub", null),
             new TestImageEntry("sub/data.bin", "nested"u8.ToArray()),
         ]));
@@ -87,7 +88,7 @@ public class XboxIsoVfsDokanTests : IDisposable
         var status = _dokan.FindFiles("\\", out var files, new MockDokanFileInfo());
 
         Assert.Equal(DokanResult.Success, status);
-        Assert.Equal(3, files.Count);
+        Assert.Equal(4, files.Count);
         Assert.Contains(files, file => HasName(file, "."));
         Assert.DoesNotContain(files, file => HasName(file, ".."));
         Assert.Contains(files, file => HasName(file, "default.xbe") && file.Length == "hello xbox"u8.Length);
@@ -177,11 +178,24 @@ public class XboxIsoVfsDokanTests : IDisposable
     [Fact]
     public void NormalizePath_ResolvesSpecialSegments()
     {
-        foreach (var path in new[] { "\\", "\\.", "\\..", @"\sub\.", @"\sub\..", "/sub" })
+        foreach (var path in new[] { "\\", "\\.", "\\..", @"\sub\.", @"\sub\..", "/sub", @"\sub\..\default.xbe" })
         {
             var status = _dokan.GetFileInformation(path, out _, new MockDokanFileInfo());
             Assert.Equal(DokanResult.Success, status);
         }
+    }
+
+    /// <summary>
+    /// Verifies the ReadFile fallback lookup normalizes the path when no context is set.
+    /// </summary>
+    [Fact]
+    public void ReadFile_WithoutContext_NormalizesPath()
+    {
+        var status = _dokan.ReadFile(@"\sub\..\default.xbe", new byte[16], out var bytesRead, 0,
+            new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal("hello xbox"u8.Length, bytesRead);
     }
 
     /// <summary>
@@ -296,7 +310,6 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.AccessDenied,
             _dokan.WriteFile("\\default.xbe", new byte[] { 1, 2 }, out var bytesWritten, 0, info));
         Assert.Equal(0, bytesWritten);
-        Assert.Equal(DokanResult.AccessDenied, _dokan.FlushFileBuffers("\\default.xbe", info));
         Assert.Equal(DokanResult.AccessDenied,
             _dokan.SetFileAttributes("\\default.xbe", FileAttributes.Hidden, info));
         Assert.Equal(DokanResult.AccessDenied, _dokan.SetFileTime("\\default.xbe", null, null, null, info));
@@ -308,7 +321,7 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies locking succeeds and alternate data streams are not implemented.
+    /// Verifies locking, flushing and alternate data streams behave as documented.
     /// </summary>
     [Fact]
     public void LockingAndStreams_BehaveAsDocumented()
@@ -317,6 +330,7 @@ public class XboxIsoVfsDokanTests : IDisposable
 
         Assert.Equal(DokanResult.Success, _dokan.LockFile("\\default.xbe", 0, 1, info));
         Assert.Equal(DokanResult.Success, _dokan.UnlockFile("\\default.xbe", 0, 1, info));
+        Assert.Equal(DokanResult.Success, _dokan.FlushFileBuffers("\\default.xbe", info));
         Assert.Equal(DokanResult.NotImplemented, _dokan.FindStreams("\\default.xbe", out var streams, info));
         Assert.Empty(streams);
     }
@@ -332,6 +346,27 @@ public class XboxIsoVfsDokanTests : IDisposable
 
         Assert.Equal(DokanResult.Success, status);
         Assert.NotNull(security);
+    }
+
+    /// <summary>
+    /// Verifies failed opens do not leave a stale entry in the handle context.
+    /// </summary>
+    [Fact]
+    public void CreateFile_FailedOpen_DoesNotSetContext()
+    {
+        IDokanFileInfo deniedInfo = new MockDokanFileInfo();
+        var denied = _dokan.CreateFile("\\default.xbe", FileAccess.WriteData, FileShare.Read, FileMode.Open,
+            FileOptions.None, FileAttributes.Normal, deniedInfo);
+
+        Assert.Equal(DokanResult.AccessDenied, denied);
+        Assert.Null(deniedInfo.Context);
+
+        IDokanFileInfo existsInfo = new MockDokanFileInfo();
+        var exists = _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.CreateNew,
+            FileOptions.None, FileAttributes.Normal, existsInfo);
+
+        Assert.Equal(DokanResult.AlreadyExists, exists);
+        Assert.Null(existsInfo.Context);
     }
 
     /// <summary>
@@ -440,10 +475,10 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies negative offsets are forwarded and end as an empty successful read.
+    /// Verifies negative offsets are rejected as invalid parameters.
     /// </summary>
     [Fact]
-    public void ReadFile_NegativeOffset_ReturnsSuccessWithZeroBytes()
+    public void ReadFile_NegativeOffset_ReturnsInvalidParameter()
     {
         IDokanFileInfo info = new MockDokanFileInfo();
         _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
@@ -451,7 +486,7 @@ public class XboxIsoVfsDokanTests : IDisposable
 
         var status = _dokan.ReadFile("\\default.xbe", new byte[8], out var bytesRead, -1, info);
 
-        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal(DokanResult.InvalidParameter, status);
         Assert.Equal(0, bytesRead);
     }
 
@@ -490,15 +525,15 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies the synthetic root name is replaced with a safe placeholder.
+    /// Verifies the synthetic root reports the volume label instead of a placeholder name.
     /// </summary>
     [Fact]
-    public void GetFileInformation_Root_ReportsUnknownName()
+    public void GetFileInformation_Root_ReportsVolumeLabel()
     {
         var status = _dokan.GetFileInformation("\\", out var fileInfo, new MockDokanFileInfo());
 
         Assert.Equal(DokanResult.Success, status);
-        Assert.Equal("Unknown", fileInfo.FileName);
+        Assert.Equal("XBOX_ISO", fileInfo.FileName);
         Assert.True(fileInfo.Attributes.HasFlag(FileAttributes.Directory));
     }
 
@@ -539,6 +574,20 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.Success, status);
         Assert.Contains(files, file => HasName(file, "default.xbe"));
         Assert.DoesNotContain(files, file => HasName(file, "sub"));
+    }
+
+    /// <summary>
+    /// Verifies "*.*" matches all files, including names without an extension.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_StarDotStar_MatchesExtensionlessFiles()
+    {
+        var status = _dokan.FindFilesWithPattern("\\", "*.*", out var files, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Contains(files, file => HasName(file, "default"));
+        Assert.Contains(files, file => HasName(file, "default.xbe"));
+        Assert.Contains(files, file => HasName(file, "sub"));
     }
 
     /// <summary>
@@ -592,16 +641,16 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies missing paths still receive a descriptor (current behavior).
+    /// Verifies missing paths report FileNotFound instead of a fabricated descriptor.
     /// </summary>
     [Fact]
-    public void GetFileSecurity_ForMissingEntry_StillReturnsDescriptor()
+    public void GetFileSecurity_ForMissingEntry_ReturnsFileNotFound()
     {
         var status = _dokan.GetFileSecurity("\\missing.xbe", out var security, AccessControlSections.Access,
             new MockDokanFileInfo());
 
-        Assert.Equal(DokanResult.Success, status);
-        Assert.IsType<FileSecurity>(security);
+        Assert.Equal(DokanResult.FileNotFound, status);
+        Assert.Null(security);
     }
 
     /// <summary>
