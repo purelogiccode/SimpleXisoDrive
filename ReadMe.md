@@ -25,7 +25,7 @@ The application is designed for extreme memory efficiency and supports **Windows
 *   **Xbox ISO CHD Support:** Mounts Xbox ISO images stored as CHD (`.chd`) — any CHD format version and codec (zlib, lzma, huffman, flac, zstd) — with on-demand hunk decompression via the CHDSharp library. CD and GD-ROM CHDs are rejected; the decompressed image must contain an XDVDFS filesystem.
 *   **ZArchive Support:** Mounts `.zar` archives directly — either the archived game tree or a single embedded XISO image — with on-demand zstd decompression (no extraction or temp files).
 *   **Virtual `image.iso`:** The `--image-iso` option also exposes the raw Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO and CHD images are decompressed on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
-*   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO, CISO or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
+*   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO/XISO/CISO, CHD or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **Flexible Mount Points:** Mount ISOs as Windows drive letters (e.g., `Z:`) or NTFS folders, and as any directory on Linux and macOS.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
 *   **Update Checker:** Automatically checks for newer versions on GitHub to ensure you have the latest compatibility fixes.
@@ -42,11 +42,19 @@ The application is designed for extreme memory efficiency and supports **Windows
 
 ## Documentation
 
-Comprehensive documentation is available in the [`docs`](docs/Home.md) folder and mirrors the
-project wiki:
+Comprehensive documentation lives in the [`docs`](docs/Home.md) folder and is published twice from
+the same Markdown sources:
+
+*   **Documentation site (GitHub Pages):** <https://purelogiccode.github.io/SimpleXisoDrive/> -
+    rendered with a side menu built from [`docs/_data/navigation.yml`](docs/_data/navigation.yml) and
+    [`docs/_layouts/default.html`](docs/_layouts/default.html).
+*   **GitHub wiki:** the same pages with a side menu driven by
+    [`docs/_Sidebar.md`](docs/_Sidebar.md).
+
+Start here:
 
 *   [Installation](docs/Installation.md) - requirements, Dokan setup, installing and upgrading.
-*   [Linux and macOS](docs/Linux-and-macOS.md) - FUSE prerequisites, usage, and platform notes.
+*   [Linux and macOS](docs/Linux-and-macOS.md) - FUSE/macFUSE prerequisites, usage, and platform notes.
 *   [Getting Started](docs/Getting-Started.md) - your first mount, drag-and-drop, unmounting.
 *   [Command-Line Reference](docs/Command-Line-Reference.md) - arguments, options, exit codes.
 *   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.

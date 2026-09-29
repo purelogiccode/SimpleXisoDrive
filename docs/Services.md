@@ -109,10 +109,9 @@ logging is off.
 | `stackTrace` | Exception `ToString()` or `No exception attached.` |
 
 The request carries an API key header and uses a 30-second timeout. Non-success responses and
-exceptions are written to `critical_error.log`. The static `HttpClient` is registered for disposal
-on process exit and can also be disposed explicitly through `DisposeHttpClient`. All API clients
-(bug report, stats, update check) are created by the shared `ApiHttpClientFactory`, which reuses one
-connection pool and TLS configuration.
+exceptions are written to `critical_error.log`. The static `HttpClient` is disposed automatically
+on process exit (`ProcessExit`). All API clients (bug report, stats, update check) are created by
+the shared `ApiHttpClientFactory`, which reuses one connection pool and TLS configuration.
 
 ### When reports are sent
 
@@ -194,7 +193,7 @@ supplies the user prompt: Windows uses a native message box, Unix uses the conso
 | Comparison | Newer than the entry assembly version wins |
 | Prompt (Windows) | Native message box (`WindowsUpdatePrompt.ConfirmOpenRelease`) showing current/latest versions and asking whether to open the release page; `Yes` opens the browser |
 | Prompt (Unix) | Console prompt: `Open the release page in your browser? [Y/n]`; pressing `n`/`N` cancels |
-| Redirected input | Unix only: the version details are printed, the prompt is skipped, and the download URL is shown instead. The Windows message box is shown regardless of redirection |
+| Non-interactive runs | The prompt is always skipped when input/output is redirected or the process has no interactive session: the version details and download URL are printed instead, so scripts and scheduled tasks can never block on a dialog (on Windows a modal message box would otherwise wait indefinitely) |
 | Browser launch | Uses the default browser via shell execute |
 | Failure handling | Logged at Information level only and never forwarded to the bug report API |
 

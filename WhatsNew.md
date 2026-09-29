@@ -1,7 +1,21 @@
 # What's New in 1.4.0 (since 1.3.0)
 
-Prepared for the `release_1.4.0` tag. Framework-dependent `win-x64` and `win-arm64` builds require
-the .NET 10.0 Runtime (the base runtime; the Desktop Runtime also works but is not required).
+Prepared for the `release_1.4.0` tag. Framework-dependent `win-x64`/`win-arm64`,
+`linux-x64`/`linux-arm64` and `osx-x64`/`osx-arm64` builds require the .NET 10.0 Runtime (the base
+runtime; the Desktop Runtime also works but is not required).
+
+## Linux and macOS support
+
+- **New FUSE 3 backend.** The project was split into a shared `SimpleXisoDrive.Core` library plus
+  two light front ends: the existing Windows/Dokan app and a new `SimpleXisoDrive.Unix` app that
+  mounts through the FUSE 3 high-level API (`libfuse3` on Linux, macFUSE on macOS). Native builds
+  are produced for `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`.
+- **Command-line mount.** `SimpleXisoDrive <image-file> [mount-path] [options]`. When the mount path
+  is omitted, a temporary directory is created and printed; `fusermount3 -u` / `umount`, `Ctrl+C`,
+  SIGTERM and SIGHUP all unmount cleanly.
+- **Platform-correct ABI.** The FUSE operation table, `struct stat` and `struct statvfs` layouts are
+  pinned for Linux x64/aarch64 and macOS, and the library is discovered in the standard locations
+  (override with `SIMPLEXISODRIVE_FUSE_LIBRARY`).
 
 ## Virtual image.iso (`--image-iso`)
 
@@ -33,17 +47,61 @@ the .NET 10.0 Runtime (the base runtime; the Desktop Runtime also works but is n
   XISO probe fails.
 - The resolver recognizes `.chd` for extensionless paths and directory lookups.
 
+## Reliability and review fixes
+
+- **`image.iso` no longer inflates the reported volume size** for plain ISO/XISO/CISO, CHD and
+  embedded-XISO mounts: the raw image is only added to the volume size for a synthesized ZArchive
+  tree, where it is genuinely additional content.
+- **Renamed files always mount.** `.iso` renamed to `.chd`/`.zar` (and the reverse) falls back to
+  content detection instead of failing on the extension mismatch.
+- **Bounded caches.** Volume entry and directory-listing caches stop growing at 4096 entries and 512
+  listings, so a long-lived mount over a huge tree cannot consume memory without limit.
+- **Clean ownership.** Identical-idempotent disposal across volumes and decorators; embedded-XISO
+  probes never leak the archive reader; failed opens leave no stale Dokan handle context.
+- **FUSE fixes.** macOS uses the exported `fuse_new_31` entry point (macFUSE's libfuse3 is built
+  without ELF symbol versioning, so plain `fuse_new` is only a header macro); the `statfs` wake-up
+  poke allocates a buffer that covers the macOS structure (2168 bytes vs 120 on Linux); temporary
+  mount directories are removed on unmount; and option validation is case-insensitive like the
+  Windows front end.
+- **Windows update notification never blocks scripts.** The update message box is skipped when input
+  or output is redirected or the process is non-interactive; the version and release URL are printed
+  instead.
+- **Truthful errors.** Locked or unreadable images surface the real I/O exception; only format
+  failures are reported as "not a valid image".
+
+## Logging, diagnostics and reporting
+
+- All logging is routed through Serilog with a console level switch (`--debug`) and a rolling file
+  sink; `Warning`-and-higher events are archived to `error.log` and forwarded to the bug report API
+  with an 8-per-minute rate limit.
+- In-flight bug reports are tracked and given a 5-second grace period at shutdown
+  (`BugReport.WaitForPendingReportsAsync`), and all API clients (bug reports, launch statistics,
+  update check) share one connection pool and TLS configuration.
+- Launch statistics and the GitHub update check skip work when the API key is unavailable and never
+  forward failures to the bug report API.
+
 ## Tests
 
-- The suite grew from 89 to **119 tests**.
-- `ImageIsoVfsVolumeTests` covers the synthetic entry (listing, lookup, reads, clamping, real-file
-  precedence, disposal), `StreamRawImageSourceTests` covers seeked and parallel reads plus disposal,
-  `VirtualXisoImageSourceTests` proves the synthesized ZAR image is byte-identical to the XISOSharp
-  whole-image writer for nested trees (sector-crossing files, empty files, empty directories) and
-  validates unaligned reads and XISOSharp readability, `ChdVfsContainerTests` encodes real CHDs with
-  the CHDSharp encoder and mounts them (rebuilt and standard layouts, trees, `--image-iso`,
-  non-Xbox rejection, renamed fallback), and `VfsContainerTests` mounts `.iso`, `.cso`,
-  embedded-XISO `.zar` and tree `.zar` inputs with the option and validates the exposed image.
+- The suite grew from 89 to **336 tests**: 286 in `SimpleXisoDrive.Tests` and 50 in
+  `SimpleXisoDrive.Unix.Tests`.
+- `ChdVfsContainerTests` encodes real CHDs with the CHDSharp encoder and mounts them (rebuilt and
+  standard layouts, trees, `--image-iso`, non-Xbox rejection, CD rejection, renamed fallbacks).
+- `VirtualXisoImageSourceTests` proves the synthesized ZAR image is byte-identical to the XISOSharp
+  whole-image writer for nested trees (sector-crossing files, empty files/directories) and validates
+  unaligned reads; `ImageIsoVfsVolumeTests` and `StreamRawImageSourceTests` cover the decorator,
+  size policy and stream reads.
+- `VfsContainerTests` mounts `.iso`, `.cso`, embedded-XISO `.zar`, tree `.zar` and `.chd` inputs,
+  including renamed files and the `--image-iso` option.
+- The FUSE suite pins the Linux/macFUSE `fuse_operations` layouts and delegate conventions, covers
+  resolver/library probing, mount arguments, path/time/directory helpers, POSIX errno values and
+  case-insensitive option validation.
+
+## Documentation
+
+- Every page was refreshed for the cross-platform, CHD and `--image-iso` releases.
+- Both renderings now have a side menu: `docs/_Sidebar.md` for the GitHub wiki, and
+  `docs/_data/navigation.yml` + `docs/_layouts/default.html` for the published GitHub Pages site.
+  The same Markdown serves both, with wiki-style links rewritten for the site at runtime.
 
 # What's New in 1.3.0 (since 1.2.0)
 

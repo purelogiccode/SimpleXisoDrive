@@ -106,9 +106,7 @@ internal static class Program
             }
         }
 
-        var unknownOptions = options
-            .Where(static option => option is not ("-d" or "--debug" or "-l" or "--launch" or "-i" or "--image-iso"))
-            .ToArray();
+        var unknownOptions = options.Where(static option => !IsKnownOption(option)).ToArray();
         if (unknownOptions.Length > 0)
         {
             Console.Error.WriteLine($"Error: unknown option(s): {string.Join(", ", unknownOptions)}");
@@ -275,6 +273,23 @@ internal static class Program
         {
             Log.Warning(ex, "Could not remove temporary mount directory '{MountPath}'", mountPath);
         }
+    }
+
+    /// <summary>
+    /// The option flags accepted by the Unix front end. Matching is case-insensitive,
+    /// matching the Windows front end and the documented command-line behavior.
+    /// </summary>
+    private static readonly HashSet<string> KnownOptions =
+        new(["-d", "--debug", "-l", "--launch", "-i", "--image-iso"], StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Checks whether an option flag is accepted by the Unix front end.
+    /// </summary>
+    /// <param name="option">The option flag to test.</param>
+    /// <returns><see langword="true"/> when the option is known; otherwise <see langword="false"/>.</returns>
+    internal static bool IsKnownOption(string option)
+    {
+        return KnownOptions.Contains(option);
     }
 
     /// <summary>

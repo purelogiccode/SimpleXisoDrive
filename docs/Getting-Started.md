@@ -1,10 +1,12 @@
 # Getting Started
 
-This page walks through the two supported ways to mount an Xbox image: drag-and-drop and the
-command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO CHD
-images (`.chd`) and ZArchive (`.zar`) files are supported.
+This page walks through the two supported ways to mount an Xbox image on Windows: drag-and-drop and
+the command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO
+CHD images (`.chd`) and ZArchive (`.zar`) files are supported.
 
-Before you begin, make sure [Dokan and the .NET runtime are installed](Installation).
+Before you begin, make sure [Dokan and the .NET runtime are installed](Installation). On Linux and
+macOS the workflow is command-line only with a directory mount point; see
+[Linux and macOS](Linux-and-macOS) for the platform-specific steps.
 
 ---
 
@@ -12,10 +14,11 @@ Before you begin, make sure [Dokan and the .NET runtime are installed](Installat
 
 Every run follows the same sequence:
 
-1. The console is switched to the green-on-black theme and cleared.
+1. The console is switched to the green-on-black theme and cleared (Windows).
 2. Global exception handlers are installed so that crashes are logged and reported.
-3. The application verifies that `dokan2.dll` exists. If it does not, actionable instructions are
-   printed and the process exits with code `1`.
+3. The application verifies its mount backend: `dokan2.dll` on Windows, or the FUSE 3 library and
+   `/dev/fuse` on Linux. If it is missing, actionable instructions are printed and the process
+   exits with code `1`.
 4. The application checks GitHub for a newer release and may prompt you to open the release page.
 5. Arguments are parsed:
    - **no arguments** - usage is printed and the process waits for a key;

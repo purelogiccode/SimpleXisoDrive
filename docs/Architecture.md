@@ -3,6 +3,13 @@
 This page describes how SimpleXisoDrive is structured, how a mount is created, and how file
 operations flow through the system.
 
+The application is split into a shared core (`SimpleXisoDrive.Core`) and two front ends: the Windows
+Dokan app (`SimpleXisoDrive`) and the Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns
+image parsing, the virtual file system and the services; the front ends only implement the mount
+backend, the command line and the platform UX. The diagram below shows the Windows front end; the
+Unix front end replaces `XboxIsoVfsDokan`/`Dokan` with `FuseFileSystem`/`FuseInterop` over
+`libfuse3`/macFUSE, and `DriveLetterSelector` with temporary mount directories.
+
 ---
 
 ## Component overview
@@ -57,14 +64,17 @@ flowchart TD
 | `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume`, `ZarVfsVolume` and `ImageIsoVfsVolume`. |
 | `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS), the ZArchive entry type, and the synthetic entry in `ImageIsoVfsVolume`. |
 | `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, `.chd` opens through CHDSharp, everything else as an Xbox ISO (with a CHD/ZArchive magic fallback for renamed files). Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. With `--image-iso` it wraps the volume in `ImageIsoVfsVolume`, synthesizing a virtual XISO for a ZArchive tree when needed. |
-| `XisoVfsVolume` | `public sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images use a keep-open `XisoExplorer`; embedded images and decompressed CHD images use `XisoReader` stream APIs. |
+| `XisoVfsVolume` | `internal sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images use a keep-open `XisoExplorer`; embedded images and decompressed CHD images use `XisoReader` stream APIs. |
 | `ChdImageSource` | `internal static class` | Opens an Xbox ISO CHD with CHDSharp (`ChdFile.Open` + `ChdFile.OpenAsStream`), rejects CD/GD-ROM CHDs up front, and returns a `ChdImageStream` over the decompressed image. The decompressed image must then parse as XDVDFS before the mount succeeds. |
-| `ZarVfsVolume` | `public sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
+| `ZarVfsVolume` | `internal sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
 | `ReaderOwningVfsVolume` | `internal sealed class` | Decorates an embedded-XISO volume so the ZArchive reader that backs `ZArchiveReader.OpenRead` is disposed with the volume. |
 | `ImageIsoVfsVolume` | `internal sealed class` | Decorator enabled by `--image-iso`: adds a virtual read-only `image.iso` file at the volume root, backed by `IRawImageSource`, while the normal tree stays browsable. |
 | `IRawImageSource` / `StreamRawImageSource` | `internal` | Reads raw image bytes at an offset from a seekable stream (plain ISO, CISO block device, decompressed CHD, or embedded XISO) or from the in-memory virtual XISO layout. Reads are serialized for Dokan's concurrent callbacks. |
 | `VirtualXisoImageSource` | `internal sealed class` | Synthesizes an XISO for a ZArchive directory tree entirely in memory: builds the directory tables with `DirectoryEntryTableWriter`, allocates sectors with `SectorAllocator`, emits the volume descriptor/ECMA-119 header/optimized tag, and serves file data from the archive on demand. No extraction, no temporary files. |
-| `XboxIsoVfsDokan` | `public class` | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
+| `XboxIsoVfsDokan` | `internal sealed class` (Windows) | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
+| `FuseFileSystem` | `internal sealed class` (Unix) | Mounts the `VfsContainer` through the FUSE 3 high-level API: `getattr`/`open`/`read`/`statfs`/`readdir`/`init` callbacks for Linux and macOS, read-only enforcement, and signal-driven unmounting through `fuse_exit`. |
+| `FuseInterop` | `internal static class` (Unix) | Platform-aware P/Invoke layer: resolves and loads `libfuse3`/macFUSE, declares the Linux and macOS `fuse_operations` layouts, picks the exported `fuse_new` entry point per platform, and pokes the mount with `statfs` to wake the loop. |
+| `FuseAvailability` | `internal static class` (Unix) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
 | `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
 | `SerilogDokanLogger` | `public sealed class` | Routes DokanNet's internal log messages into Serilog. |
@@ -94,14 +104,16 @@ flowchart TD
 
    Both route exceptions to `BugReport.LogFatalException`.
 3. The application reports launch statistics (`StatsService.ReportLaunch`, fire-and-forget) and
-   verifies the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`).
+   verifies its mount backend: the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`) on Windows,
+   or the FUSE library plus `/dev/fuse` on Linux (`FuseAvailability.Check`).
 4. Arguments are parsed and the image path is resolved (see
    [Command-Line Reference](Command-Line-Reference)).
 5. `UpdateChecker.CheckForUpdateAsync` runs; on Windows an available update is offered through a
-   message box, on Unix through the console prompt.
-6. `RunMount` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`) and
-   mounts the Dokan file system.
-7. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), or a failure.
+   message box (skipped when the console is redirected), on Unix through the console prompt.
+6. `RunMountAsync` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`)
+   and mounts the Dokan file system (Windows) or the FUSE file system (Unix).
+7. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), `fusermount3 -u`/`umount`
+   (Unix), or a failure.
 8. On shutdown the `VfsContainer` is disposed, the file stream is closed, pending bug reports get a
    bounded grace period (`BugReport.WaitForPendingReportsAsync`), and `Log.CloseAndFlush()` is called.
 
@@ -258,46 +270,37 @@ CSharp_SimpleXisoDrive/
 |-- CSharp_SimpleXisoDrive.sln
 |-- global.json                        # .NET SDK 10.0.0, rollForward latestMajor
 |-- ReadMe.md
+|-- WhatsNew.md                        # release highlights
 |-- .editorconfig                      # analyzer rule suppressions
-|-- docs/                              # this documentation
-|-- SimpleXisoDrive/                   # application project
+|-- docs/                              # this documentation (wiki + Pages side menu)
+|-- SimpleXisoDrive.Core/              # shared class library (net10.0)
+|   |-- ImagePathResolver.cs            # extension/directory/current-dir resolution
+|   |-- ConsoleKeyPress.cs              # shared interactive key wait
+|   |-- InvalidImageException.cs
+|   |-- VfsContainer.cs                 # facade over the selected volume
+|   |-- Interfaces/                     # IVfsVolume, IVfsEntry, IRawImageSource
+|   |-- Models/                         # stats and bug report request bodies
+|   |-- Services/                       # logging, bug reports, stats, updates, API key
+|   `-- Vfs/                            # XisoVfsVolume, ZarVfsVolume, CHD, image.iso,
+|                                       # VfsVolumeFactory and ownership decorators
+|-- SimpleXisoDrive/                    # Windows application (net10.0-windows, Dokan)
 |   |-- Program.cs
 |   |-- CommandLineParser.cs            # argument parsing/validation
-|   |-- CommandLineArguments.cs
-|   |-- CommandLineException.cs
 |   |-- DriveLetterSelector.cs          # free M-R drive letter for drag-and-drop
 |   |-- DokanInstallation.cs            # dokan2.dll/dokan2.sys detection
-|   |-- UsageText.cs
 |   |-- WindowsUpdatePrompt.cs          # native message box for update notifications
-|   |-- VfsContainer.cs                # facade over the selected volume
 |   |-- XboxIsoVfsDokan.cs
 |   |-- SerilogDokanLogger.cs
-|   |-- InvalidImageException.cs
-|   |-- AssemblyInfo.cs                # InternalsVisibleTo for the test project
-|   |-- Services/
-|   |   |-- LoggingSetup.cs
-|   |   |-- BugReport.cs
-|   |   |-- BugReportSink.cs
-|   |   |-- CheckAccess.cs
-|   |   |-- StatsService.cs
-|   |   `-- UpdateChecker.cs
-|   |-- Vfs/
-|   |   |-- IVfsEntry.cs               # entry contract
-|   |   |-- IVfsVolume.cs              # volume contract
-|   |   |-- VfsVolumeFactory.cs        # format detection (.iso/.xiso/.cso/.chd/.zar)
-|   |   |-- XisoVfsVolume.cs           # XDVDFS image volume
-|   |   |-- ChdImageSource.cs          # CHDSharp open + decompressed stream
-|   |   |-- ZarVfsVolume.cs            # ZArchive tree volume
-|   |   `-- ReaderOwningVfsVolume.cs   # closes the reader with an embedded-ISO mount
+|   |-- UsageText.cs
 |   `-- icon/xiso.ico, icon/xiso.png
-`-- SimpleXisoDrive.Tests/            # xUnit test project
-    |-- InvalidImageExceptionTests.cs
-    |-- ResolveImagePathTests.cs
-    |-- TestImageFactory.cs
-    |-- VfsContainerTests.cs
-    |-- ChdVfsContainerTests.cs
-    |-- XisoVfsVolumeTests.cs
-    `-- ZarVfsVolumeTests.cs
+|-- SimpleXisoDrive.Unix/               # Linux/macOS application (net10.0, FUSE 3)
+|   |-- Program.cs
+|   `-- Fuse/
+|       |-- FuseFileSystem.cs           # high-level API mount + callbacks
+|       |-- FuseInterop.cs              # library loading, layouts, P/Invoke
+|       `-- FuseAvailability.cs         # libfuse3 / /dev/fuse / fusermount3 checks
+|-- SimpleXisoDrive.Tests/              # xUnit test project (net10.0-windows)
+`-- SimpleXisoDrive.Unix.Tests/         # xUnit test project (net10.0)
 ```
 
 ---
@@ -316,8 +319,8 @@ CSharp_SimpleXisoDrive/
 | `Meziantou.Analyzer` | 3.0.290 | Build-time code analyzers. |
 | `Roslynator.Analyzers` | 5.0.0 | Build-time code analyzers. |
 
-Test project: `Microsoft.NET.Test.Sdk` 18.10.0, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.0,
-`coverlet.collector` 10.0.1.
+Test projects: `Microsoft.NET.Test.Sdk` 18.10.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.0,
+`coverlet.collector` 10.1.0.
 
 ---
 

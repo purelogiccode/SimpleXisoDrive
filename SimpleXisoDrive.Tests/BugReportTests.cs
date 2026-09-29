@@ -62,7 +62,7 @@ public class BugReportTests
 
         var expectedPrefix = OperatingSystem.IsWindows() ? "Windows Version: "
             : OperatingSystem.IsLinux() ? "Linux Version: "
-            : "MacOsX Version: ";
+            : "macOS Version: ";
 
         Assert.Contains(expectedPrefix, report);
     }

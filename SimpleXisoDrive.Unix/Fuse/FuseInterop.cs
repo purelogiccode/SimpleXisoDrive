@@ -145,12 +145,94 @@ internal static class FuseInterop
     ];
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_new")]
-    internal static extern IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsLinux operations,
+    private static extern IntPtr FuseNewLinux(ref FuseArgs args, ref FuseOperationsLinux operations,
+        nuint operationSize, IntPtr userData);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_new_31")]
+    private static extern IntPtr FuseNew31Linux(ref FuseArgs args, ref FuseOperationsLinux operations,
         nuint operationSize, IntPtr userData);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_new")]
-    internal static extern IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsMac operations,
+    private static extern IntPtr FuseNewMac(ref FuseArgs args, ref FuseOperationsMac operations,
         nuint operationSize, IntPtr userData);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_new_31")]
+    private static extern IntPtr FuseNew31Mac(ref FuseArgs args, ref FuseOperationsMac operations,
+        nuint operationSize, IntPtr userData);
+
+    /// <summary>
+    /// Creates the FUSE session through the 4-argument ABI-compat entry point.
+    /// </summary>
+    /// <remarks>
+    /// Linux's libfuse exports that entry point as <c>fuse_new</c> on every 3.x release and as
+    /// <c>fuse_new_31</c> since 3.13. macFUSE's libfuse3 is built without ELF symbol versioning, so
+    /// only <c>fuse_new_31</c> is exported there (plain <c>fuse_new</c> is a header macro). The
+    /// platform-preferred symbol is tried first and the other one is the fallback, so every
+    /// supported libfuse 3 build is covered.
+    /// </remarks>
+    /// <param name="args">The mount arguments.</param>
+    /// <param name="operations">The operation table.</param>
+    /// <param name="operationSize">The managed size of the operation table.</param>
+    /// <param name="userData">The private data passed to the FUSE callbacks.</param>
+    /// <returns>The FUSE session handle, or zero on failure.</returns>
+    internal static IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsLinux operations, nuint operationSize,
+        IntPtr userData)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                return FuseNew31Linux(ref args, ref operations, operationSize, userData);
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return FuseNewLinux(ref args, ref operations, operationSize, userData);
+            }
+        }
+
+        try
+        {
+            return FuseNewLinux(ref args, ref operations, operationSize, userData);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return FuseNew31Linux(ref args, ref operations, operationSize, userData);
+        }
+    }
+
+    /// <summary>
+    /// Creates the FUSE session through the 4-argument ABI-compat entry point.
+    /// See the Linux overload for the platform-specific symbol selection.
+    /// </summary>
+    /// <param name="args">The mount arguments.</param>
+    /// <param name="operations">The operation table.</param>
+    /// <param name="operationSize">The managed size of the operation table.</param>
+    /// <param name="userData">The private data passed to the FUSE callbacks.</param>
+    /// <returns>The FUSE session handle, or zero on failure.</returns>
+    internal static IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsMac operations, nuint operationSize,
+        IntPtr userData)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                return FuseNew31Mac(ref args, ref operations, operationSize, userData);
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return FuseNewMac(ref args, ref operations, operationSize, userData);
+            }
+        }
+
+        try
+        {
+            return FuseNewMac(ref args, ref operations, operationSize, userData);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return FuseNew31Mac(ref args, ref operations, operationSize, userData);
+        }
+    }
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_mount")]
     internal static extern int FuseMount(IntPtr fuse, [MarshalAs(UnmanagedType.LPUTF8Str)] string mountPoint);
@@ -177,13 +259,20 @@ internal static class FuseInterop
     private static extern int NativeStatFs([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr buffer);
 
     /// <summary>
+    /// Buffer size for the native <c>statfs</c> result. The structure is 120 bytes on
+    /// Linux but 2168 bytes on macOS, where it embeds two 1024-byte mount-path buffers,
+    /// so the allocation must cover the larger layout (the API has no size parameter).
+    /// </summary>
+    private const int StatFsBufferSize = 4096;
+
+    /// <summary>
     /// Issues a <c>statfs</c> syscall for the mount point. Unlike <c>stat</c>, the
     /// kernel never serves this from cache, so it reliably wakes a blocked FUSE loop.
     /// </summary>
     /// <param name="path">The mounted path to poke.</param>
     internal static void PokeMountPoint(string path)
     {
-        var buffer = Marshal.AllocHGlobal(512);
+        var buffer = Marshal.AllocHGlobal(StatFsBufferSize);
         try
         {
             var result = NativeStatFs(path, buffer);

@@ -40,8 +40,9 @@ receives the request from your IP address and the `User-Agent` string, as with a
 The response is parsed locally to compare versions. Failures are logged locally at Information level
 and are deliberately excluded from bug reports.
 
-If no newer version exists, nothing is displayed. If stdin is redirected (for example, when the
-application is started by a script), the interactive prompt is skipped.
+If no newer version exists, nothing is displayed. If stdin/stdout is redirected (for example, when
+the application is started by a script), the interactive prompt is skipped on every platform: the
+version details and release URL are printed instead and the Windows message box is not shown.
 
 ---
 

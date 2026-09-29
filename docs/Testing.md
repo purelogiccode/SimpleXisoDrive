@@ -15,7 +15,7 @@ any real image file.
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 317 (version 1.4.0): 282 core + 35 FUSE |
+| Test count | 336 (version 1.4.0): 286 core + 50 FUSE |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -44,8 +44,8 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 282, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
-`Passed: 35, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
+A healthy run reports `Passed: 286, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+`Passed: 50, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 
@@ -75,9 +75,9 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `BugReportHttpTests` | Bug report API | Stubbed request shaping (endpoint, method, `X-API-KEY` header, JSON body) and the idle pending-reports wait |
 | `StatsServiceHttpTests` | Stats API | Stubbed request shaping (endpoint, bearer token, `applicationId`/`version` body) and rejection handling |
 | `UpdateCheckerHttpTests` | Update check API | Stubbed endpoint/user-agent, malformed response swallowing, error-status handling and the update-available prompt callback (no live traffic, no prompts) |
-| `WindowsUpdatePromptTests` | Update message box | Message text includes both versions, the release URL and the download question |
+| `WindowsUpdatePromptTests` | Update message box | Message text includes both versions, the release URL and the download question; the interactive/redirected decision helper only allows a message box for interactive runs |
 | `CheckAccessTests` | Privilege probe | Administrator probe returns without throwing on any privilege level |
-| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, version-ordered library candidates, missing-library probing, availability guidance and loader failures; `FuseMountArgumentsTests` covers `fsname`/`volname` label exposure, debug flags and label sanitization; `FuseHelperTests` covers native path conversion, Unix time conversion and directory fill offsets; `PosixErrorTests` pins the errno values; `ProgramNameTests` covers the usage-text executable name |
+| `SimpleXisoDrive.Unix.Tests` | FUSE 3 interop | `FuseStructLayoutTests` pins `fuse_args` and the Linux/macFUSE `fuse_operations` field order and size, and the Cdecl callback convention; `FuseInteropTests` covers resolver idempotence, version-ordered library candidates, missing-library probing, availability guidance and loader failures; `FuseMountArgumentsTests` covers `fsname`/`volname` label exposure, debug flags and label sanitization; `FuseHelperTests` covers native path conversion, Unix time conversion and directory fill offsets; `PosixErrorTests` pins the errno values; `ProgramNameTests` covers the usage-text executable name; `CommandLineOptionTests` covers case-insensitive option validation |
 | `TestImageFactory` / `TestImageEntry` | Shared test fixtures | Builders for minimal rebuilt (sector 0) and standard (sector 32) images with arbitrary nested file/directory trees, raw attribute bytes, and descriptor FILETIME values |
 | `FakeVfsVolume` / `FakeVfsEntry` / `TrackingRawImageSource` / `RecordingDisposable` | Shared test doubles | Configurable failure injection and disposal counting for decorator tests |
 | `StubHttpMessageHandler` | Shared HTTP double | Records outbound method/URI/headers/body and returns a canned response, so API services are tested without live traffic |

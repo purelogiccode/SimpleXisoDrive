@@ -1,15 +1,24 @@
 # Command-Line Reference
 
-This page documents every command-line argument, option, and behavior of `SimpleXisoDrive.exe`.
+This page documents every command-line argument, option, and behavior of the `SimpleXisoDrive`
+executables. `SimpleXisoDrive.exe` is the Windows (Dokan) front end; `SimpleXisoDrive` is the
+Linux/macOS (FUSE 3) front end. The arguments and options are the same on every platform; the
+differences are noted inline.
 
 ---
 
 ## Synopsis
 
 ```text
+# Windows
 SimpleXisoDrive.exe
 SimpleXisoDrive.exe <image-file>
 SimpleXisoDrive.exe <image-file> <mount-path> [options...]
+
+# Linux / macOS
+SimpleXisoDrive
+SimpleXisoDrive <image-file>
+SimpleXisoDrive <image-file> [mount-path] [options...]
 ```
 
 ## Arguments
@@ -17,7 +26,7 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 | Argument | Required | Description |
 | --- | --- | --- |
 | `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`, `.chd`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
-| `<mount-path>` | No | Drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`. Required when options are supplied. |
+| `<mount-path>` | No | Windows: drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`; required when options are supplied. Linux/macOS: an existing directory; when omitted, a temporary directory is created, printed after mounting, and removed on unmount. |
 | `[options...]` | No | Zero or more option flags. All arguments after the mount path must be recognized options; extra positional arguments are rejected. |
 
 ## Options
@@ -62,6 +71,9 @@ volume is already mounted from, so its length is not added twice.
 | `0` | Prints usage and a drag-and-drop hint, waits for a key press, exits with code `1`. |
 | `1` | Drag-and-drop mode: validates the path, automatically selects the first free drive letter from `M:` through `R:`, mounts, opens Explorer, and waits for a key press or a mount failure. |
 | `2+` | Standard mode: `<image-file>` and `<mount-path>` are used as-is, options are parsed from the remaining arguments. The process stays in the foreground until `Ctrl+C` or process termination. |
+
+On Linux and macOS there is no drag-and-drop mode or drive-letter selection: a missing mount path
+creates a temporary directory instead, and `--launch` opens the file manager (`xdg-open`/`open`).
 
 ### Single-argument (drag-and-drop) details
 
@@ -143,12 +155,14 @@ Errors are written to `stderr`. Diagnostics are additionally written to the log 
 
 ## Console behavior
 
-- The console is set to a black background with green text and cleared at startup.
+- The Windows console is set to a black background with green text and cleared at startup; the Unix
+  console uses the terminal's own colors.
 - Serilog's console sink uses no color theme (plain text) with the template
   `[HH:mm:ss LEV] message`.
 - Error messages use `Console.Error`, so they can be redirected independently.
-- When standard input is redirected (for example, when run from a script), the update prompt is
-  skipped automatically.
+- When standard input/output is redirected (for example, when run from a script), the update prompt
+  is skipped automatically on every platform: the version details and download URL are printed
+  instead, and the Windows message box is not shown (so scripted runs can never block on a dialog).
 
 ---
 

@@ -1,9 +1,15 @@
 # Virtual File System
 
-This page explains how SimpleXisoDrive turns an Xbox image into a Windows-visible, read-only volume.
-It covers format selection, path resolution, caching, every Dokan operation, and the read-only
-guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchive (`.zar`) trees are
+This page explains how SimpleXisoDrive turns an Xbox image into a file-manager-visible, read-only
+volume. It covers format selection, path resolution, caching, the Dokan operation layer, and the
+read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchive (`.zar`) trees are
 supported.
+
+The same virtual file system feeds both mount backends: on Windows `XboxIsoVfsDokan` maps Dokan
+callbacks to it, and on Linux/macOS `FuseFileSystem` maps the FUSE 3 callbacks (`getattr`, `open`,
+`read`, `statfs`, `readdir`, `init`) to the same volume contract. The operation matrices below
+describe the Windows/Dokan mapping in detail; the FUSE callbacks apply the equivalent read-only
+semantics (for example, `open` rejects non-read-only flags and macOS `setattr` returns `EROFS`).
 
 ---
 

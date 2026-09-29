@@ -5,7 +5,8 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
-| Unreleased | `master` | 2026-09-13 |
+| Unreleased | `master` | 2026-09-29 |
+| 1.3.0 | `release_1.3.0` | 2026-09-13 |
 | 1.2.0 | `release_1.2.0` | 2026-06-21 |
 | 1.1.0 | `release_1.1.0` | 2026-04-12 |
 | 1.0.3 | `release_1.0.3` | 2026-02-13 |
@@ -15,7 +16,43 @@ history.
 
 ---
 
-## Unreleased (after 1.2.0)
+## Unreleased (1.4.0)
+
+- **Cross-platform.** The application was split into a shared `SimpleXisoDrive.Core` library and two
+  front ends: `SimpleXisoDrive` (Windows, Dokan) and `SimpleXisoDrive.Unix` (Linux/macOS, FUSE 3 via
+  `libfuse3`/macFUSE). Native builds are produced for `win-x64`, `win-arm64`, `linux-x64`,
+  `linux-arm64`, `osx-x64` and `osx-arm64`.
+- **Xbox ISO CHD support.** `.chd` images mount directly through CHDSharp with on-demand hunk
+  decompression (CHD V1–V5, all codecs). CD/GD-ROM CHDs are rejected up front and the decompressed
+  image must parse as XDVDFS. A renamed CHD still mounts by content detection.
+- **Virtual `image.iso`.** The `-i`/`--image-iso` option exposes the raw Xbox image as a virtual
+  read-only `image.iso` at the mount root. Plain ISO/XISO and CISO inputs are served on demand; a
+  ZArchive directory tree is synthesized into an XISO entirely in memory with XISOSharp's layout
+  primitives (byte-identical to `XisoWriter.PackFromDirectory` output for the same tree), and a
+  single-embedded-XISO archive serves the embedded image. Nothing is extracted to disk.
+- **Review fixes and hardening.** The volume size no longer double-counts `image.iso` for images
+  that are not additional content; extension-specific openers fall back to content detection so
+  renamed `.iso`/`.chd`/`.zar` files always mount; entry and listing caches are bounded (4096
+  entries / 512 listings) so a long-lived mount cannot grow without limit; disposal is idempotent
+  across volumes and decorators; and stream/reader ownership is closed on every error path.
+- **FUSE-specific fixes.** macOS uses the exported `fuse_new_31` entry point (macFUSE's libfuse3
+  disables ELF symbol versioning), the `statfs` wake-up poke allocates a buffer large enough for the
+  macOS structure, temporary mount directories are cleaned up, and option matching is
+  case-insensitive like the Windows front end.
+- **Services.** Logging is routed through Serilog with a console level switch (`--debug`) and a
+  rolling file sink; Warning-and-higher events are archived to `error.log` and forwarded to the bug
+  report API with an 8-per-minute rate limit. In-flight reports are tracked and given a 5-second
+  grace period at shutdown, all API clients share one connection pool, and the update prompt never
+  blocks scripted runs (the Windows message box is skipped when the console is redirected).
+- **Tests.** The suite grew from 89 to **336 tests**: 286 in `SimpleXisoDrive.Tests` and 50 in
+  `SimpleXisoDrive.Unix.Tests` (FUSE struct layouts, resolver, mount arguments, path/time/directory
+  helpers, option validation).
+- **Documentation.** Added a side menu for both renderings of this documentation: `docs/_Sidebar.md`
+  for the GitHub wiki and `docs/_data/navigation.yml` + `docs/_layouts/default.html` for the published
+  site (GitHub Pages). All pages were refreshed for the cross-platform, CHD and `--image-iso`
+  releases.
+
+## 1.3.0 - 2026-09-13
 
 - Added the `-i`/`--image-iso` option: the mount also exposes a virtual read-only `image.iso` file
   at the volume root for emulators that only accept a disc image (such as xemu). Plain ISO/XISO and
@@ -111,7 +148,7 @@ Initial public release lineage:
 ## Version scheme
 
 Versions follow `major.minor.patch`. Release tags use the `release_<version>` prefix (for example
-`release_1.2.0`), and the update checker extracts the numeric portion from GitHub tag names when
+`release_1.4.0`), and the update checker extracts the numeric portion from GitHub tag names when
 comparing against the installed version.
 
 See [Building](Building#versioning) for where to bump the version.

@@ -46,8 +46,8 @@ Creating global drive letters through Dokan is more reliable when the process is
 
 ### Which drive letters does drag-and-drop use?
 
-The first free letter among `M:`, `N:`, `O:`, `P:`, `Q:`, and `R:`. If all are in use, use the
-command line with a specific letter.
+On Windows, the first free letter among `M:`, `N:`, `O:`, `P:`, `Q:`, and `R:`. If all are in use,
+use the command line with a specific letter. Drag-and-drop does not exist on Linux and macOS.
 
 ### Can I mount multiple images at once?
 
@@ -114,8 +114,9 @@ Self-contained builds remove the runtime prerequisite entirely.
 
 ### Does it run on Linux or macOS?
 
-No. The application depends on Windows-specific APIs and the Dokan driver. A port would require a
-different file system driver (for example FUSE) and substantial changes.
+Yes. Linux and macOS use a FUSE 3 backend (`libfuse3` on Linux, macFUSE on macOS) instead of Dokan,
+with native builds for x64 and ARM64. See [Linux and macOS](Linux-and-macOS) for prerequisites and
+usage; drag-and-drop and drive letters are Windows-only.
 
 ### Why does an ISO that works elsewhere fail here?
 
@@ -127,8 +128,8 @@ must be merged with their parent first.
 
 ### Can I use a folder on a network share as the mount point?
 
-Use a local NTFS folder. Drive letters and NTFS folder mount points are supported; UNC mount points
-are not.
+On Windows, use a local NTFS folder: drive letters and NTFS folder mount points are supported; UNC
+mount points are not. On Linux and macOS any existing local directory can be used.
 
 ### Is the source code available?
 

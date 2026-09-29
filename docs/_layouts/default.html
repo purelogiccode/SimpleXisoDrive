@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page.title | default: site.title }}</title>
+    <meta name="description" content="{{ site.description | escape }}">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!--
+      The Markdown pages use wiki-style links (for example [Installation](Installation)),
+      which resolve on the GitHub wiki but not on the generated site. Rewrite those
+      relative links to the generated .html pages, preserving any #fragment.
+    -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('a[href]').forEach(function (anchor) {
+          var href = anchor.getAttribute('href');
+          if (!href || href.charAt(0) === '#' || href.indexOf(':') >= 0 || href.charAt(0) === '/') return;
+          var hashIndex = href.indexOf('#');
+          var path = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+          var hash = hashIndex >= 0 ? href.slice(hashIndex) : '';
+          if (!path || path.endsWith('.html') || path.indexOf('.') >= 0) return;
+          anchor.setAttribute('href', path + '.html' + hash);
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="sidebar-title" href="./">{{ site.title }}</a>
+      {% for group in site.data.navigation %}
+      <section class="sidebar-group">
+        <h2>{{ group.title }}</h2>
+        <ul>
+          {% for item in group.items %}
+          <li><a href="{{ item.url }}">{{ item.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endfor %}
+    </aside>
+    <main class="content">
+      {{ content }}
+    </main>
+  </body>
+</html>

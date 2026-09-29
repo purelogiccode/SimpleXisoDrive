@@ -25,3 +25,11 @@
 - [Testing](Testing)
 - [Contributing](Contributing)
 - [Release History](Release-History)
+
+**Project**
+
+- [Repository](https://github.com/purelogiccode/SimpleXisoDrive)
+- [ReadMe](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/ReadMe.md)
+- [What's New](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/WhatsNew.md)
+- [Releases](https://github.com/purelogiccode/SimpleXisoDrive/releases)
+- [Issues](https://github.com/purelogiccode/SimpleXisoDrive/issues)

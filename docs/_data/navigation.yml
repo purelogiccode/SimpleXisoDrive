@@ -1,0 +1,58 @@
+# Side menu shared by the documentation site (rendered by docs/_layouts/default.html).
+# The GitHub wiki uses docs/_Sidebar.md with the same structure.
+
+- title: User guide
+  items:
+    - title: Home
+      url: "./"
+    - title: Installation
+      url: Installation.html
+    - title: Linux and macOS
+      url: Linux-and-macOS.html
+    - title: Getting Started
+      url: Getting-Started.html
+    - title: Command-Line Reference
+      url: Command-Line-Reference.html
+    - title: Troubleshooting
+      url: Troubleshooting.html
+    - title: FAQ
+      url: FAQ.html
+
+- title: Technical reference
+  items:
+    - title: Architecture
+      url: Architecture.html
+    - title: XDVDFS Format
+      url: XDVDFS-Format.html
+    - title: Virtual File System
+      url: Virtual-File-System.html
+    - title: Services
+      url: Services.html
+    - title: Privacy and Networking
+      url: Privacy-and-Networking.html
+    - title: Glossary
+      url: Glossary.html
+
+- title: Development
+  items:
+    - title: Building
+      url: Building.html
+    - title: Testing
+      url: Testing.html
+    - title: Contributing
+      url: Contributing.html
+    - title: Release History
+      url: Release-History.html
+
+- title: Project
+  items:
+    - title: Repository
+      url: https://github.com/purelogiccode/SimpleXisoDrive
+    - title: ReadMe
+      url: https://github.com/purelogiccode/SimpleXisoDrive/blob/master/ReadMe.md
+    - title: What's New
+      url: https://github.com/purelogiccode/SimpleXisoDrive/blob/master/WhatsNew.md
+    - title: Releases
+      url: https://github.com/purelogiccode/SimpleXisoDrive/releases
+    - title: Issues
+      url: https://github.com/purelogiccode/SimpleXisoDrive/issues

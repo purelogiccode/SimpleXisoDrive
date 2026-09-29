@@ -22,11 +22,11 @@ Repository: <https://github.com/purelogiccode/SimpleXisoDrive>
 Include as much of the following as possible:
 
 1. Application version (shown in logs; currently 1.4.0).
-2. Windows version and architecture (x64/ARM64).
-3. Dokan version installed.
+2. Operating system and architecture (Windows x64/ARM64, Linux or macOS).
+3. Mount backend version: Dokan on Windows, FUSE 3 / macFUSE on Linux and macOS.
 4. The exact command line used.
 5. The complete console output.
-6. The newest `logs\simplexisodrive-*.log` file.
+6. The newest `logs/simplexisodrive-*.log` file.
 7. `error.log` and, if present, `critical_error.log`.
 8. The image's size and origin (dump tool, format, and layout/packer, if known).
 
@@ -110,7 +110,7 @@ The same commands run in GitHub Actions on every push and pull request
 - [ ] Public API changes have XML documentation.
 - [ ] New behavior is covered by tests.
 - [ ] Documentation in `docs/` is updated when user-visible behavior changes.
-- [ ] The version is bumped in both `.csproj` files only when preparing a release.
+- [ ] The version is bumped in every `.csproj` file only when preparing a release.
 - [ ] No secrets, personal paths, or unrelated formatting changes are included.
 
 Use clear commit messages that describe the change, for example:
@@ -124,10 +124,13 @@ Fix directory traversal aborting on empty names
 
 ## Documentation contributions
 
-The pages in `docs/` are written in Markdown and mirror the GitHub wiki. When editing:
+The pages in `docs/` are written in Markdown and drive both the GitHub wiki and the published
+documentation site. When editing:
 
-- keep links relative (`[Installation](Installation)`);
-- update `_Sidebar.md` when adding a page;
+- keep links wiki-style (`[Installation](Installation)`); the site layout rewrites them to the
+  generated pages at runtime;
+- update the side menus when adding or renaming a page: `docs/_Sidebar.md` (wiki) and
+  `docs/_data/navigation.yml` (site);
 - prefer precise, verifiable statements over marketing language;
 - include exact error messages and file paths where relevant.
 
