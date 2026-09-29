@@ -49,15 +49,20 @@ public class SerilogDokanLoggerTests
             logger.Fatal("fatal {Value}", 5);
 
             Assert.Contains(sink.Events,
-                e => e.Level == LogEventLevel.Debug && string.Equals(e.RenderMessage(), "debug 1", StringComparison.Ordinal));
+                e => e.Level == LogEventLevel.Debug &&
+                     string.Equals(e.RenderMessage(), "debug 1", StringComparison.Ordinal));
             Assert.Contains(sink.Events,
-                e => e.Level == LogEventLevel.Information && string.Equals(e.RenderMessage(), "info 2", StringComparison.Ordinal));
+                e => e.Level == LogEventLevel.Information &&
+                     string.Equals(e.RenderMessage(), "info 2", StringComparison.Ordinal));
             Assert.Contains(sink.Events,
-                e => e.Level == LogEventLevel.Warning && string.Equals(e.RenderMessage(), "warn 3", StringComparison.Ordinal));
+                e => e.Level == LogEventLevel.Warning &&
+                     string.Equals(e.RenderMessage(), "warn 3", StringComparison.Ordinal));
             Assert.Contains(sink.Events,
-                e => e.Level == LogEventLevel.Error && string.Equals(e.RenderMessage(), "error 4", StringComparison.Ordinal));
+                e => e.Level == LogEventLevel.Error &&
+                     string.Equals(e.RenderMessage(), "error 4", StringComparison.Ordinal));
             Assert.Contains(sink.Events,
-                e => e.Level == LogEventLevel.Fatal && string.Equals(e.RenderMessage(), "fatal 5", StringComparison.Ordinal));
+                e => e.Level == LogEventLevel.Fatal &&
+                     string.Equals(e.RenderMessage(), "fatal 5", StringComparison.Ordinal));
         }
         finally
         {

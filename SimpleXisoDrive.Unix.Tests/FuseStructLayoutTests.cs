@@ -85,7 +85,8 @@ public class FuseStructLayoutTests
     [InlineData(typeof(InitDelegate))]
     public void CallbackDelegates_UseCdeclConvention(Type delegateType)
     {
-        var attribute = Assert.Single(delegateType.GetCustomAttributes(typeof(UnmanagedFunctionPointerAttribute), false),
+        var attribute = Assert.Single(
+            delegateType.GetCustomAttributes(typeof(UnmanagedFunctionPointerAttribute), false),
             item => item is UnmanagedFunctionPointerAttribute);
 
         Assert.Equal(CallingConvention.Cdecl, ((UnmanagedFunctionPointerAttribute)attribute).CallingConvention);

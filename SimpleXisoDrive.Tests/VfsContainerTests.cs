@@ -757,7 +757,7 @@ public class VfsContainerTests
         {
             using var vfs = new VfsContainer(path);
 
-            Assert.IsAssignableFrom<IVfsVolume>(vfs);
+            Assert.IsType<IVfsVolume>(vfs, exactMatch: false);
         }
         finally
         {

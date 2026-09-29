@@ -234,6 +234,8 @@ internal static class FuseInterop
         }
     }
 
+    // libfuse and libc take NUL-terminated UTF-8 paths, never UTF-16: keep LPUTF8Str
+    // (a CA2101 "use LPWStr" suggestion would corrupt the path on Linux/macOS).
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "fuse_mount")]
     internal static extern int FuseMount(IntPtr fuse, [MarshalAs(UnmanagedType.LPUTF8Str)] string mountPoint);
 

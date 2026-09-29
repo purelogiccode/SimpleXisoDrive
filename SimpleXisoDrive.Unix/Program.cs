@@ -159,7 +159,8 @@ internal static class Program
                 }
                 else if (!Directory.Exists(mountPath))
                 {
-                    await Console.Error.WriteLineAsync($"Error: Mount path '{mountPath}' is not an existing directory.");
+                    await Console.Error.WriteLineAsync(
+                        $"Error: Mount path '{mountPath}' is not an existing directory.");
                     await Console.Error.WriteLineAsync("Create the directory first (for example: mkdir -p /mnt/xiso).");
                     return 1;
                 }

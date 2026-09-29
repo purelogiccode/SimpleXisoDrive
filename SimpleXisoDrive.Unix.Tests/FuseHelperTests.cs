@@ -48,7 +48,8 @@ public class FuseHelperTests
     {
         Assert.Equal(0, FuseFileSystem.ToUnixTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
         Assert.Equal(1577934245, FuseFileSystem.ToUnixTime(new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc)));
-        Assert.Equal(1577934245, FuseFileSystem.ToUnixTime(new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Unspecified)));
+        Assert.Equal(1577934245,
+            FuseFileSystem.ToUnixTime(new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Unspecified)));
     }
 
     /// <summary>

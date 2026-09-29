@@ -277,7 +277,7 @@ public class VirtualXisoImageSourceTests
             using var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             var buffer = new byte[256];
-            var offset = (long)Constants.HeaderOffset + Constants.SectorSize + 128;
+            const long offset = (long)Constants.HeaderOffset + Constants.SectorSize + 128;
             Assert.Equal(buffer.Length, source.Read(buffer, offset));
             Assert.All(buffer, static value => Assert.Equal(0, value));
         }
@@ -359,7 +359,7 @@ public class VirtualXisoImageSourceTests
             using var source = VirtualXisoImageSource.Create(reader, zarPath);
 
             var fileTimeBytes = new byte[8];
-            var descriptorFileTimeOffset = (long)Constants.HeaderOffset + 0x1C;
+            const long descriptorFileTimeOffset = (long)Constants.HeaderOffset + 0x1C;
             Assert.Equal(8, source.Read(fileTimeBytes, descriptorFileTimeOffset));
 
             var fileTime = BinaryPrimitives.ReadInt64LittleEndian(fileTimeBytes);

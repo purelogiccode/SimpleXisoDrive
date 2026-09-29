@@ -81,7 +81,8 @@ internal static class VfsVolumeFactory
     /// failure of the extension-specific opener, if any; when no content is recognized it
     /// is surfaced in preference to the generic "not an Xbox ISO" error.
     /// </summary>
-    private static IVfsVolume OpenDetected(string imagePath, bool exposeImageIso, InvalidImageException? extensionFailure)
+    private static IVfsVolume OpenDetected(string imagePath, bool exposeImageIso,
+        InvalidImageException? extensionFailure)
     {
         XisoVfsVolume xisoVolume;
         try

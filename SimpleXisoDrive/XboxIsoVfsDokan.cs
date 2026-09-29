@@ -140,7 +140,8 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
 
             if (info.Context is not IVfsEntry entry)
             {
-                entry = _vfs.GetEntry(NormalizePath(fileName)) ?? throw new InvalidOperationException("File entry missing");
+                entry = _vfs.GetEntry(NormalizePath(fileName)) ??
+                        throw new InvalidOperationException("File entry missing");
                 info.Context = entry;
             }
 
@@ -234,11 +235,11 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
             };
 
             internalFiles.Add(new FileInformation
-            { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
+                { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
             if (!string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
             {
                 internalFiles.Add(new FileInformation
-                { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
+                    { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
             }
 
             foreach (var entry in _vfs.GetFolderList(path))

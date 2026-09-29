@@ -18,7 +18,9 @@ internal sealed class ZarVfsVolume : IVfsVolume
     private const int ChildrenCacheLimit = 512;
 
     private readonly ZArchiveReader _reader;
-    private readonly BoundedCache<string, ZarEntry> _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
+
+    private readonly BoundedCache<string, ZarEntry>
+        _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
 
     private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
         new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);

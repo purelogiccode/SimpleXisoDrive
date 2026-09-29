@@ -73,10 +73,8 @@ public class FuseInteropTests
 
         FuseInterop.RegisterResolver();
 
-        WithLibraryOverride(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll"), () =>
-        {
-            Assert.Throws<DllNotFoundException>(() => _ = FuseInterop.FuseVersion());
-        });
+        WithLibraryOverride(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll"),
+            () => Assert.Throws<DllNotFoundException>(() => _ = FuseInterop.FuseVersion()));
     }
 
     /// <summary>

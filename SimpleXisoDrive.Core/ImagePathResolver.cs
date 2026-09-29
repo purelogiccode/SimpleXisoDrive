@@ -183,7 +183,8 @@ public static class ImagePathResolver
             var matches = new List<string>();
             foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
             {
-                if (!string.Equals(Path.GetFileNameWithoutExtension(file), fileName, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(Path.GetFileNameWithoutExtension(file), fileName,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

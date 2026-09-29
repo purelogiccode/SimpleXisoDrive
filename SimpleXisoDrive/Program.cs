@@ -160,7 +160,8 @@ internal static class Program
                     return 1;
                 }
 
-                var mountTask = RunMountAsync(isoPath, mountPath, arguments.Debug, arguments.Launch, arguments.ImageIso);
+                var mountTask = RunMountAsync(isoPath, mountPath, arguments.Debug, arguments.Launch,
+                    arguments.ImageIso);
 
                 // Wait for either the mount to fail OR the user to press a key
                 var keyPressTask = ConsoleKeyPress.WaitAsync();
@@ -185,7 +186,8 @@ internal static class Program
             {
                 // For standard command-line use, await the task directly.
                 // The user will stop it with Ctrl+C.
-                await RunMountAsync(isoPath, arguments.MountPath!, arguments.Debug, arguments.Launch, arguments.ImageIso);
+                await RunMountAsync(isoPath, arguments.MountPath!, arguments.Debug, arguments.Launch,
+                    arguments.ImageIso);
             }
 
             return 0;

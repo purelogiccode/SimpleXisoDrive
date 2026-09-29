@@ -34,7 +34,9 @@ internal sealed class XisoVfsVolume : IVfsVolume
     private readonly string _displayName;
     private readonly VolumeInfo _volume;
     private readonly Lock _streamLock = new();
-    private readonly BoundedCache<string, XisoEntry> _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
+
+    private readonly BoundedCache<string, XisoEntry> _entryCache = new(EntryCacheLimit,
+        StringComparer.OrdinalIgnoreCase);
 
     private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
         new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);
