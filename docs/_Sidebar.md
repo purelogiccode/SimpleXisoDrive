@@ -4,6 +4,7 @@
 
 - [Home](Home)
 - [Installation](Installation)
+- [Linux and macOS](Linux-and-macOS)
 - [Getting Started](Getting-Started)
 - [Command-Line Reference](Command-Line-Reference)
 - [Troubleshooting](Troubleshooting)

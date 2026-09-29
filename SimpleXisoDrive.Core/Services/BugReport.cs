@@ -70,7 +70,7 @@ public static class BugReport
             $"Architecture: OS: {RuntimeInformation.OSArchitecture}, Process: {RuntimeInformation.ProcessArchitecture}");
         sb.AppendLine(CultureInfo.InvariantCulture,
             $"Bitness: {(Environment.Is64BitProcess ? "64-bit" : "32-bit")} process on {(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")} OS");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"Windows Version: {Environment.OSVersion.VersionString}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Platform Version: {Environment.OSVersion.VersionString}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Processor Count: {Environment.ProcessorCount}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Base Directory: {BaseDirectory}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Temp Path: {Path.GetTempPath()}");

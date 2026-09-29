@@ -8,7 +8,7 @@ public class ResolveImagePathTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var result = Program.ResolveImagePath(tempFile);
+            var result = ImagePathResolver.Resolve(tempFile);
             Assert.Equal(tempFile, result);
         }
         finally
@@ -21,7 +21,7 @@ public class ResolveImagePathTests
     public void ReturnsNullWhenPathDoesNotExistAndNoExtension()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var result = Program.ResolveImagePath(nonExistentPath);
+        var result = ImagePathResolver.Resolve(nonExistentPath);
         Assert.Null(result);
     }
 
@@ -33,7 +33,7 @@ public class ResolveImagePathTests
         try
         {
             var pathWithoutExtension = tempFile[..^4]; // Remove ".iso"
-            var result = Program.ResolveImagePath(pathWithoutExtension);
+            var result = ImagePathResolver.Resolve(pathWithoutExtension);
             Assert.Equal(tempFile, result);
         }
         finally
@@ -50,7 +50,7 @@ public class ResolveImagePathTests
         try
         {
             var pathWithoutExtension = tempFile[..^4]; // Remove ".zar"
-            var result = Program.ResolveImagePath(pathWithoutExtension);
+            var result = ImagePathResolver.Resolve(pathWithoutExtension);
             Assert.Equal(tempFile, result);
         }
         finally
@@ -67,7 +67,7 @@ public class ResolveImagePathTests
         try
         {
             var pathWithoutExtension = tempFile[..^5]; // Remove ".xiso"
-            var result = Program.ResolveImagePath(pathWithoutExtension);
+            var result = ImagePathResolver.Resolve(pathWithoutExtension);
             Assert.Equal(tempFile, result);
         }
         finally
@@ -86,7 +86,7 @@ public class ResolveImagePathTests
         File.WriteAllText(zarFile, string.Empty);
         try
         {
-            var result = Program.ResolveImagePath(baseName);
+            var result = ImagePathResolver.Resolve(baseName);
             Assert.Equal(isoFile, result);
         }
         finally
@@ -104,7 +104,7 @@ public class ResolveImagePathTests
         try
         {
             var pathWithoutExtension = tempFile[..^4]; // Remove ".cso"
-            var result = Program.ResolveImagePath(pathWithoutExtension);
+            var result = ImagePathResolver.Resolve(pathWithoutExtension);
             Assert.Equal(tempFile, result);
         }
         finally
@@ -125,7 +125,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Equal(firstPart, result);
         }
         finally
@@ -144,7 +144,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }
         finally
@@ -165,7 +165,7 @@ public class ResolveImagePathTests
         try
         {
             Environment.CurrentDirectory = tempDir;
-            var result = Program.ResolveImagePath("testfile.iso");
+            var result = ImagePathResolver.Resolve("testfile.iso");
             Assert.Equal("testfile.iso", result);
         }
         finally
@@ -187,7 +187,7 @@ public class ResolveImagePathTests
         try
         {
             Environment.CurrentDirectory = tempDir;
-            var result = Program.ResolveImagePath("testfile");
+            var result = ImagePathResolver.Resolve("testfile");
             Assert.Equal("testfile.iso", result);
         }
         finally
@@ -209,7 +209,7 @@ public class ResolveImagePathTests
         try
         {
             Environment.CurrentDirectory = tempDir;
-            var result = Program.ResolveImagePath("testfile");
+            var result = ImagePathResolver.Resolve("testfile");
             Assert.Equal("testfile.zar", result);
         }
         finally
@@ -229,7 +229,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Equal(tempIso, result);
         }
         finally
@@ -248,7 +248,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Equal(tempZar, result);
         }
         finally
@@ -267,7 +267,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Equal(tempXiso, result);
         }
         finally
@@ -286,7 +286,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }
         finally
@@ -305,7 +305,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }
         finally
@@ -323,7 +323,7 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }
         finally
@@ -348,7 +348,7 @@ public class ResolveImagePathTests
         {
             // In normal conditions GetFiles won't throw here, so this test mainly verifies
             // that the method does not crash when Directory.Exists is true.
-            var result = Program.ResolveImagePath(tempDir);
+            var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }
         finally

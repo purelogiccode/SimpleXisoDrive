@@ -78,14 +78,40 @@ jobs:
 
   package:
     name: package ${{ matrix.rid }}
-    runs-on: windows-latest
+    # Each runtime is packaged on its own operating system so the native apphost
+    # matches the target (Dokan on Windows, FUSE 3 on Linux and macOS).
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     needs: verify
     strategy:
       # Package every runtime even when one fails; the release job waits for all.
       fail-fast: false
       matrix:
-        rid: [win-x64, win-arm64]
+        include:
+          - rid: win-x64
+            os: windows-latest
+            project: SimpleXisoDrive/SimpleXisoDrive.csproj
+            binary: SimpleXisoDrive.exe
+          - rid: win-arm64
+            os: windows-latest
+            project: SimpleXisoDrive/SimpleXisoDrive.csproj
+            binary: SimpleXisoDrive.exe
+          - rid: linux-x64
+            os: ubuntu-latest
+            project: SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj
+            binary: SimpleXisoDrive
+          - rid: linux-arm64
+            os: ubuntu-latest
+            project: SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj
+            binary: SimpleXisoDrive
+          - rid: osx-x64
+            os: macos-latest
+            project: SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj
+            binary: SimpleXisoDrive
+          - rid: osx-arm64
+            os: macos-latest
+            project: SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj
+            binary: SimpleXisoDrive
     steps:
       - uses: actions/checkout@v4
 
@@ -100,9 +126,9 @@ jobs:
 
       - name: Publish
         # Framework-dependent single-file executable, matching the local release
-        # bundles: one SimpleXisoDrive.exe per zip, no runtime included.
+        # bundles: one executable per zip, no runtime included.
         run: >-
-          dotnet publish SimpleXisoDrive/SimpleXisoDrive.csproj
+          dotnet publish ${{ matrix.project }}
           --configuration Release
           --runtime ${{ matrix.rid }}
           --self-contained false
@@ -113,7 +139,7 @@ jobs:
         shell: pwsh
         run: |
           $zip = "release_${{ needs.verify.outputs.version }}_${{ matrix.rid }}.zip"
-          Compress-Archive -Path "publish/${{ matrix.rid }}/SimpleXisoDrive.exe" -DestinationPath $zip -Force
+          Compress-Archive -Path "publish/${{ matrix.rid }}/${{ matrix.binary }}" -DestinationPath $zip -Force
           Get-Item -LiteralPath $zip | Select-Object Name, Length
 
       - name: Upload package
