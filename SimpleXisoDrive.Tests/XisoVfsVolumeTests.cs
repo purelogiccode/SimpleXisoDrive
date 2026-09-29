@@ -203,4 +203,175 @@ public class XisoVfsVolumeTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// Verifies empty and separator-only paths resolve to the root entry.
+    /// </summary>
+    [Fact]
+    public void GetEntry_PathVariants_ReturnRoot()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var volume = new XisoVfsVolume(path);
+
+            foreach (var candidate in new[] { string.Empty, "/", "\\", "///" })
+            {
+                var root = volume.GetEntry(candidate);
+                Assert.NotNull(root);
+                Assert.True(root.IsDirectory);
+                Assert.Equal(string.Empty, root.FileName);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies reading a directory entry returns zero bytes.
+    /// </summary>
+    [Fact]
+    public void ReadFile_DirectoryEntry_ReturnsZero()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var volume = new XisoVfsVolume(path);
+            var root = volume.GetEntry("\\");
+            Assert.NotNull(root);
+
+            Assert.Equal(0, volume.ReadFile(root, new byte[16], 0));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies negative offsets and empty buffers read nothing.
+    /// </summary>
+    [Fact]
+    public void ReadFile_NegativeOffsetAndEmptyBuffer_ReturnZero()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var volume = new XisoVfsVolume(path);
+            var file = volume.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+
+            Assert.Equal(0, volume.ReadFile(file, new byte[16], -1));
+            Assert.Equal(0, volume.ReadFile(file, [], 0));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies entries created by other implementations are ignored.
+    /// </summary>
+    [Fact]
+    public void ReadFile_ForeignEntry_ReturnsZero()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var volume = new XisoVfsVolume(path);
+
+            Assert.Equal(0, volume.ReadFile(new FakeVfsEntry("foreign.bin", false, 4), new byte[4], 0));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies lookups after disposal degrade to null and empty results.
+    /// </summary>
+    [Fact]
+    public void Lookups_AfterDispose_ReturnNullAndEmpty()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+        var volume = new XisoVfsVolume(path);
+        volume.Dispose();
+
+        try
+        {
+            Assert.Null(volume.GetEntry("\\default.xbe"));
+            Assert.Empty(volume.GetFolderList("\\"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies directory listings are cached and returned as the same instance.
+    /// </summary>
+    [Fact]
+    public void GetFolderList_IsCached()
+    {
+        var path = WriteTempImage(TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var volume = new XisoVfsVolume(path);
+
+            var first = volume.GetFolderList("\\");
+            var second = volume.GetFolderList("\\");
+
+            Assert.Same(first, second);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a null stream is rejected by the embedded-image constructor.
+    /// </summary>
+    [Fact]
+    public void StreamVolume_WithNullStream_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new XisoVfsVolume(null!, "embedded.iso"));
+    }
+
+    /// <summary>
+    /// Verifies a missing image file surfaces a <c>FileNotFoundException</c>.
+    /// </summary>
+    [Fact]
+    public void PathVolume_WithMissingFile_ThrowsFileNotFoundException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+
+        Assert.Throws<FileNotFoundException>(() => new XisoVfsVolume(path));
+    }
+
+    /// <summary>
+    /// Verifies stream-backed volumes report the same metadata as path-based ones.
+    /// </summary>
+    [Fact]
+    public void StreamVolume_ReportsStandardMetadata()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage();
+        using var stream = new MemoryStream(image);
+        using var volume = new XisoVfsVolume(stream, "embedded.iso");
+
+        Assert.Equal((ulong)image.Length, volume.VolumeSize);
+        Assert.Equal("XBOX_ISO", volume.VolumeLabel);
+        Assert.Equal("XDVDFS", volume.FileSystemName);
+        Assert.True((DateTime.Now - volume.VolumeCreationTime).Duration() < TimeSpan.FromMinutes(5));
+    }
 }

@@ -460,4 +460,146 @@ public class ResolveImagePathTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies an empty path resolves to null.
+    /// </summary>
+    [Fact]
+    public void ReturnsNullForEmptyPath()
+    {
+        Assert.Null(ImagePathResolver.Resolve(string.Empty));
+    }
+
+    /// <summary>
+    /// Verifies an existing file with an unsupported extension is returned unchanged.
+    /// </summary>
+    [Fact]
+    public void ReturnsExistingFileWithUnsupportedExtension()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.txt");
+        File.WriteAllText(tempFile, string.Empty);
+        try
+        {
+            Assert.Equal(tempFile, ImagePathResolver.Resolve(tempFile));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a missing bare file name resolves to null.
+    /// </summary>
+    [Fact]
+    public void ReturnsNullForMissingBareFileName()
+    {
+        Assert.Null(ImagePathResolver.Resolve(Guid.NewGuid().ToString()));
+    }
+
+    /// <summary>
+    /// Verifies a directory containing only a CISO continuation part resolves to null.
+    /// </summary>
+    [Fact]
+    public void ReturnsNullWhenDirectoryContainsOnlyCsoContinuationPart()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, "game.2.cso"), string.Empty);
+
+        try
+        {
+            Assert.Null(ImagePathResolver.Resolve(tempDir));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a .cso file with a non-numeric suffix is treated as a normal image.
+    /// </summary>
+    [Fact]
+    public void ResolvesCsoWithoutNumericContinuationSuffix()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var cso = Path.Combine(tempDir, "game.x.cso");
+        File.WriteAllText(cso, string.Empty);
+
+        try
+        {
+            Assert.Equal(cso, ImagePathResolver.Resolve(tempDir));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a directory path with a trailing separator still resolves its single image.
+    /// </summary>
+    [Fact]
+    public void ResolvesDirectoryWithTrailingSeparator()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var iso = Path.Combine(tempDir, "game.iso");
+        File.WriteAllText(iso, string.Empty);
+
+        try
+        {
+            Assert.Equal(iso, ImagePathResolver.Resolve(tempDir + Path.DirectorySeparatorChar));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the .chd extension wins over .zar when both exist and no extension is given.
+    /// </summary>
+    [Fact]
+    public void PrefersChdOverZarWhenBothExtensionsExist()
+    {
+        var baseName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var chdFile = baseName + ".chd";
+        var zarFile = baseName + ".zar";
+        File.WriteAllText(chdFile, string.Empty);
+        File.WriteAllText(zarFile, string.Empty);
+
+        try
+        {
+            Assert.Equal(chdFile, ImagePathResolver.Resolve(baseName));
+        }
+        finally
+        {
+            File.Delete(chdFile);
+            File.Delete(zarFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a directory containing an ISO and a CHD resolves to null.
+    /// </summary>
+    [Fact]
+    public void ReturnsNullWhenDirectoryContainsIsoAndChd()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        File.WriteAllText(Path.Combine(tempDir, "game.iso"), string.Empty);
+        File.WriteAllText(Path.Combine(tempDir, "game.chd"), string.Empty);
+
+        try
+        {
+            Assert.Null(ImagePathResolver.Resolve(tempDir));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

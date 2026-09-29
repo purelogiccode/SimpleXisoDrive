@@ -450,4 +450,286 @@ public class VfsContainerTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// Verifies a CISO file mounts its decompressed image.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCsoFile_MountsDecompressedImage()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("cso data"u8.ToArray());
+        var isoPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        var csoPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.cso");
+        File.WriteAllBytes(isoPath, image);
+
+        try
+        {
+            Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath));
+            using var vfs = new VfsContainer(csoPath);
+
+            Assert.Equal("XBOX_ISO", vfs.VolumeLabel);
+            Assert.Equal((ulong)image.Length, vfs.VolumeSize);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+
+            var buffer = new byte[8];
+            Assert.Equal(8, vfs.ReadFile(file, buffer, 0));
+            Assert.Equal("cso data"u8.ToArray(), buffer);
+        }
+        finally
+        {
+            File.Delete(isoPath);
+            File.Delete(csoPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies uppercase image extensions are accepted.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithUppercaseExtensions_Mounts()
+    {
+        var isoPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.ISO");
+        var zarPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.ZAR");
+        File.WriteAllBytes(isoPath, TestImageFactory.CreateMinimalXdvdfsImage("upper"u8.ToArray()));
+
+        using (var stream = File.Create(zarPath))
+        using (var writer = new ZArchiveWriter(stream))
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("upper zar"u8);
+            writer.Finalize();
+        }
+
+        try
+        {
+            using var isoVfs = new VfsContainer(isoPath);
+            Assert.Equal("upper"u8.Length, isoVfs.GetEntry("\\default.xbe")!.Size);
+
+            using var zarVfs = new VfsContainer(zarPath);
+            Assert.Equal("upper zar"u8.Length, zarVfs.GetEntry("\\default.xbe")!.Size);
+        }
+        finally
+        {
+            File.Delete(isoPath);
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a missing ISO surfaces <c>FileNotFoundException</c>.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithMissingIso_ThrowsFileNotFoundException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+
+        Assert.Throws<FileNotFoundException>(() => new VfsContainer(path));
+    }
+
+    /// <summary>
+    /// Verifies an empty ISO file is rejected as an invalid image.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithEmptyIso_ThrowsInvalidImageException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, []);
+
+        try
+        {
+            Assert.Throws<InvalidImageException>(() => new VfsContainer(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the facade exposes the underlying volume metadata.
+    /// </summary>
+    [Fact]
+    public void Properties_ExposeImageMetadata()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage();
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, image);
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            Assert.Equal((ulong)image.Length, vfs.VolumeSize);
+            Assert.Equal("XBOX_ISO", vfs.VolumeLabel);
+            Assert.Equal("XDVDFS", vfs.FileSystemName);
+            Assert.True((DateTime.Now - vfs.VolumeCreationTime).Duration() < TimeSpan.FromMinutes(5));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies entry lookup is case-insensitive.
+    /// </summary>
+    [Fact]
+    public void GetEntry_IsCaseInsensitive()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            var entry = vfs.GetEntry("\\DEFAULT.XBE");
+            Assert.NotNull(entry);
+            Assert.Equal("default.xbe", entry.FileName);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the root listing is exposed through the facade.
+    /// </summary>
+    [Fact]
+    public void GetFolderList_Root_ListsChildren()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            var child = Assert.Single(vfs.GetFolderList("\\"));
+            Assert.Equal("default.xbe", child.FileName);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies directory reads and negative offsets return zero through the facade.
+    /// </summary>
+    [Fact]
+    public void ReadFile_DirectoryAndNegativeOffset_ReturnZero()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            var root = vfs.GetEntry("\\");
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(root);
+            Assert.NotNull(file);
+
+            Assert.Equal(0, vfs.ReadFile(root, new byte[8], 0));
+            Assert.Equal(0, vfs.ReadFile(file, new byte[8], -1));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies disposing the facade twice is safe.
+    /// </summary>
+    [Fact]
+    public void Dispose_IsIdempotent()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.iso");
+        File.WriteAllBytes(path, TestImageFactory.CreateMinimalXdvdfsImage());
+
+        try
+        {
+            var vfs = new VfsContainer(path);
+
+            vfs.Dispose();
+            vfs.Dispose();
+
+            using var exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.True(exclusive.CanRead);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a ZArchive with a single non-XISO file mounts its tree view.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithSingleNonIsoZarFile_MountsTreeView()
+    {
+        var path = CreateZar(".zar", writer =>
+        {
+            Assert.True(writer.StartNewFile("readme.txt"));
+            writer.AppendData("just text"u8);
+        });
+
+        try
+        {
+            using var vfs = new VfsContainer(path);
+
+            var file = vfs.GetEntry("\\readme.txt");
+            Assert.NotNull(file);
+            Assert.Equal("just text"u8.Length, file.Size);
+            Assert.Equal("XBOX_ZAR", vfs.VolumeLabel);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the single-file tree is synthesized into image.iso when requested.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithSingleNonIsoZarFile_AndImageIso_SynthesizesImage()
+    {
+        var path = CreateZar(".zar", writer =>
+        {
+            Assert.True(writer.StartNewFile("readme.txt"));
+            writer.AppendData("just text"u8);
+        });
+
+        try
+        {
+            using var vfs = new VfsContainer(path, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.True(entry.Size > 0);
+
+            var buffer = new byte[(int)entry.Size];
+            Assert.Equal(buffer.Length, vfs.ReadFile(entry, buffer, 0));
+
+            using var imageStream = new MemoryStream(buffer);
+            Assert.True(XisoReader.GetVolumeInfo(imageStream, "image.iso").IsValid);
+
+            imageStream.Position = 0;
+            var readme = XisoReader.GetEntryInfo(imageStream, "image.iso", "readme.txt");
+            Assert.NotNull(readme);
+            Assert.Equal((ulong)"just text"u8.Length, readme.FileSize);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

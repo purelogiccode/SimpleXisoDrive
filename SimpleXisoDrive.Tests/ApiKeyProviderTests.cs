@@ -46,4 +46,26 @@ public class ApiKeyProviderTests
 
         Assert.NotEmpty(ApiKeyProvider.ApiKey);
     }
+
+    /// <summary>
+    /// Verifies the decrypted key contains no whitespace or line breaks.
+    /// </summary>
+    [Fact]
+    public void ApiKey_ContainsNoWhitespace()
+    {
+        Assert.DoesNotContain(ApiKeyProvider.ApiKey, char.IsWhiteSpace);
+    }
+
+    /// <summary>
+    /// Verifies repeated preloads keep returning the same cached key.
+    /// </summary>
+    [Fact]
+    public void Preload_IsIdempotent()
+    {
+        ApiKeyProvider.Preload();
+        var first = ApiKeyProvider.ApiKey;
+        ApiKeyProvider.Preload();
+
+        Assert.Equal(first, ApiKeyProvider.ApiKey);
+    }
 }

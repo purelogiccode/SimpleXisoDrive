@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Core.Vfs;
 using XISOSharp;
@@ -209,6 +210,156 @@ public class VirtualXisoImageSourceTests
             source.Dispose();
 
             Assert.Equal(0, source.Read(new byte[16], 0));
+        }
+        finally
+        {
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a null reader is rejected.
+    /// </summary>
+    [Fact]
+    public void Create_WithNullReader_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => VirtualXisoImageSource.Create(null!, "archive.zar"));
+    }
+
+    /// <summary>
+    /// Verifies the image length is sector aligned.
+    /// </summary>
+    [Fact]
+    public void Length_IsSectorAligned()
+    {
+        var zarPath = CreateZar(writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("boot"u8);
+        });
+
+        try
+        {
+            using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
+            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+
+            Assert.Equal(0, source.Length % Constants.SectorSize);
+            Assert.True(source.Length > 0);
+        }
+        finally
+        {
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies unwritten regions between the descriptor and the root table read as zeros.
+    /// </summary>
+    [Fact]
+    public void Read_UnwrittenRegion_ReturnsZeros()
+    {
+        var zarPath = CreateZar(writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("boot"u8);
+        });
+
+        try
+        {
+            using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
+            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+
+            var buffer = new byte[256];
+            var offset = (long)Constants.HeaderOffset + Constants.SectorSize + 128;
+            Assert.Equal(buffer.Length, source.Read(buffer, offset));
+            Assert.All(buffer, static value => Assert.Equal(0, value));
+        }
+        finally
+        {
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies out-of-range reads return zero.
+    /// </summary>
+    [Fact]
+    public void Read_OutOfRange_ReturnsZero()
+    {
+        var zarPath = CreateZar(writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("boot"u8);
+        });
+
+        try
+        {
+            using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
+            using var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+
+            Assert.Equal(0, source.Read(new byte[8], -1));
+            Assert.Equal(0, source.Read(new byte[8], source.Length));
+            Assert.Equal(0, source.Read([], 0));
+        }
+        finally
+        {
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies disposing the source does not dispose the caller-owned archive reader.
+    /// </summary>
+    [Fact]
+    public void Dispose_KeepsArchiveReaderOpen()
+    {
+        var zarPath = CreateZar(writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("boot"u8);
+        });
+
+        try
+        {
+            using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
+            var source = VirtualXisoImageSource.Create(reader, zarPath, FixedFileTime);
+
+            source.Dispose();
+
+            Assert.True(reader.GetDirEntryCount(ZArchiveReader.RootNode) >= 1);
+        }
+        finally
+        {
+            File.Delete(zarPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the descriptor falls back to the archive's creation time when no time is given.
+    /// </summary>
+    [Fact]
+    public void Descriptor_DefaultsToArchiveCreationTime()
+    {
+        var zarPath = CreateZar(writer =>
+        {
+            Assert.True(writer.StartNewFile("default.xbe"));
+            writer.AppendData("boot"u8);
+        });
+
+        try
+        {
+            using var reader = ZArchiveReader.TryOpen(zarPath) ?? throw new InvalidOperationException("fixture");
+            using var source = VirtualXisoImageSource.Create(reader, zarPath);
+
+            var fileTimeBytes = new byte[8];
+            var descriptorFileTimeOffset = (long)Constants.HeaderOffset + 0x1C;
+            Assert.Equal(8, source.Read(fileTimeBytes, descriptorFileTimeOffset));
+
+            var fileTime = BinaryPrimitives.ReadInt64LittleEndian(fileTimeBytes);
+            var expected = File.GetCreationTimeUtc(zarPath);
+            var actual = DateTime.FromFileTimeUtc(fileTime);
+
+            Assert.True((actual - expected).Duration() < TimeSpan.FromMinutes(5));
         }
         finally
         {

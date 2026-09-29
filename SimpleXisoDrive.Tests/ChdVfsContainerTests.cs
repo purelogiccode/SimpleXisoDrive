@@ -209,4 +209,86 @@ public class ChdVfsContainerTests
 
         Assert.Throws<FileNotFoundException>(() => new VfsContainer(path));
     }
+
+    /// <summary>
+    /// Verifies an uppercase .CHD extension is accepted.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithUppercaseChdExtension_Mounts()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("upper"u8.ToArray());
+        var chdPath = CreateChd(image);
+        var upperPath = Path.ChangeExtension(chdPath, ".CHD");
+        File.Move(chdPath, upperPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(upperPath);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("upper"u8.Length, file.Size);
+        }
+        finally
+        {
+            File.Delete(upperPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a compressed CHD exposes its decompressed image as image.iso.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithZlibChdAndImageIso_ExposesDecompressedImage()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("zlib raw"u8.ToArray());
+        var path = CreateChd(image, CodecTags.Zlib);
+
+        try
+        {
+            using var vfs = new VfsContainer(path, exposeImageIso: true);
+
+            var entry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(entry);
+            Assert.Equal(image.Length, entry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(entry, buffer, 0));
+            Assert.Equal(image, buffer);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a CD CHD is rejected with a CD-specific message.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCdChd_ThrowsInvalidImageException()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var binPath = Path.Combine(tempDir, "track01.bin");
+        var cuePath = Path.Combine(tempDir, "game.cue");
+        var chdPath = Path.Combine(tempDir, "game.chd");
+        File.WriteAllBytes(binPath, new byte[2352 * 4]);
+        File.WriteAllText(cuePath,
+            "FILE \"track01.bin\" BINARY" + Environment.NewLine +
+            "  TRACK 01 MODE1/2352" + Environment.NewLine +
+            "    INDEX 01 00:00:00" + Environment.NewLine);
+
+        try
+        {
+            ChdEncoder.EncodeCd(cuePath, chdPath, codecTags: [CodecTags.None]);
+
+            var ex = Assert.Throws<InvalidImageException>(() => new VfsContainer(chdPath));
+            Assert.Contains("CD CHD", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

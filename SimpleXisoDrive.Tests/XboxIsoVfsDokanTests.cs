@@ -333,4 +333,321 @@ public class XboxIsoVfsDokanTests : IDisposable
         Assert.Equal(DokanResult.Success, status);
         Assert.NotNull(security);
     }
+
+    /// <summary>
+    /// Verifies opening the root sets the directory flag and stores the root entry.
+    /// </summary>
+    [Fact]
+    public void CreateFile_Root_SetsDirectoryContext()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        var status = _dokan.CreateFile("\\", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Directory, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.True(info.IsDirectory);
+        Assert.NotNull(info.Context);
+    }
+
+    /// <summary>
+    /// Verifies opening a directory sets the directory flag and stores the entry.
+    /// </summary>
+    [Fact]
+    public void CreateFile_Directory_SetsDirectoryFlag()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        var status = _dokan.CreateFile("\\sub", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Directory, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.True(info.IsDirectory);
+        Assert.NotNull(info.Context);
+    }
+
+    /// <summary>
+    /// Verifies every write-capable access mask is denied.
+    /// </summary>
+    [Fact]
+    public void CreateFile_WriteAccessVariants_ReturnAccessDenied()
+    {
+        foreach (var access in new[]
+                 {
+                     FileAccess.WriteData,
+                     FileAccess.AppendData,
+                     FileAccess.GenericWrite,
+                     FileAccess.Delete,
+                     FileAccess.ReadData | FileAccess.GenericWrite
+                 })
+        {
+            var status = _dokan.CreateFile("\\default.xbe", access, FileShare.Read, FileMode.Open, FileOptions.None,
+                FileAttributes.Normal, new MockDokanFileInfo());
+            Assert.Equal(DokanResult.AccessDenied, status);
+        }
+    }
+
+    /// <summary>
+    /// Verifies create and truncate modes are denied on the read-only volume.
+    /// </summary>
+    [Fact]
+    public void CreateFile_CreateAndTruncateModes_ReturnAccessDenied()
+    {
+        Assert.Equal(DokanResult.AccessDenied,
+            _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Create, FileOptions.None,
+                FileAttributes.Normal, new MockDokanFileInfo()));
+        Assert.Equal(DokanResult.AccessDenied,
+            _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Truncate, FileOptions.None,
+                FileAttributes.Normal, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies creation modes on missing files are denied instead of reported missing.
+    /// </summary>
+    [Fact]
+    public void CreateFile_MissingFile_NonOpenModes_ReturnAccessDenied()
+    {
+        foreach (var mode in new[] { FileMode.CreateNew, FileMode.Create, FileMode.OpenOrCreate })
+        {
+            var status = _dokan.CreateFile("\\missing.xbe", FileAccess.ReadData, FileShare.Read, mode,
+                FileOptions.None, FileAttributes.Normal, new MockDokanFileInfo());
+            Assert.Equal(DokanResult.AccessDenied, status);
+        }
+    }
+
+    /// <summary>
+    /// Verifies reads without a stored context fall back to a fresh lookup.
+    /// </summary>
+    [Fact]
+    public void ReadFile_WithoutContext_LooksUpEntry()
+    {
+        var buffer = new byte[5];
+        var status = _dokan.ReadFile("\\default.xbe", buffer, out var bytesRead, 0, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal(5, bytesRead);
+        Assert.Equal("hello"u8.ToArray(), buffer);
+    }
+
+    /// <summary>
+    /// Verifies reads for missing entries report a generic error.
+    /// </summary>
+    [Fact]
+    public void ReadFile_MissingEntry_ReturnsError()
+    {
+        var status = _dokan.ReadFile("\\missing.xbe", new byte[8], out var bytesRead, 0, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Error, status);
+        Assert.Equal(0, bytesRead);
+    }
+
+    /// <summary>
+    /// Verifies negative offsets are forwarded and end as an empty successful read.
+    /// </summary>
+    [Fact]
+    public void ReadFile_NegativeOffset_ReturnsSuccessWithZeroBytes()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Normal, info);
+
+        var status = _dokan.ReadFile("\\default.xbe", new byte[8], out var bytesRead, -1, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal(0, bytesRead);
+    }
+
+    /// <summary>
+    /// Verifies reads are clamped to the remaining file size.
+    /// </summary>
+    [Fact]
+    public void ReadFile_BufferLargerThanFile_ClampsToRemainingBytes()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Normal, info);
+
+        var buffer = new byte[64];
+        var status = _dokan.ReadFile("\\default.xbe", buffer, out var bytesRead, 6, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal(4, bytesRead);
+        Assert.Equal("xbox"u8.ToArray(), buffer[..4]);
+    }
+
+    /// <summary>
+    /// Verifies an empty buffer reports a successful zero-byte read.
+    /// </summary>
+    [Fact]
+    public void ReadFile_EmptyBuffer_ReturnsSuccessWithZeroBytes()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Normal, info);
+
+        var status = _dokan.ReadFile("\\default.xbe", [], out var bytesRead, 0, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal(0, bytesRead);
+    }
+
+    /// <summary>
+    /// Verifies the synthetic root name is replaced with a safe placeholder.
+    /// </summary>
+    [Fact]
+    public void GetFileInformation_Root_ReportsUnknownName()
+    {
+        var status = _dokan.GetFileInformation("\\", out var fileInfo, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal("Unknown", fileInfo.FileName);
+        Assert.True(fileInfo.Attributes.HasFlag(FileAttributes.Directory));
+    }
+
+    /// <summary>
+    /// Verifies information requests use the entry stored in the Dokan context.
+    /// </summary>
+    [Fact]
+    public void GetFileInformation_UsesContextFromCreateFile()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+        _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Normal, info);
+
+        var status = _dokan.GetFileInformation("\\default.xbe", out var fileInfo, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Equal("default.xbe", fileInfo.FileName);
+        Assert.Equal("hello xbox"u8.Length, fileInfo.Length);
+    }
+
+    /// <summary>
+    /// Verifies listing a file reports NotADirectory.
+    /// </summary>
+    [Fact]
+    public void FindFiles_OnFilePath_ReturnsNotADirectory()
+    {
+        Assert.Equal(DokanResult.NotADirectory, _dokan.FindFiles("\\default.xbe", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies the question-mark wildcard matches exactly one character.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_QuestionMark_MatchesSingleCharacter()
+    {
+        var status = _dokan.FindFilesWithPattern("\\", "default.xb?", out var files, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Contains(files, file => HasName(file, "default.xbe"));
+        Assert.DoesNotContain(files, file => HasName(file, "sub"));
+    }
+
+    /// <summary>
+    /// Verifies a non-matching pattern still returns the virtual dot entries.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_NoMatch_ReturnsOnlyVirtualEntries()
+    {
+        var status = _dokan.FindFilesWithPattern("\\", "*.nope", out var files, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        var file = Assert.Single(files);
+        Assert.Equal(".", file.FileName);
+    }
+
+    /// <summary>
+    /// Verifies a literal name pattern matches only that entry.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_LiteralName_MatchesOnlyThatEntry()
+    {
+        var status = _dokan.FindFilesWithPattern("\\sub", "data.bin", out var files, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.Contains(files, file => HasName(file, "data.bin"));
+        Assert.Contains(files, file => HasName(file, ".") || HasName(file, ".."));
+        Assert.DoesNotContain(files, file => HasName(file, "default.xbe"));
+    }
+
+    /// <summary>
+    /// Verifies pattern listing on a missing path reports NotADirectory.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_OnMissingPath_ReturnsNotADirectory()
+    {
+        Assert.Equal(DokanResult.NotADirectory,
+            _dokan.FindFilesWithPattern("\\missing", "*", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies directories receive a directory security descriptor.
+    /// </summary>
+    [Fact]
+    public void GetFileSecurity_ForDirectory_UsesDirectorySecurity()
+    {
+        var status = _dokan.GetFileSecurity("\\sub", out var security, AccessControlSections.Access,
+            new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.IsType<DirectorySecurity>(security);
+    }
+
+    /// <summary>
+    /// Verifies missing paths still receive a descriptor (current behavior).
+    /// </summary>
+    [Fact]
+    public void GetFileSecurity_ForMissingEntry_StillReturnsDescriptor()
+    {
+        var status = _dokan.GetFileSecurity("\\missing.xbe", out var security, AccessControlSections.Access,
+            new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.IsType<FileSecurity>(security);
+    }
+
+    /// <summary>
+    /// Verifies the reported feature set marks the volume read-only and case-preserving.
+    /// </summary>
+    [Fact]
+    public void GetVolumeInformation_ReportsFeatureFlags()
+    {
+        var status = _dokan.GetVolumeInformation(out _, out var features, out _, out _, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.True(features.HasFlag(FileSystemFeatures.UnicodeOnDisk));
+        Assert.False(features.HasFlag(FileSystemFeatures.CaseSensitiveSearch));
+    }
+
+    /// <summary>
+    /// Verifies the mounted and unmounted callbacks report success.
+    /// </summary>
+    [Fact]
+    public void MountedAndUnmounted_ReturnSuccess()
+    {
+        Assert.Equal(DokanResult.Success, _dokan.Mounted("Z:", new MockDokanFileInfo()));
+        Assert.Equal(DokanResult.Success, _dokan.Unmounted(new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies the no-op handle callbacks can be invoked without effect.
+    /// </summary>
+    [Fact]
+    public void CleanupAndCloseFile_DoNotThrow()
+    {
+        var info = new MockDokanFileInfo();
+
+        _dokan.Cleanup("\\default.xbe", info);
+        _dokan.CloseFile("\\default.xbe", info);
+    }
+
+    /// <summary>
+    /// Verifies security descriptor writes are denied.
+    /// </summary>
+    [Fact]
+    public void SetFileSecurity_ReturnsAccessDenied()
+    {
+        var status = _dokan.SetFileSecurity("\\default.xbe", new FileSecurity(), AccessControlSections.Access,
+            new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.AccessDenied, status);
+    }
 }

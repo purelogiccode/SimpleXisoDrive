@@ -66,4 +66,47 @@ public class BugReportTests
 
         Assert.Contains(expectedPrefix, report);
     }
+
+    /// <summary>
+    /// Verifies an exception without source or stack trace uses the documented placeholders.
+    /// </summary>
+    [Fact]
+    public void BuildReport_WithoutStackTrace_UsesPlaceholders()
+    {
+        var report = BugReport.BuildReport("Error", "plain failure", new Exception("plain"));
+
+        Assert.Contains("Type: System.Exception", report);
+        Assert.Contains("Message: plain", report);
+        Assert.Contains("Source: Unknown", report);
+        Assert.Contains("StackTrace: Not available", report);
+    }
+
+    /// <summary>
+    /// Verifies the report echoes the level and preserves multiline error text.
+    /// </summary>
+    [Fact]
+    public void BuildReport_IncludesLevelAndMultilineError()
+    {
+        var report = BugReport.BuildReport("Fatal", "first line" + Environment.NewLine + "second line", null);
+
+        Assert.Contains("Level: Fatal", report);
+        Assert.Contains("Error message: first line", report);
+        Assert.Contains("second line", report);
+    }
+
+    /// <summary>
+    /// Verifies local error-log writes append the report and the separator line.
+    /// </summary>
+    [Fact]
+    public void WriteLocalErrorLog_AppendsReportAndSeparator()
+    {
+        var marker = "test-report-" + Guid.NewGuid().ToString("N");
+
+        BugReport.WriteLocalErrorLog(marker);
+
+        var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+        var content = File.ReadAllText(logPath);
+        Assert.Contains(marker, content, StringComparison.Ordinal);
+        Assert.Contains("--------------------------------------------------", content, StringComparison.Ordinal);
+    }
 }

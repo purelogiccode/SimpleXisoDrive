@@ -42,6 +42,29 @@ public class InvalidImageExceptionTests
     }
 
     /// <summary>
+    /// Verifies the parameterless constructor produces a default message.
+    /// </summary>
+    [Fact]
+    public void ParameterlessConstructor_HasDefaultMessage()
+    {
+        var ex = new InvalidImageException();
+
+        Assert.NotNull(ex.Message);
+        Assert.Null(ex.InnerException);
+    }
+
+    /// <summary>
+    /// Verifies the message-only constructor accepts a null message.
+    /// </summary>
+    [Fact]
+    public void MessageOnlyConstructor_AcceptsNull()
+    {
+        var ex = new InvalidImageException((string?)null);
+
+        Assert.NotNull(ex.Message);
+    }
+
+    /// <summary>
     /// Verifies <c>InvalidImageException</c> derives from <c>Exception</c>.
     /// </summary>
     [Fact]

@@ -240,4 +240,149 @@ public class ZarVfsVolumeTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// Verifies a missing archive throws <c>FileNotFoundException</c>.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithMissingFile_ThrowsFileNotFoundException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.zar");
+
+        Assert.Throws<FileNotFoundException>(() => new ZarVfsVolume(path));
+    }
+
+    /// <summary>
+    /// Verifies empty and separator-only paths resolve to the root entry.
+    /// </summary>
+    [Fact]
+    public void GetEntry_PathVariants_ReturnRoot()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            foreach (var candidate in new[] { string.Empty, "/", "\\", "///" })
+            {
+                var root = volume.GetEntry(candidate);
+                Assert.NotNull(root);
+                Assert.True(root.IsDirectory);
+                Assert.Equal(string.Empty, root.FileName);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies directory and file entries map to the documented Windows attributes.
+    /// </summary>
+    [Fact]
+    public void Entries_MapToReadOnlyWindowsAttributes()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            var directory = volume.GetEntry("\\sub");
+            Assert.NotNull(directory);
+            Assert.Equal(FileAttributes.ReadOnly | FileAttributes.Directory, directory.GetWindowsAttributes());
+
+            var file = volume.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal(FileAttributes.ReadOnly | FileAttributes.Normal, file.GetWindowsAttributes());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies negative offsets, empty buffers and out-of-range reads return zero.
+    /// </summary>
+    [Fact]
+    public void ReadFile_InvalidRanges_ReturnZero()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+            var entry = volume.GetEntry("\\default.xbe");
+            Assert.NotNull(entry);
+
+            Assert.Equal(0, volume.ReadFile(entry, new byte[4], -1));
+            Assert.Equal(0, volume.ReadFile(entry, [], 0));
+            Assert.Equal(0, volume.ReadFile(entry, new byte[4], entry.Size + 100));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies entries created by other implementations are ignored.
+    /// </summary>
+    [Fact]
+    public void ReadFile_ForeignEntry_ReturnsZero()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            Assert.Equal(0, volume.ReadFile(new FakeVfsEntry("foreign.bin", false, 4), new byte[4], 0));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the volume creation time reflects the archive file's creation time.
+    /// </summary>
+    [Fact]
+    public void VolumeCreationTime_ReflectsArchiveFile()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            Assert.True((DateTime.Now - volume.VolumeCreationTime).Duration() < TimeSpan.FromMinutes(5));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies disposing the volume twice is safe.
+    /// </summary>
+    [Fact]
+    public void Dispose_IsIdempotent()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            var volume = new ZarVfsVolume(path);
+
+            volume.Dispose();
+            volume.Dispose();
+
+            using var exclusive = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.True(exclusive.CanRead);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }
