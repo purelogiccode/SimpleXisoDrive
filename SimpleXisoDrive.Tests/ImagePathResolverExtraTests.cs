@@ -115,5 +115,4 @@ public class ImagePathResolverExtraTests
             Directory.Delete(directory, recursive: true);
         }
     }
-
 }

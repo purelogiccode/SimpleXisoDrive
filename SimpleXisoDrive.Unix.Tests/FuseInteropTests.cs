@@ -114,5 +114,4 @@ public class FuseInteropTests
         Assert.False(FuseInterop.TryLoadLibrary(["   "], out var libraryPath));
         Assert.Null(libraryPath);
     }
-
 }

@@ -55,7 +55,7 @@ public static class StatsService
     public static async Task WaitForPendingReportAsync(TimeSpan timeout)
     {
         var report = Volatile.Read(ref _pendingReport);
-        if (report is null || report.IsCompleted)
+        if (report?.IsCompleted != false)
         {
             return;
         }

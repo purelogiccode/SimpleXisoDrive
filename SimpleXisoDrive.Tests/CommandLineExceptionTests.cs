@@ -44,6 +44,6 @@ public class CommandLineExceptionTests
     [Fact]
     public void IsAssignableToException()
     {
-        Assert.IsAssignableFrom<Exception>(new CommandLineException("x", showUsage: true));
+        Assert.IsType<Exception>(new CommandLineException("x", showUsage: true), exactMatch: false);
     }
 }

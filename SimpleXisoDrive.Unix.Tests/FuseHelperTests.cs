@@ -12,18 +12,18 @@ public class FuseHelperTests
     /// Verifies native FUSE paths stay POSIX and always start with the root separator.
     /// </summary>
     /// <param name="native">The native path to convert.</param>
-    /// <param name="expected">The expected FUSE path.</param>
+    /// <param name="expectedPath">The expected FUSE path.</param>
     [Theory]
     [InlineData("/sub/file.bin", "/sub/file.bin")]
     [InlineData("/", "/")]
     [InlineData("", "/")]
     [InlineData("relative", "/relative")]
-    public void ToFusePath_NormalizesNativePaths(string native, string expected)
+    public void ToFusePath_NormalizesNativePaths(string native, string expectedPath)
     {
         var pointer = Marshal.StringToCoTaskMemUTF8(native);
         try
         {
-            Assert.Equal(expected, FuseFileSystem.ToFusePath(pointer));
+            Assert.Equal(expectedPath, FuseFileSystem.ToFusePath(pointer));
         }
         finally
         {
@@ -69,10 +69,10 @@ public class FuseHelperTests
     [Fact]
     public void ToUnixTime_ForMinValue_DoesNotThrow()
     {
-        var expected = new DateTimeOffset(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc))
+        var expectedSeconds = new DateTimeOffset(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc))
             .ToUnixTimeSeconds();
 
-        Assert.Equal(expected, FuseFileSystem.ToUnixTime(DateTime.MinValue));
+        Assert.Equal(expectedSeconds, FuseFileSystem.ToUnixTime(DateTime.MinValue));
     }
 
     /// <summary>
@@ -164,6 +164,8 @@ public class FuseHelperTests
         Assert.Equal(0, count);
     }
 
+    private static readonly long[] ExpectedOffsets = [1L, 2L, 3L];
+
     /// <summary>
     /// Verifies the reported next offsets are one-based.
     /// </summary>
@@ -179,7 +181,7 @@ public class FuseHelperTests
             return 0;
         });
 
-        Assert.Equal(new[] { 1L, 2L, 3L }, offsets);
+        Assert.Equal(ExpectedOffsets, offsets);
     }
 
     /// <summary>

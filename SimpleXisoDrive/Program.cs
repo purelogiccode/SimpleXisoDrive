@@ -177,7 +177,8 @@ internal static class Program
                 Console.ForegroundColor = ConsoleColor.Green;
                 await Console.Error.WriteLineAsync(
                     $"Error: Mount path '{arguments.MountPath}' is not an existing directory.");
-                await Console.Error.WriteLineAsync("Create the directory first (for example: mkdir \"C:\\mount\\xiso\").");
+                await Console.Error.WriteLineAsync(
+                    "Create the directory first (for example: mkdir \"C:\\mount\\xiso\").");
                 await WaitForExitKeyPressAsync();
                 return 1;
             }

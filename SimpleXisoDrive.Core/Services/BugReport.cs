@@ -36,7 +36,8 @@ public static class BugReport
     /// <summary>
     /// Gets the path of the critical logging-error log.
     /// </summary>
-    internal static string CriticalLogFilePath { get; private set; } = Path.Combine(BaseDirectory, "critical_error.log");
+    internal static string CriticalLogFilePath { get; private set; } =
+        Path.Combine(BaseDirectory, "critical_error.log");
 
     /// <summary>
     /// Overrides the local log file paths so tests never append to the real logs. Pass
