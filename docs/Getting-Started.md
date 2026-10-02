@@ -17,19 +17,29 @@ Every run follows the same sequence:
 
 1. The console is switched to the green-on-black theme and cleared (Windows).
 2. Global exception handlers are installed so that crashes are logged and reported.
-3. The application verifies its mount backend: `dokan2.dll` on Windows, or the FUSE 3 library and
-   `/dev/fuse` on Linux. If it is missing, actionable instructions are printed and the process
-   exits with code `1`.
-4. The application checks GitHub for a newer release and may prompt you to open the release page.
-5. Arguments are parsed:
-   - **no arguments** - usage is printed and the process waits for a key;
+3. `-h`/`--help` prints the usage text and exits with code `0`. This happens before the update
+   check and the mount-backend probe, so help never makes a network call and works even when
+   Dokan or FUSE is not installed.
+4. Launch statistics are reported and the application checks GitHub for a newer release
+   immediately at startup, before arguments are handled or anything is mounted. A newer release
+   is offered through the native Windows message box or the Unix console prompt; non-interactive
+   runs (Windows: no interactive session or redirected input/output; Unix: redirected input) print
+   the version and URL instead of showing a dialog.
+5. A run without arguments prints the usage text and the drag-and-drop hint, waits for a key
+   press, and exits with code `1`.
+6. The mount backend is verified: `dokan2.dll` on Windows, or the FUSE 3 library and `/dev/fuse`
+   on Linux. On Windows, a missing Dokan runtime prints guidance, offers the Dokan download page
+   (<https://github.com/dokan-dev/dokany/releases>), and exits with code `1`; a missing driver
+   warns and mounting continues.
+7. Arguments are parsed:
+   - **no arguments** - handled above;
    - **one argument** - treated as a drag-and-drop mount (automatic drive letter, Explorer opens);
    - **two or more arguments** - image path followed by mount point and optional flags.
-6. The image path is resolved (see [path resolution](Command-Line-Reference#image-path-resolution)).
-7. The image is opened, validated, and the Dokan file system is mounted. For `.chd` files the
+8. The image path is resolved (see [path resolution](Command-Line-Reference#image-path-resolution)).
+9. The image is opened, validated, and the Dokan file system is mounted. For `.chd` files the
    decompressed Xbox image is validated as XDVDFS and served hunk-by-hunk; for `.zar` files the
    archive tree (or a single embedded XISO image) is exposed.
-8. The console remains open until the volume is unmounted.
+10. The console remains open until the volume is unmounted.
 
 ---
 
@@ -64,6 +74,9 @@ Open **Windows Terminal**, **PowerShell**, or **Command Prompt** and run:
 ```shell
 SimpleXisoDrive.exe <PathToImageFile> <MountPoint> [options]
 ```
+
+Run `SimpleXisoDrive.exe -h` (or `--help`) to print the usage text and exit with code `0`. The help
+check runs before the update check and the Dokan probe, so it makes no network call.
 
 ### Mount to a drive letter
 
@@ -101,8 +114,8 @@ differential child CHDs (which need their parent merged first) are rejected with
 SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
 ```
 
-The target folder must exist and be empty. NTFS folder mounts usually work without administrator
-privileges.
+The target folder must already exist and be empty; a missing folder is reported before Dokan is
+invoked. NTFS folder mounts usually work without administrator privileges.
 
 ### Open Explorer after mounting
 

@@ -15,6 +15,7 @@
 - [Architecture](Architecture)
 - [XDVDFS Format](XDVDFS-Format)
 - [Virtual File System](Virtual-File-System)
+- [FuseSharp](FuseSharp)
 - [Services](Services)
 - [Privacy and Networking](Privacy-and-Networking)
 - [Glossary](Glossary)

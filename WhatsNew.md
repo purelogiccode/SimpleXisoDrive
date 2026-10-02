@@ -1,3 +1,76 @@
+# What's New in 1.5.0 (since 1.4.0)
+
+Prepared for the `release_1.5.0` tag. Framework-dependent `win-x64`/`win-arm64`,
+`linux-x64`/`linux-arm64` and `osx-x64`/`osx-arm64` builds require the .NET 10.0 Runtime (the base
+runtime; the Desktop Runtime also works but is not required).
+
+## Startup experience
+
+- **Update checks run immediately.** The GitHub release check runs at startup on both front ends,
+  before argument handling and mounting. A newer release is offered through the native message box
+  (Windows) or the console prompt (Linux/macOS); non-interactive runs print the version and URL
+  instead of showing a dialog, so scripts never block.
+- **Missing Dokan offers the download page.** When `dokan2.dll` (runtime) or `dokan2.sys` (driver)
+  is missing, the Windows front end warns and offers to open the Dokan releases page. A missing
+  runtime still exits with code 1; a missing driver warns and lets mounting proceed.
+- **Help is instant and offline.** `-h`/`--help` prints the usage text and exits with code 0 before
+  the update check, launch statistics, or the Dokan/FUSE probe.
+- **Usage before the backend probe.** A run without arguments prints the usage text and the
+  drag-and-drop hint even when Dokan/FUSE is not installed.
+
+## Windows command line
+
+- **Options may appear before or after the mount path**, matching the Unix front end
+  (`SimpleXisoDrive.exe game.iso -d Z:` works).
+- **A single image argument with options stays in drag-and-drop mode** (`game.iso -i`), with
+  `--launch` implied.
+- **Folder mount paths are validated up front**: a missing folder is reported before Dokan is
+  invoked (drive letters are created by Dokan and are exempt).
+- **The administrator warning now covers `Z:` as well as `Z:\`.**
+
+## Reliability
+
+- **Read failures are I/O errors, not silent EOF.** A failed read now maps to `DokanResult.Error`
+  on Windows and `-EIO` on Linux/macOS instead of returning a truncated result; short reads from
+  the XISO layer are detected as truncation.
+- **ZArchive reader access is serialized**, so Explorer browsing and an emulator reading the same
+  mount cannot corrupt the archive reader state.
+- **Case-sensitive entry caches** keep case-only-distinct names apart on case-sensitive file
+  systems while the case-insensitive library lookup still serves any spelling on Windows.
+- **The XISO explorer handle is released** when the volume descriptor cannot be read, and
+  `ReaderOwningVfsVolume` disposal is idempotent.
+- **Lookup misses are classified.** Paths that do not exist in the image (which Windows routinely
+  probes, for example `\System Volume Information`) are logged at Debug level and are no longer
+  forwarded to the bug report API.
+
+## FuseSharp
+
+- **The FUSE 3 mount layer is now a standalone library.** `FuseSharp` (NuGet package id
+  `SimpleXisoDrive.FuseSharp`) contains the high-level mount, the platform interop and the
+  availability probe, and has no dependency on `SimpleXisoDrive.Core`.
+- **New `IFuseVolume`/`IFuseEntry` abstraction** with POSIX paths; `FuseFileSystem` consumes the
+  interface, and the Unix app adapts the Xbox volume through `FuseVolumeAdapter`.
+- **Direct use works without the app**: constructing `FuseFileSystem` registers the native library
+  resolver itself.
+
+## Logging, diagnostics and reporting
+
+- **Expected user-setup and input conditions no longer auto-report**: missing Dokan/FUSE, missing
+  image files, invalid or unsupported images, a failed `explorer.exe`/`xdg-open` launch and a
+  failed FUSE session setup are logged below the bug-report threshold. Duplicate error reports
+  were removed.
+- **Launch statistics are tracked and awaited at shutdown** (up to 5 seconds), matching the bug
+  report grace period, and `Process` handles from browser launches are disposed.
+
+## Tests and documentation
+
+- The suite grew to **476 tests**: 395 in `SimpleXisoDrive.Tests` and 81 in
+  `SimpleXisoDrive.Unix.Tests`. New coverage includes the read-only access allow list (including
+  the volume root), expected-condition logging, `XisoPathNotFound` classification, mount-path
+  validation, deterministic FUSE probes, the `FuseVolumeAdapter`, and API failure handling.
+- Documentation was refreshed for the new startup flow, CLI behavior and `FuseSharp`; both
+  renderings (GitHub wiki and Pages) keep a shared side menu, now including the `FuseSharp` page.
+
 # What's New in 1.4.0 (since 1.3.0)
 
 Prepared for the `release_1.4.0` tag. Framework-dependent `win-x64`/`win-arm64`,

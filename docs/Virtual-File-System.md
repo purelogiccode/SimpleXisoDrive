@@ -6,8 +6,8 @@ read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchi
 supported.
 
 The same virtual file system feeds both mount backends: on Windows `XboxIsoVfsDokan` maps Dokan
-callbacks to it, and on Linux/macOS `FuseSharp`'s `FuseFileSystem` maps the FUSE 3 callbacks
-(`getattr`, `open`, `read`, `statfs`, `readdir`, `init`) to the same volume contract through
+callbacks to it, and on Linux/macOS [FuseSharp](FuseSharp)'s `FuseFileSystem` maps the FUSE 3
+callbacks (`getattr`, `open`, `read`, `statfs`, `readdir`, `init`) to the same volume contract through
 `FuseVolumeAdapter`, which translates POSIX paths to the VFS backslash paths. The operation matrices
 below describe the Windows/Dokan mapping in detail; the FUSE callbacks apply the equivalent read-only
 semantics (for example, `open` rejects non-read-only flags and macOS `setattr` returns `EROFS`).
@@ -73,7 +73,7 @@ ISO; `ReaderOwningVfsVolume` keeps the archive reader alive and closes it with t
 | `VolumeCreationTime` | Timestamp from the volume descriptor (ISO/CHD); for ZAR, the archive file's last-write time (the format stores none). `DateTime.MinValue` when unavailable or invalid. |
 | `GetEntry(path)` | Resolves a virtual path to an `IVfsEntry`, or `null`. Never throws. |
 | `GetFolderList(path)` | Lazily enumerates the children of a directory. Returns nothing when the path is not a valid directory. |
-| `ReadFile(entry, buffer, offset)` | Reads file data (decompressing ZAR blocks or CHD hunks as needed); returns the number of bytes read, or `0` on failure. |
+| `ReadFile(entry, buffer, offset)` | Reads file data (decompressing ZAR blocks or CHD hunks as needed); returns the number of bytes read, or `0` for a no-op (for example at or beyond the end of the file). Throws `IOException` when the data cannot be read; the mount layers map that to `DokanResult.Error` on Windows and `-EIO` on Linux/macOS. |
 | `Dispose()` | Closes the underlying stream or archive. |
 
 ---
@@ -160,8 +160,10 @@ counts against the file-tree bounds, so a crafted archive cannot make the enumer
 Both volumes cache resolved path entries and directory listings. The caches are bounded: at most
 4,096 path entries and 512 directory listings are kept per volume, and once a budget is exhausted
 new entries are not stored (existing ones can still be updated), so a large tree cannot grow memory
-without limit for the mount lifetime. Cached listings are returned as the same list instance, so
-callers must treat the returned sequence as read-only.
+without limit for the mount lifetime. Cache keys are case-sensitive (ordinal), so names that differ
+only in case are kept apart, while lookup against the image remains case-insensitive. Cached
+listings are returned as the same list instance, so callers must treat the returned sequence as
+read-only.
 
 `XboxIsoVfsDokan.FindFiles` augments directory listings with Windows-style virtual entries:
 

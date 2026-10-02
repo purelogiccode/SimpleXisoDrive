@@ -4,8 +4,8 @@ This page describes how SimpleXisoDrive is structured, how a mount is created, a
 operations flow through the system.
 
 The application is split into a shared core (`SimpleXisoDrive.Core`), a standalone FUSE 3 mount
-library (`FuseSharp`) and two front ends: the Windows Dokan app (`SimpleXisoDrive`) and the
-Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns image parsing, the virtual file
+library ([FuseSharp](FuseSharp)) and two front ends: the Windows Dokan app (`SimpleXisoDrive`) and
+the Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns image parsing, the virtual file
 system and the services; the front ends only implement the mount backend, the command line and the
 platform UX. The diagram below shows the Windows front end; the Unix front end replaces
 `XboxIsoVfsDokan`/`Dokan` with `FuseSharp`'s `FuseFileSystem`/`FuseInterop` over `libfuse3`/macFUSE,
@@ -106,9 +106,10 @@ flowchart TD
    - `TaskScheduler.UnobservedTaskException`
 
    Both route exceptions to `BugReport.LogFatalException`.
-3. The application reports launch statistics (`StatsService.ReportLaunch`). The request is tracked
+3. Help flags (`-h`/`--help`) print the usage text and exit with code `0`, before any network call
+   or mount-backend probe.
+4. The application reports launch statistics (`StatsService.ReportLaunch`). The request is tracked
    so shutdown can give it a bounded grace period (`StatsService.WaitForPendingReportAsync`).
-4. Help flags (`-h`/`--help`) print the usage text and exit without a network call.
 5. At startup, `UpdateChecker.CheckForUpdateAsync` queries the GitHub releases API. When a newer
    release exists, the user is notified and asked whether to open the download page: on Windows
    through a native message box (skipped when the console is redirected), on Unix through the
@@ -332,10 +333,10 @@ CSharp_SimpleXisoDrive/
 | `Serilog` | 4.4.0 | Structured logging core. |
 | `Serilog.Sinks.Console` | 6.1.1 | Console log output. |
 | `Serilog.Sinks.File` | 7.0.0 | Rolling file log output. |
-| `XISOSharp` | 1.4.1 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
+| `XISOSharp` | 1.4.2 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
 | `CHDSharp` | 1.4.3 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
 | `ZArchiveSharp` | 1.4.0 | Pure-C# ZArchive reader/writer; the mount-friendly reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
-| `Meziantou.Analyzer` | 3.0.290 | Build-time code analyzers. |
+| `Meziantou.Analyzer` | 3.0.291 | Build-time code analyzers. |
 | `Roslynator.Analyzers` | 5.0.0 | Build-time code analyzers. |
 
 Test projects: `Microsoft.NET.Test.Sdk` 18.10.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.0,

@@ -9,7 +9,7 @@
         <AssemblyName>FuseSharp</AssemblyName>
         <RootNamespace>FuseSharp</RootNamespace>
         <IsPackable>true</IsPackable>
-        <PackageId>FuseSharp</PackageId>
+        <PackageId>SimpleXisoDrive.FuseSharp</PackageId>
         <Description>FUSE 3 high-level mount library for .NET on Linux (libfuse3) and macOS (macFUSE).</Description>
         <Authors>PureLogicCode.com</Authors>
         <Company>PureLogicCode.com</Company>

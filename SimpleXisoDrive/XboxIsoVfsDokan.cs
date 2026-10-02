@@ -34,6 +34,22 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
         }
     }
 
+    /// <summary>
+    /// Determines whether the requested access is fully covered by the read-only allow list.
+    /// The list catches GenericAll, MaximumAllowed, ChangePermissions, SetOwnership and the
+    /// other write-capable bits a deny list would miss.
+    /// </summary>
+    /// <param name="access">The requested access mode.</param>
+    /// <returns><see langword="true"/> when the request only needs read-only access.</returns>
+    private static bool IsReadOnlyAccess(FileAccess access)
+    {
+        const FileAccess readOnlyAccess = FileAccess.ReadData | FileAccess.ReadAttributes |
+                                          FileAccess.ReadExtendedAttributes | FileAccess.ReadPermissions |
+                                          FileAccess.Execute | FileAccess.Synchronize |
+                                          FileAccess.GenericRead | FileAccess.GenericExecute;
+        return (access & ~readOnlyAccess) == FileAccess.None;
+    }
+
     private static string NormalizePath(string path)
     {
         // Collapse "." and interior ".." segments so paths such as
@@ -82,6 +98,10 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
 
             if (string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
             {
+                // The read-only allow list applies to the root as well, so a write-capable
+                // mask can never open a handle on the volume root.
+                if (!IsReadOnlyAccess(access)) return DokanResult.AccessDenied;
+
                 var rootEntry = _vfs.GetEntry(@"\");
                 if (rootEntry is not { IsDirectory: true }) return DokanResult.Error;
 
@@ -96,14 +116,7 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
                 return mode == FileMode.Open ? DokanResult.FileNotFound : DokanResult.AccessDenied;
             }
 
-            // Deny anything outside the read-only access bits (Read-Only FS). The allow
-            // list catches GenericAll, MaximumAllowed, ChangePermissions, SetOwnership
-            // and the other write-capable bits the old deny list missed.
-            const FileAccess readOnlyAccess = FileAccess.ReadData | FileAccess.ReadAttributes |
-                                              FileAccess.ReadExtendedAttributes | FileAccess.ReadPermissions |
-                                              FileAccess.Execute | FileAccess.Synchronize |
-                                              FileAccess.GenericRead | FileAccess.GenericExecute;
-            if ((access & ~readOnlyAccess) != FileAccess.None)
+            if (!IsReadOnlyAccess(access))
             {
                 return DokanResult.AccessDenied;
             }

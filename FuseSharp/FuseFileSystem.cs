@@ -43,6 +43,11 @@ public sealed class FuseFileSystem
     {
         try
         {
+            // The DllImport("fuse3") declarations only resolve after the resolver is
+            // registered; doing it here keeps direct library use working without a
+            // preceding FuseAvailability.Check. Registration is idempotent.
+            FuseInterop.RegisterResolver();
+
             _vfs = vfs;
             _getAttr = GetAttr;
             _setAttrMac = SetAttrMac;

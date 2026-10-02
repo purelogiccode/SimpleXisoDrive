@@ -92,7 +92,8 @@ internal static class VfsVolumeFactory
     {
         for (var ex = exception; ex is not null; ex = ex.InnerException)
         {
-            if (ex is InvalidImageException or IOException or UnauthorizedAccessException or ArgumentException)
+            if (ex is InvalidImageException or InvalidDataException or XisoFormatException or IOException
+                or UnauthorizedAccessException or ArgumentException)
             {
                 return true;
             }

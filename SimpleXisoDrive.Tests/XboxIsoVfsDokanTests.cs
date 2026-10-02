@@ -415,6 +415,23 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies the read-only access allow list also applies to the volume root.
+    /// </summary>
+    [Fact]
+    public void CreateFile_Root_WriteAccess_ReturnsAccessDenied()
+    {
+        foreach (var access in new[] { FileAccess.GenericAll, FileAccess.WriteData, FileAccess.Delete })
+        {
+            IDokanFileInfo info = new MockDokanFileInfo();
+            var status = _dokan.CreateFile("\\", access, FileShare.Read, FileMode.Open, FileOptions.None,
+                FileAttributes.Directory, info);
+
+            Assert.Equal(DokanResult.AccessDenied, status);
+            Assert.Null(info.Context);
+        }
+    }
+
+    /// <summary>
     /// Verifies opening a directory sets the directory flag and stores the entry.
     /// </summary>
     [Fact]

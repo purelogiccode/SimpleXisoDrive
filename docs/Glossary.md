@@ -46,6 +46,16 @@ name, and padding to a 4-byte boundary.
 A Windows timestamp format representing 100-nanosecond intervals since 1601-01-01 UTC. The XDVDFS
 volume descriptor stores the volume creation time as a FILETIME.
 
+**FuseSharp**
+The standalone `net10.0` FUSE 3 high-level mount library extracted from SimpleXisoDrive and packed
+as `SimpleXisoDrive.FuseSharp`. It mounts any read-only volume that implements `IFuseVolume` and
+has no dependency on `SimpleXisoDrive.Core`. See [FuseSharp](FuseSharp).
+
+**FuseVolumeAdapter**
+The internal class in `SimpleXisoDrive.Unix` that adapts an `IVfsVolume` (backslash-separated VFS
+paths) to `IFuseVolume` (POSIX paths) and wraps each entry so reads can be forwarded to the Xbox
+volume. See [FuseSharp](FuseSharp).
+
 **Entry (XISO)**
 A file or directory inside an Xbox image, surfaced by `XisoVfsVolume` as an `IVfsEntry`. Backed by
 XISOSharp's `ExplorerNode` for path-based images or `EntryInfo` for stream-based images (the legacy
@@ -58,6 +68,11 @@ on certain releases.
 **Hunk**
 The CHD compression unit: a fixed-size block of the decompressed image that is compressed and stored
 independently. CHDSharp decompresses one hunk at a time and caches the most recent one.
+
+**IFuseVolume**
+The read-only POSIX-path volume contract consumed by FuseSharp's `FuseFileSystem`: volume label,
+creation time and size, plus entry lookup, directory listing and file reads. The Unix front end
+supplies an adapter over `IVfsVolume`. See [FuseSharp](FuseSharp).
 
 **Iteration limit**
 A safety cap that aborts enumeration of corrupted or circular directory trees. ZArchive directory

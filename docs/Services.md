@@ -84,6 +84,7 @@ console and returning a `DokanInstallationStatus`:
 | `Installed` | Library and driver present | Mounting proceeds |
 | `DriverMissing` | Library present, driver missing | A warning is printed, then the download offer is shown; mounting still proceeds |
 | `RuntimeMissing` | Library missing | Guidance is printed, then the download offer is shown, and the application exits |
+| `Unknown` | The probe itself failed (for example an I/O or ACL error) | No download offer; mounting proceeds and may fail later |
 
 `DokanDownloadPrompt.OfferDownload(component)` warns that a component is missing and offers to open
 the Dokan releases page (<https://github.com/dokan-dev/dokany/releases>) in the default browser via
@@ -142,10 +143,12 @@ the shared `ApiHttpClientFactory`, which reuses one connection pool and TLS conf
 | Unobserved task exception | `TaskScheduler.UnobservedTaskException` -> `LogFatalException` |
 
 Update checker network failures are deliberately logged at Information level only and are **not**
-forwarded. Expected environment conditions are likewise kept below the threshold and not reported:
-a missing Dokan runtime (`DokanInstallation`) and lookup misses for paths that do not exist in the
-mounted image (`XisoVfsVolume`). See [Privacy and Networking](Privacy-and-Networking) for the full
-data-flow description.
+forwarded. Expected user-setup and input conditions are likewise kept below the threshold and not
+reported: a missing Dokan runtime or driver (`DokanInstallation`, `DokanDownloadPrompt`), a missing
+FUSE library (`FuseAvailability`), missing image files, invalid images, a failed
+`explorer.exe`/`xdg-open` launch, and a failed FUSE session setup (`FuseFileSystem`). Lookup misses
+for paths that do not exist in the mounted image (`XisoVfsVolume`) are also kept below the
+threshold. See [Privacy and Networking](Privacy-and-Networking) for the full data-flow description.
 
 Remote reports are tracked while in flight (`BugReport.PendingReports`), and both front ends call
 `BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5))` during shutdown so a clean exit does

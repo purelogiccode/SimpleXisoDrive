@@ -41,6 +41,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | [Architecture](Architecture) | Component overview, startup and mount lifecycle, threading, error handling |
 | [XDVDFS Format](XDVDFS-Format) | On-disk format: volume descriptor, directory entries, partition offsets |
 | [Virtual File System](Virtual-File-System) | Path resolution, caching, mount operation behaviour, read-only enforcement |
+| [FuseSharp](FuseSharp) | The standalone FUSE 3 mount library: `IFuseVolume` contract, components, packaging |
 | [Services](Services) | Logging, bug reporting, statistics, update checker, access checks |
 | [Privacy and Networking](Privacy-and-Networking) | Every network request, its payload, and how to run fully offline |
 | [Glossary](Glossary) | Definitions of terms used throughout the documentation |
@@ -83,7 +84,10 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 - **Built-in diagnostics** - rolling logs, a local error log, crash handling, and an optional bug
   report/telemetry pipeline.
 - **Update awareness** - checks GitHub releases at startup and offers to open the release page
-  (a message box on Windows, a console prompt on Linux/macOS).
+  (a message box on Windows, a console prompt on Linux/macOS); a missing Dokan runtime or driver
+  also offers the Dokan download page.
+- **Help without side effects** - `-h`/`--help` prints the usage text and exits before any network
+  call or mount-backend probe.
 - **Multi-architecture** - native builds for x64 and ARM64 on every platform.
 
 ## At a glance
@@ -91,7 +95,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Property | Value |
 | --- | --- |
 | Application name | SimpleXisoDrive |
-| Current version | 1.4.0 |
+| Current version | 1.5.0 |
 | Platform | Windows (x64, ARM64), Linux (x64, ARM64), macOS (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows` / `net10.0`) |
 | File systems | XDVDFS (original Xbox disc format), ZArchive (`ZARCHIVE`) |
@@ -105,6 +109,9 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 ## Quick start
 
 ```shell
+# Show the usage text (no network call)
+SimpleXisoDrive.exe --help
+
 # Mount an ISO to the first free drive letter (M: through R:) and open Explorer
 SimpleXisoDrive.exe "D:\Games\Halo.iso"
 

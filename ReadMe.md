@@ -29,7 +29,7 @@ The application is designed for extreme memory efficiency and supports **Windows
 *   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO/XISO/CISO, CHD or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **Flexible Mount Points:** Mount ISOs as Windows drive letters (e.g., `Z:`) or NTFS folders, and as any directory on Linux and macOS.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
-*   **Update Checker:** Automatically checks for newer versions on GitHub to ensure you have the latest compatibility fixes.
+*   **Update Checker:** Checks for newer versions on GitHub at startup and offers to open the release page; a missing Dokan runtime or driver also offers the Dokan download page.
 *   **Read-Only Safety:** Ensures the source ISO or ZAR remains unmodified.
 
 ## Install dependencies
@@ -87,6 +87,7 @@ Start here:
 *   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
 *   [FAQ](docs/FAQ.md) - short answers to common questions.
 *   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.
+*   [FuseSharp](docs/FuseSharp.md) - the standalone FUSE 3 mount library and its `IFuseVolume` contract.
 *   [Building](docs/Building.md) - build, test, and the CI/release workflow.
 *   [What's New](WhatsNew.md) - release highlights.
 *   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
@@ -114,10 +115,13 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options]
 | Argument / option | Description |
 | --- | --- |
 | `<image-file>` | Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. The extension may be omitted when the file can be resolved. |
-| `<mount-path>` | Drive letter such as `Z:` or `Z:\`, or an existing empty NTFS folder. |
+| `<mount-path>` | Drive letter such as `Z:` or `Z:\`, or an existing empty NTFS folder. When omitted, drag-and-drop mode picks a free `M:`-`R:` letter and opens Explorer. |
 | `-l`, `--launch` | Open Explorer at the mount path after mounting. |
 | `-d`, `--debug` | Show verbose Dokan debug output. |
 | `-i`, `--image-iso` | Also expose the raw Xbox image as `image.iso` at the mount root (for emulators such as xemu). |
+| `-h`, `--help` | Print the usage text and exit (no network call, no Dokan probe). |
+
+Options may appear before or after the mount path (`SimpleXisoDrive.exe game.iso -d Z:` works).
 
 ```shell
 SimpleXisoDrive.exe "D:\Games\Halo.iso" Z:
@@ -154,8 +158,8 @@ See [Getting Started](docs/Getting-Started.md) and the
 *   **XDVDFS Parsing:** Uses the XISOSharp library to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images.
 *   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
-*   **Mount Backends:** Dokan on Windows (`DokanNet`); a small, self-contained FUSE 3 interop layer on Linux and macOS (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
-*   **Shared Core:** The image parsing, virtual file system and services live in `SimpleXisoDrive.Core`; the Windows and Unix front ends only implement the mount backend and CLI.
+*   **Mount Backends:** Dokan on Windows (`DokanNet`); on Linux and macOS the standalone **FuseSharp** library (NuGet package id `SimpleXisoDrive.FuseSharp`) mounts any `IFuseVolume` through the FUSE 3 high-level API (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
+*   **Shared Core:** The image parsing, virtual file system and services live in `SimpleXisoDrive.Core`; the Windows and Unix front ends only implement the mount backend and CLI. `FuseSharp` has no dependency on Core: the Unix app adapts the Xbox volume with `FuseVolumeAdapter`.
 *   **Cycle Detection:** Includes safety checks to prevent infinite loops in corrupted or malformed ISO images.
 *   **Mount Sanitization:** Automatically handles mount point strings (e.g., converts `Z:\` to `Z:`) to satisfy Dokan driver requirements.
 *   **Smart Permissions:** Automatically adjusts Dokan options based on Administrator privileges to ensure the highest success rate for mounting.
@@ -171,6 +175,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 | `fusermount3 was not found on PATH` | Install the `fuse3` tools package. |
 | `macFUSE (libfuse3) was not found` | Install [macFUSE](https://macfuse.io) and allow the system extension. |
 | `Image file not found at '<path>'` | Check the path and quote it if it contains spaces. A directory with exactly one image, or a missing extension, is resolved automatically. |
+| `Mount path '<path>' is not an existing directory` | Create the folder first (`mkdir "C:\mount\xiso"`), or pass a drive letter such as `Z:`. |
 | `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, incomplete, or uses an unsupported layout. Convert it to XISO first. |
 | `'<path>' is not an Xbox ISO CHD` | The decompressed CHD is not an Xbox ISO (for example a CD, GD-ROM or Xbox 360 image). A differential child CHD must be merged with its parent first. |
 | `'<path>' is not a valid ZArchive (.zar) file` | The archive is corrupt, is not a ZArchive, or uses an unsupported version. Re-create it from the original image. |

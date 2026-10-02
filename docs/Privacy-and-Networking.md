@@ -24,25 +24,28 @@ No other connections are made by the application.
 ```json
 {
   "applicationId": "simplexisodrive",
-  "version": "1.4.0"
+  "version": "1.5.0"
 }
 ```
 
 The request is sent on a background task and its result never affects the application. Timeouts
-(10 seconds) and connection failures are silently logged at Debug level.
+(10 seconds) and connection failures are silently logged at Debug level. The pending request is
+tracked, and shutdown waits up to 5 seconds for it (`StatsService.WaitForPendingReportAsync`).
 
 ---
 
 ## Update check
 
-`UpdateChecker` requests the latest release metadata for the public GitHub repository. GitHub
-receives the request from your IP address and the `User-Agent` string, as with any GitHub API call.
-The response is parsed locally to compare versions. Failures are logged locally at Information level
-and are deliberately excluded from bug reports.
+`UpdateChecker` requests the latest release metadata for the public GitHub repository immediately
+at startup, before argument handling and mounting. GitHub receives the request from your IP address
+and the `User-Agent` string, as with any GitHub API call. The response is parsed locally to compare
+versions. Failures are logged locally at Information level and are deliberately excluded from bug
+reports.
 
-If no newer version exists, nothing is displayed. If stdin/stdout is redirected (for example, when
-the application is started by a script), the interactive prompt is skipped on every platform: the
-version details and release URL are printed instead and the Windows message box is not shown.
+If no newer version exists, nothing is displayed. Non-interactive runs skip the prompt: on Windows
+the message box is not shown when the process has no interactive session or input/output is
+redirected, and on Unix the console prompt is skipped when standard input is redirected. In both
+cases the version details and release URL are printed instead.
 
 ---
 
@@ -57,7 +60,7 @@ an unhandled exception, or an unobserved task exception.
 | --- | --- | --- |
 | `message` | Rendered report | Environment + error + exception sections |
 | `applicationName` | Constant | `SimpleXisoDrive` |
-| `version` | Assembly metadata | `1.4.0` |
+| `version` | Assembly metadata | `1.5.0` |
 | `userInfo` | `Environment.UserName` | Windows account name |
 | `environment` | Runtime information | OS description and architecture |
 | `stackTrace` | Exception `ToString()` | Managed stack trace |

@@ -26,6 +26,8 @@
       url: XDVDFS-Format.html
     - title: Virtual File System
       url: Virtual-File-System.html
+    - title: FuseSharp
+      url: FuseSharp.html
     - title: Services
       url: Services.html
     - title: Privacy and Networking

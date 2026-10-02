@@ -5,7 +5,8 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
-| Unreleased | `master` | 2026-09-29 |
+| Unreleased | `master` | 2026-10-02 |
+| 1.4.0 | `release_1.4.0` | 2026-09-29 |
 | 1.3.0 | `release_1.3.0` | 2026-09-13 |
 | 1.2.0 | `release_1.2.0` | 2026-06-21 |
 | 1.1.0 | `release_1.1.0` | 2026-04-12 |
@@ -16,7 +17,31 @@ history.
 
 ---
 
-## Unreleased (1.4.0)
+## Unreleased (1.5.0)
+
+- **Startup experience.** The GitHub update check runs immediately at startup on both front ends;
+  non-interactive runs print the version and URL instead of showing a dialog. A missing Dokan
+  runtime or driver now offers the Dokan download page. `-h`/`--help` prints the usage text and
+  exits before any network call or backend probe, and a run without arguments shows the usage text
+  before Dokan/FUSE is checked.
+- **Windows command line.** Options may appear before or after the mount path; a single image
+  argument with options stays in drag-and-drop mode; folder mount paths must already exist; the
+  administrator warning now also covers `Z:`.
+- **Reliability.** Read failures surface as `DokanResult.Error`/`-EIO` instead of a silent EOF;
+  ZArchive reader access is serialized; entry caches are case-sensitive; the XISO explorer handle
+  is released on descriptor failures; `ReaderOwningVfsVolume` disposal is idempotent; and image
+  lookup misses are classified below the bug-report threshold.
+- **FuseSharp.** The FUSE 3 mount layer is a standalone packable library
+  (`SimpleXisoDrive.FuseSharp`) with a new `IFuseVolume`/`IFuseEntry` POSIX-path contract. The Unix
+  app adapts the Xbox volume through `FuseVolumeAdapter`, so `FuseSharp` no longer depends on
+  `SimpleXisoDrive.Core`.
+- **Logging.** Expected user-setup and input conditions (missing Dokan/FUSE, missing image files,
+  invalid images, failed file-manager launches) no longer auto-report; launch statistics are
+  tracked and awaited at shutdown, and browser `Process` handles are disposed.
+- **Tests and docs.** 476 tests (395 Windows + 81 Unix) and refreshed documentation with a shared
+  wiki/Pages side menu that now includes the [FuseSharp](FuseSharp) page.
+
+## 1.4.0 - 2026-09-29
 
 - **Cross-platform.** The application was split into a shared `SimpleXisoDrive.Core` library and two
   front ends: `SimpleXisoDrive` (Windows, Dokan) and `SimpleXisoDrive.Unix` (Linux/macOS, FUSE 3 via

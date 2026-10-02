@@ -25,6 +25,7 @@ Use the side menu to browse the documentation, or jump straight to a page:
 | [Architecture](Architecture) | Component overview, startup and mount lifecycle, threading, error handling |
 | [XDVDFS Format](XDVDFS-Format) | On-disk format: volume descriptor, directory entries, partition offsets |
 | [Virtual File System](Virtual-File-System) | Path resolution, caching, mount operation behaviour, read-only enforcement |
+| [FuseSharp](FuseSharp) | The standalone FUSE 3 mount library: `IFuseVolume` contract, components, packaging |
 | [Services](Services) | Logging, bug reporting, statistics, update checker, access checks |
 | [Privacy and Networking](Privacy-and-Networking) | Every network request, its payload, and how to run fully offline |
 | [Glossary](Glossary) | Definitions of terms used throughout the documentation |

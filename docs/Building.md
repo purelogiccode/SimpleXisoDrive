@@ -43,6 +43,7 @@ The `global.json` file specifies:
 | `SimpleXisoDrive.Core/` | Shared class library (`net10.0`): VFS, image parsing, services |
 | `SimpleXisoDrive/` | Windows application project (`net10.0-windows`, Dokan) |
 | `SimpleXisoDrive.Unix/` | Linux/macOS application project (`net10.0`, FUSE 3) |
+| `FuseSharp/` | Standalone FUSE 3 mount library (`net10.0`, packable) |
 | `SimpleXisoDrive.Tests/` | xUnit test project (`net10.0-windows`) |
 | `docs/` | This documentation |
 
@@ -101,15 +102,22 @@ Published output lands in `SimpleXisoDrive/bin/Release/net10.0-windows/<rid>/pub
 for the Windows app and `SimpleXisoDrive.Unix/bin/Release/net10.0/<rid>/publish/`
 for the Unix app.
 
+The standalone FUSE 3 mount library is packed on its own under the NuGet package id
+`SimpleXisoDrive.FuseSharp`:
+
+```shell
+dotnet pack FuseSharp/FuseSharp.csproj -c Release
+```
+
 Release bundles use the **framework-dependent single-file** publish — one executable
 (no runtime included, hence the .NET 10 Runtime prerequisite):
 
 ```shell
 dotnet publish SimpleXisoDrive/SimpleXisoDrive.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
-Compress-Archive -Path SimpleXisoDrive/bin/Release/net10.0-windows/win-x64/publish/SimpleXisoDrive.exe -DestinationPath release_1.4.0_win-x64.zip
+Compress-Archive -Path SimpleXisoDrive/bin/Release/net10.0-windows/win-x64/publish/SimpleXisoDrive.exe -DestinationPath release_1.5.0_win-x64.zip
 
 dotnet publish SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj -c Release -r linux-x64 --self-contained false -p:PublishSingleFile=true
-Compress-Archive -Path SimpleXisoDrive.Unix/bin/Release/net10.0/linux-x64/publish/SimpleXisoDrive -DestinationPath release_1.4.0_linux-x64.zip
+Compress-Archive -Path SimpleXisoDrive.Unix/bin/Release/net10.0/linux-x64/publish/SimpleXisoDrive -DestinationPath release_1.5.0_linux-x64.zip
 ```
 
 > If you plan to upload a release, the release notes convention uses archive suffixes
@@ -129,10 +137,14 @@ The version is defined in the project files and they must be updated together:
 | `SimpleXisoDrive.Core/SimpleXisoDrive.Core.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
+| `SimpleXisoDrive.Unix.Tests/SimpleXisoDrive.Unix.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 
-The current version is **1.4.0**. The update checker parses the three-part (`major.minor.patch`)
+The current version is **1.5.0**. The update checker parses the three-part (`major.minor.patch`)
 portion of GitHub release tags, so release tags should follow that pattern (for example,
-`release_1.4.0`).
+`release_1.5.0`).
+
+The standalone `FuseSharp` library (`FuseSharp/FuseSharp.csproj`) is versioned independently
+(currently `1.0.0`) and is packed as `SimpleXisoDrive.FuseSharp`.
 
 ---
 
@@ -140,7 +152,7 @@ portion of GitHub release tags, so release tags should follow that pattern (for 
 
 | Setting | Value |
 | --- | --- |
-| Target frameworks | `net10.0-windows` (Windows app, tests), `net10.0` (core, Unix app) |
+| Target frameworks | `net10.0-windows` (Windows app, tests), `net10.0` (core, Unix app, FuseSharp) |
 | Language version | 14 |
 | Nullable | Enabled |
 | Implicit usings | Enabled |
@@ -155,11 +167,11 @@ status and unmount instructions.
 
 ## Analyzers
 
-Both the application and the shared core reference the same analyzers:
+The application, the shared core and `FuseSharp` reference the same analyzers:
 
 | Analyzer | Purpose |
 | --- | --- |
-| `Meziantou.Analyzer` 3.0.290 | Best-practice and performance rules |
+| `Meziantou.Analyzer` 3.0.291 | Best-practice and performance rules |
 | `Roslynator.Analyzers` 5.0.0 | Code quality and style rules |
 
 Three rules are disabled in `.editorconfig`:
@@ -185,14 +197,14 @@ Two GitHub Actions workflows automate build, test, and release (`.github/workflo
 
 To cut a release:
 
-1. Bump `<AssemblyVersion>`/`<FileVersion>` in both `.csproj` files, and update
+1. Bump `<AssemblyVersion>`/`<FileVersion>` in the project files listed above, and update
    [Release History](Release-History) and `WhatsNew.md`.
 2. Commit and push the version bump.
 3. Tag and push:
 
    ```shell
-   git tag release_1.4.0
-   git push origin release_1.4.0
+   git tag release_1.5.0
+   git push origin release_1.5.0
    ```
 
 4. Watch the workflow create the GitHub release with the Windows, Linux and macOS zips attached.

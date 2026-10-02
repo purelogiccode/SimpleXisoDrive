@@ -1,7 +1,8 @@
 # Linux and macOS
 
 SimpleXisoDrive mounts Xbox ISO/XISO/CISO/CHD images and ZArchive files as read-only
-directories on Linux and macOS using FUSE 3.
+directories on Linux and macOS using FUSE 3 through the bundled [FuseSharp](FuseSharp)
+mount library.
 
 ---
 
@@ -52,6 +53,7 @@ SimpleXisoDrive <image-file> [mount-path] [options]
 *   `-l`, `--launch` — open the file manager (`xdg-open` or `open`) at the mount point.
 *   `-d`, `--debug` — show verbose FUSE debug output.
 *   `-i`, `--image-iso` — also expose the raw Xbox image as `image.iso` at the mount root.
+*   `-h`, `--help` — print the usage text and exit with code `0` without a network call.
 
 Example:
 

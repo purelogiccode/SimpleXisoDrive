@@ -10,17 +10,18 @@ any real image file.
 
 | Property | Value |
 | --- | --- |
-| Projects | `SimpleXisoDrive.Tests` (application/core), `SimpleXisoDrive.Unix.Tests` (FUSE interop) |
+| Projects | `SimpleXisoDrive.Tests` (application/core), `SimpleXisoDrive.Unix.Tests` (FUSE interop via `FuseSharp`) |
 | Frameworks | `net10.0-windows` (core suite), `net10.0` (FUSE suite) |
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.0 |
 | Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 336 (version 1.4.0): 286 core + 50 FUSE |
+| Test count | 476 (version 1.5.0): 395 core + 81 FUSE |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
-`SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
-`SimpleXisoDrive.Unix/AssemblyInfo.cs`, which allows tests to use internal constructors
-(such as `XisoVfsVolume(Stream, string)`), decorators, test doubles and FUSE helpers.
+`SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs`,
+`SimpleXisoDrive.Unix/AssemblyInfo.cs` and `FuseSharp/AssemblyInfo.cs`, which allows tests to use
+internal constructors (such as `XisoVfsVolume(Stream, string)`), decorators, test doubles and FUSE
+helpers.
 
 ---
 
@@ -44,8 +45,8 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 394, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
-`Passed: 71, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
+A healthy run reports `Passed: 395, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+`Passed: 81, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 

@@ -10,8 +10,8 @@
         <AssemblyName>SimpleXisoDrive</AssemblyName>
         <RootNamespace>SimpleXisoDrive</RootNamespace>
         <IsPackable>false</IsPackable>
-        <AssemblyVersion>1.4.0</AssemblyVersion>
-        <FileVersion>1.4.0</FileVersion>
+        <AssemblyVersion>1.5.0</AssemblyVersion>
+        <FileVersion>1.5.0</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>

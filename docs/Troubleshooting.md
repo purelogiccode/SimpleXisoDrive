@@ -20,6 +20,7 @@ This page lists error messages and symptoms, their causes, and how to resolve th
 | `Image file not found at '<path>'` | Check the path and quote it if it contains spaces; see [image path problems](#image-path-problems). |
 | Not a valid Xbox ISO, Xbox ISO CHD or ZArchive | See [image format problems](#image-format-problems). |
 | `Could not find an available drive letter (M-R)` | Free one of `M:`-`R:` or pass an explicit mount path. |
+| `Mount path '<path>' is not an existing directory` | Create the folder first, or pass a drive letter such as `Z:`. |
 | `fuse: mountpoint is not empty` | Use an empty directory as the mount path. |
 | `Something's wrong with the Dokan driver` | Run as Administrator, reinstall Dokan and restart. |
 | Write operations fail | The volume is read-only by design; copy files out to a writable location. |
@@ -109,6 +110,25 @@ this message, try the following:
 This is informational. The application avoids Dokan's mount manager when not elevated because it
 frequently fails. If the mount then fails, right-click `SimpleXisoDrive.exe` and choose **Run as
 administrator**.
+
+---
+
+## Mount path problems
+
+### "Error: Mount path '<path>' is not an existing directory."
+
+**Cause:** On Windows, a mount path that is not a drive letter is treated as an NTFS folder and
+must already exist. The folder was not created.
+
+**Resolution:** Create the folder first, or use a drive letter instead:
+
+```powershell
+mkdir "C:\Mounts\Halo"
+SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
+```
+
+Drive-letter paths (`Z:` or `Z:\`) are exempt because Dokan creates the drive. The check runs
+before Dokan is invoked, so the error is reported even when Dokan is missing.
 
 ---
 
@@ -251,8 +271,11 @@ application.
 
 ### The update prompt appears on every start
 
-This is expected until the installed version matches the latest GitHub release. Answer `n` to skip.
-The prompt is skipped automatically when standard input is redirected.
+This is expected until the installed version matches the latest GitHub release. The check runs
+immediately at startup, before arguments are handled and before the mount backend is probed.
+Answer `n` (Unix) or choose **No** (Windows) to skip. Non-interactive runs (Windows: no interactive
+session or redirected input/output; Unix: redirected input) print the version and download URL
+instead of showing a dialog or prompt.
 
 ---
 

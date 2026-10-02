@@ -72,15 +72,15 @@ internal static class Program
         Log.Information("Arguments: {Args}", string.Join(" | ", args));
         Log.Information("Working Directory: {WorkingDirectory}", Environment.CurrentDirectory);
 
-        // Report launch statistics (fire and forget)
-        StatsService.ReportLaunch();
-
         // Help never triggers a network call.
         if (args.Any(static argument => IsHelpOption(argument)))
         {
             PrintUsage();
             return 0;
         }
+
+        // Report launch statistics (fire and forget)
+        StatsService.ReportLaunch();
 
         // At startup, query GitHub for a newer release and offer the download page
         // through the console prompt (skipped when input is redirected).

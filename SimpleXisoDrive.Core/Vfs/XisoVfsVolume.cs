@@ -136,9 +136,10 @@ internal sealed class XisoVfsVolume : IVfsVolume
         catch (Exception ex)
         {
             // I/O and other environment failures keep their natural type, matching the
-            // path-based constructor; only genuinely invalid images are remapped.
+            // path-based constructor; only genuinely invalid images are remapped. Logged
+            // at Debug so an expected read failure does not auto-report as a bug.
             DisposeStream(stream);
-            Log.Error(ex, "Failed to read Xbox ISO image '{ImagePath}'", displayName);
+            Log.Debug(ex, "Failed to read Xbox ISO image '{ImagePath}'", displayName);
             throw;
         }
 

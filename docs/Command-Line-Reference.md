@@ -167,9 +167,10 @@ Errors are written to `stderr`. Diagnostics are additionally written to the log 
 - Serilog's console sink uses no color theme (plain text) with the template
   `[HH:mm:ss LEV] message`.
 - Error messages use `Console.Error`, so they can be redirected independently.
-- When standard input/output is redirected (for example, when run from a script), the update prompt
-  is skipped automatically on every platform: the version details and download URL are printed
-  instead, and the Windows message box is not shown (so scripted runs can never block on a dialog).
+- The update prompt is skipped automatically for non-interactive runs: on Windows the message box is
+  not shown when the process has no interactive session or input/output is redirected, and on Unix
+  the console prompt is skipped when standard input is redirected. The version details and download
+  URL are printed instead, so scripted runs can never block on a dialog.
 
 ---
 

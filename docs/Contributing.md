@@ -21,7 +21,7 @@ Repository: <https://github.com/purelogiccode/SimpleXisoDrive>
 
 Include as much of the following as possible:
 
-1. Application version (shown in logs; currently 1.4.0).
+1. Application version (shown in logs; currently 1.5.0).
 2. Operating system and architecture (Windows x64/ARM64, Linux or macOS).
 3. Mount backend version: Dokan on Windows, FUSE 3 / macFUSE on Linux and macOS.
 4. The exact command line used.

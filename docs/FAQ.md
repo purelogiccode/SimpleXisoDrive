@@ -21,6 +21,13 @@ in the file manager or copied with normal tools.
 The step-by-step guide is in [Installation](Installation); Linux/macOS specifics are in
 [Linux and macOS](Linux-and-macOS).
 
+### How do I see the options?
+
+Run `SimpleXisoDrive.exe -h` (or `--help`) to print the usage text and exit with code `0`. Help is
+handled before the update check and the mount-driver probe, so it makes no network call and works
+even when Dokan or FUSE is not installed. See [Command-Line Reference](Command-Line-Reference) for
+every option.
+
 ### Do I need to install FUSE on Linux or macOS?
 
 Yes.
@@ -126,7 +133,8 @@ telemetry and the update prompt works normally.
 
 ### Can I disable the update prompt?
 
-The prompt only appears when a newer release exists. Answer `n`, or block `api.github.com`.
+The check runs immediately at startup, before mounting, and the prompt only appears when a newer
+release exists. Answer `n` (Unix) or choose **No** (Windows), or block `api.github.com`.
 
 ### Is there a GUI?
 
