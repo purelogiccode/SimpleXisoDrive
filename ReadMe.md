@@ -17,6 +17,8 @@ Simple Xiso Drive is a lightweight utility that allows you to mount original Xbo
 
 The application is designed for extreme memory efficiency and supports **Windows x64/ARM64**, **Linux x64/ARM64** and **macOS x64/ARM64**.
 
+![Console](Screenshot.png)
+
 ## Features
 
 *   **Cross-Platform:** Native executables for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`.
