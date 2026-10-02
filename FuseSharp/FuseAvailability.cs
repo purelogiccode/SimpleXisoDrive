@@ -1,12 +1,12 @@
 using Serilog;
 
-namespace SimpleXisoDrive.Fuse;
+namespace FuseSharp;
 
 /// <summary>
 /// Verifies that the FUSE 3 runtime needed for mounting is present and prints
 /// installation guidance when it is not.
 /// </summary>
-internal static class FuseAvailability
+public static class FuseAvailability
 {
     /// <summary>
     /// Checks whether the FUSE 3 library and kernel support are available.

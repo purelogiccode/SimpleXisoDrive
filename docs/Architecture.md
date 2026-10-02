@@ -3,12 +3,13 @@
 This page describes how SimpleXisoDrive is structured, how a mount is created, and how file
 operations flow through the system.
 
-The application is split into a shared core (`SimpleXisoDrive.Core`) and two front ends: the Windows
-Dokan app (`SimpleXisoDrive`) and the Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns
-image parsing, the virtual file system and the services; the front ends only implement the mount
-backend, the command line and the platform UX. The diagram below shows the Windows front end; the
-Unix front end replaces `XboxIsoVfsDokan`/`Dokan` with `FuseFileSystem`/`FuseInterop` over
-`libfuse3`/macFUSE, and `DriveLetterSelector` with temporary mount directories.
+The application is split into a shared core (`SimpleXisoDrive.Core`), a standalone FUSE 3 mount
+library (`FuseSharp`) and two front ends: the Windows Dokan app (`SimpleXisoDrive`) and the
+Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns image parsing, the virtual file
+system and the services; the front ends only implement the mount backend, the command line and the
+platform UX. The diagram below shows the Windows front end; the Unix front end replaces
+`XboxIsoVfsDokan`/`Dokan` with `FuseSharp`'s `FuseFileSystem`/`FuseInterop` over `libfuse3`/macFUSE,
+and `DriveLetterSelector` with temporary mount directories.
 
 ---
 
@@ -72,9 +73,9 @@ flowchart TD
 | `IRawImageSource` / `StreamRawImageSource` | `internal` | Reads raw image bytes at an offset from a seekable stream (plain ISO, CISO block device, decompressed CHD, or embedded XISO) or from the in-memory virtual XISO layout. Reads are serialized for Dokan's concurrent callbacks. |
 | `VirtualXisoImageSource` | `internal sealed class` | Synthesizes an XISO for a ZArchive directory tree entirely in memory: builds the directory tables with `DirectoryEntryTableWriter`, allocates sectors with `SectorAllocator`, emits the volume descriptor/ECMA-119 header/optimized tag, and serves file data from the archive on demand. No extraction, no temporary files. |
 | `XboxIsoVfsDokan` | `internal sealed class` (Windows) | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
-| `FuseFileSystem` | `internal sealed class` (Unix) | Mounts the `VfsContainer` through the FUSE 3 high-level API: `getattr`/`open`/`read`/`statfs`/`readdir`/`init` callbacks for Linux and macOS, read-only enforcement, and signal-driven unmounting through `fuse_exit`. |
-| `FuseInterop` | `internal static class` (Unix) | Platform-aware P/Invoke layer: resolves and loads `libfuse3`/macFUSE, declares the Linux and macOS `fuse_operations` layouts, picks the exported `fuse_new` entry point per platform, and pokes the mount with `statfs` to wake the loop. |
-| `FuseAvailability` | `internal static class` (Unix) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
+| `FuseFileSystem` | `public sealed class` (FuseSharp) | Mounts the `VfsContainer` through the FUSE 3 high-level API: `getattr`/`open`/`read`/`statfs`/`readdir`/`init` callbacks for Linux and macOS, read-only enforcement, and signal-driven unmounting through `fuse_exit`. |
+| `FuseInterop` | `internal static class` (FuseSharp) | Platform-aware P/Invoke layer: resolves and loads `libfuse3`/macFUSE, declares the Linux and macOS `fuse_operations` layouts, picks the exported `fuse_new` entry point per platform, and pokes the mount with `statfs` to wake the loop. |
+| `FuseAvailability` | `public static class` (FuseSharp) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
 | `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
 | `SerilogDokanLogger` | `internal sealed class` | Routes DokanNet's internal log messages into Serilog. |
@@ -306,12 +307,12 @@ CSharp_SimpleXisoDrive/
 |   |   |-- CommandLineArguments.cs     # parsed command-line data
 |   |   `-- DokanInstallationStatus.cs  # detected Dokan installation state
 |   `-- icon/xiso.ico, icon/xiso.png
+|-- FuseSharp/                          # FUSE 3 mount library (net10.0, packable)
+|   |-- FuseFileSystem.cs               # high-level API mount + callbacks
+|   |-- FuseInterop.cs                  # library loading, layouts, P/Invoke
+|   `-- FuseAvailability.cs             # libfuse3 / /dev/fuse / fusermount3 checks
 |-- SimpleXisoDrive.Unix/               # Linux/macOS application (net10.0, FUSE 3)
-|   |-- Program.cs
-|   `-- Fuse/
-|       |-- FuseFileSystem.cs           # high-level API mount + callbacks
-|       |-- FuseInterop.cs              # library loading, layouts, P/Invoke
-|       `-- FuseAvailability.cs         # libfuse3 / /dev/fuse / fusermount3 checks
+|   `-- Program.cs
 |-- SimpleXisoDrive.Tests/              # xUnit test project (net10.0-windows)
 `-- SimpleXisoDrive.Unix.Tests/         # xUnit test project (net10.0)
 ```

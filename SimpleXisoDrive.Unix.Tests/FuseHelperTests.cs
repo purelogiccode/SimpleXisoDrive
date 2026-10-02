@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using SimpleXisoDrive.Fuse;
+using FuseSharp;
 
 namespace SimpleXisoDrive.Unix.Tests;
 

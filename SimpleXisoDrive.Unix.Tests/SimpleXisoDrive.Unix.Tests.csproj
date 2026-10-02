@@ -37,6 +37,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\FuseSharp\FuseSharp.csproj" />
         <ProjectReference Include="..\SimpleXisoDrive.Unix\SimpleXisoDrive.Unix.csproj" />
     </ItemGroup>
 

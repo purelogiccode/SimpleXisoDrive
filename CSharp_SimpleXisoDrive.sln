@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleXisoDrive.Unix", "Sim
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleXisoDrive.Unix.Tests", "SimpleXisoDrive.Unix.Tests\SimpleXisoDrive.Unix.Tests.csproj", "{45ABABD5-EF5B-49FB-811F-D31A11188EE2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuseSharp", "FuseSharp\FuseSharp.csproj", "{004BC0D8-3E08-4577-839A-497F675394FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +82,18 @@ Global
 		{45ABABD5-EF5B-49FB-811F-D31A11188EE2}.Release|x64.Build.0 = Release|Any CPU
 		{45ABABD5-EF5B-49FB-811F-D31A11188EE2}.Release|x86.ActiveCfg = Release|Any CPU
 		{45ABABD5-EF5B-49FB-811F-D31A11188EE2}.Release|x86.Build.0 = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|x64.Build.0 = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Debug|x86.Build.0 = Debug|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|x64.ActiveCfg = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|x64.Build.0 = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|x86.ActiveCfg = Release|Any CPU
+		{004BC0D8-3E08-4577-839A-497F675394FC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

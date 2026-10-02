@@ -3,7 +3,7 @@ using Serilog;
 using SimpleXisoDrive.Core;
 using SimpleXisoDrive.Core.Interfaces;
 
-namespace SimpleXisoDrive.Fuse;
+namespace FuseSharp;
 
 /// <summary>
 /// Serves a <see cref="VfsContainer"/> through the FUSE 3 high-level API on Linux
@@ -11,7 +11,7 @@ namespace SimpleXisoDrive.Fuse;
 /// <c>open</c> rejects write access, macOS <c>setattr</c> returns <c>EROFS</c> and
 /// every unimplemented operation fails with <c>ENOSYS</c> by default.
 /// </summary>
-internal sealed class FuseFileSystem
+public sealed class FuseFileSystem
 {
     private const int BlockSize = 4096;
 

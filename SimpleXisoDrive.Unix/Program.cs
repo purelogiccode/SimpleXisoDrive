@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Serilog;
 using SimpleXisoDrive.Core;
 using SimpleXisoDrive.Core.Services;
-using SimpleXisoDrive.Fuse;
+using FuseSharp;
 
 namespace SimpleXisoDrive;
 

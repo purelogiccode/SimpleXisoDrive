@@ -1,4 +1,4 @@
-using SimpleXisoDrive.Fuse;
+using FuseSharp;
 
 namespace SimpleXisoDrive.Unix.Tests;
 
