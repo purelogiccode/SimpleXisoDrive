@@ -9,21 +9,21 @@ namespace SimpleXisoDrive.Unix.Tests;
 public class FuseHelperTests
 {
     /// <summary>
-    /// Verifies native FUSE paths are converted to backslash VFS paths, including the root.
+    /// Verifies native FUSE paths stay POSIX and always start with the root separator.
     /// </summary>
     /// <param name="native">The native path to convert.</param>
-    /// <param name="expected">The expected VFS path.</param>
+    /// <param name="expected">The expected FUSE path.</param>
     [Theory]
-    [InlineData("/sub/file.bin", "\\sub\\file.bin")]
-    [InlineData("/", "\\")]
-    [InlineData("", "\\")]
-    [InlineData("relative", "relative")]
-    public void ToVfsPath_ConvertsNativePaths(string native, string expected)
+    [InlineData("/sub/file.bin", "/sub/file.bin")]
+    [InlineData("/", "/")]
+    [InlineData("", "/")]
+    [InlineData("relative", "/relative")]
+    public void ToFusePath_NormalizesNativePaths(string native, string expected)
     {
         var pointer = Marshal.StringToCoTaskMemUTF8(native);
         try
         {
-            Assert.Equal(expected, FuseFileSystem.ToVfsPath(pointer));
+            Assert.Equal(expected, FuseFileSystem.ToFusePath(pointer));
         }
         finally
         {
@@ -32,12 +32,12 @@ public class FuseHelperTests
     }
 
     /// <summary>
-    /// Verifies a null pointer maps to the VFS root.
+    /// Verifies a null pointer maps to the root.
     /// </summary>
     [Fact]
-    public void ToVfsPath_WithNullPointer_ReturnsRoot()
+    public void ToFusePath_WithNullPointer_ReturnsRoot()
     {
-        Assert.Equal("\\", FuseFileSystem.ToVfsPath(IntPtr.Zero));
+        Assert.Equal("/", FuseFileSystem.ToFusePath(IntPtr.Zero));
     }
 
     /// <summary>
@@ -186,12 +186,12 @@ public class FuseHelperTests
     /// Verifies trailing separators are preserved when converting the native path.
     /// </summary>
     [Fact]
-    public void ToVfsPath_PreservesTrailingSeparator()
+    public void ToFusePath_PreservesTrailingSeparator()
     {
         var pointer = Marshal.StringToCoTaskMemUTF8("/sub/");
         try
         {
-            Assert.Equal("\\sub\\", FuseFileSystem.ToVfsPath(pointer));
+            Assert.Equal("/sub/", FuseFileSystem.ToFusePath(pointer));
         }
         finally
         {

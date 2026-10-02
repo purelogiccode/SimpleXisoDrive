@@ -1,12 +1,10 @@
 using System.Runtime.InteropServices;
 using Serilog;
-using SimpleXisoDrive.Core;
-using SimpleXisoDrive.Core.Interfaces;
 
 namespace FuseSharp;
 
 /// <summary>
-/// Serves a <see cref="VfsContainer"/> through the FUSE 3 high-level API on Linux
+/// Serves an <see cref="IFuseVolume"/> through the FUSE 3 high-level API on Linux
 /// (libfuse3) and macOS (macFUSE's libfuse3). The volume is exposed read-only:
 /// <c>open</c> rejects write access, macOS <c>setattr</c> returns <c>EROFS</c> and
 /// every unimplemented operation fails with <c>ENOSYS</c> by default.
@@ -20,7 +18,7 @@ public sealed class FuseFileSystem
     private const uint DirectoryMode = SIfDir | 0x16D; // r-xr-xr-x
     private const uint FileMode = SIfReg | 0x124; // r--r--r--
 
-    private readonly VfsContainer _vfs;
+    private readonly IFuseVolume _vfs;
     private readonly bool _isMacOs = OperatingSystem.IsMacOS();
     private readonly bool _isArm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 
@@ -41,7 +39,7 @@ public sealed class FuseFileSystem
     /// Initializes a new instance of the <see cref="FuseFileSystem"/> class over a volume.
     /// </summary>
     /// <param name="vfs">The volume to expose.</param>
-    public FuseFileSystem(VfsContainer vfs)
+    public FuseFileSystem(IFuseVolume vfs)
     {
         try
         {
@@ -300,7 +298,7 @@ public sealed class FuseFileSystem
     {
         try
         {
-            var entry = _vfs.GetEntry(ToVfsPath(path));
+            var entry = _vfs.GetEntry(ToFusePath(path));
             if (entry is null)
             {
                 return -PosixError.Enoent;
@@ -333,7 +331,7 @@ public sealed class FuseFileSystem
     {
         try
         {
-            var entry = _vfs.GetEntry(ToVfsPath(path));
+            var entry = _vfs.GetEntry(ToFusePath(path));
             if (entry is null)
             {
                 return -PosixError.Enoent;
@@ -359,7 +357,7 @@ public sealed class FuseFileSystem
     {
         try
         {
-            var entry = _vfs.GetEntry(ToVfsPath(path));
+            var entry = _vfs.GetEntry(ToFusePath(path));
             if (entry is null)
             {
                 return -PosixError.Enoent;
@@ -475,22 +473,23 @@ public sealed class FuseFileSystem
 
     private List<string>? GetDirectoryNames(IntPtr path)
     {
-        var vfsPath = ToVfsPath(path);
-        if (_vfs.GetEntry(vfsPath) is not { IsDirectory: true })
+        var fusePath = ToFusePath(path);
+        if (_vfs.GetEntry(fusePath) is not { IsDirectory: true })
         {
             return null;
         }
 
         var names = new List<string> { "." };
-        if (!string.Equals(vfsPath, "\\", StringComparison.Ordinal))
+        if (!string.Equals(fusePath, "/", StringComparison.Ordinal))
         {
             names.Add("..");
         }
 
-        foreach (var child in _vfs.GetFolderList(vfsPath))
+        foreach (var child in _vfs.GetFolderList(fusePath))
         {
             if (string.IsNullOrEmpty(child.FileName) ||
-                string.Equals(child.FileName, "\\", StringComparison.Ordinal))
+                string.Equals(child.FileName, "\\", StringComparison.Ordinal) ||
+                string.Equals(child.FileName, "/", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -501,7 +500,7 @@ public sealed class FuseFileSystem
         return names;
     }
 
-    private void WriteLinuxStat(IntPtr stat, IVfsEntry entry)
+    private void WriteLinuxStat(IntPtr stat, IFuseEntry entry)
     {
         var time = ToUnixTime(_vfs.VolumeCreationTime);
         var mode = (int)(entry.IsDirectory ? DirectoryMode : FileMode);
@@ -528,7 +527,7 @@ public sealed class FuseFileSystem
         WriteTimespec(stat, 104, time); // st_ctim
     }
 
-    private void WriteMacStat(IntPtr stat, IVfsEntry entry)
+    private void WriteMacStat(IntPtr stat, IFuseEntry entry)
     {
         var time = ToUnixTime(_vfs.VolumeCreationTime);
         var size = entry.IsDirectory ? 0 : entry.Size;
@@ -555,15 +554,15 @@ public sealed class FuseFileSystem
         Marshal.WriteInt64(buffer, offset + 8, 0);
     }
 
-    internal static string ToVfsPath(IntPtr path)
+    internal static string ToFusePath(IntPtr path)
     {
         var value = Marshal.PtrToStringUTF8(path);
-        if (string.IsNullOrEmpty(value) || string.Equals(value, "/", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(value))
         {
-            return "\\";
+            return "/";
         }
 
-        return value.Replace('/', '\\');
+        return value[0] == '/' ? value : "/" + value;
     }
 
     private static string SafePath(IntPtr path)

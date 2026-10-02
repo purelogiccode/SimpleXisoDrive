@@ -181,7 +181,7 @@ internal static class Program
                 _vfsContainer = new VfsContainer(resolvedIsoPath, imageIso);
                 try
                 {
-                    var fileSystem = new FuseFileSystem(_vfsContainer);
+                    var fileSystem = new FuseFileSystem(new FuseVolumeAdapter(_vfsContainer));
                     var exitCode = fileSystem.Run(mountPath, debug, () =>
                     {
                         Console.WriteLine($"Mounted '{resolvedIsoPath}' at '{mountPath}'.");

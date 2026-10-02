@@ -32,8 +32,4 @@
         <PackageReference Include="Serilog" Version="4.4.0" />
     </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\SimpleXisoDrive.Core\SimpleXisoDrive.Core.csproj" />
-    </ItemGroup>
-
 </Project>
