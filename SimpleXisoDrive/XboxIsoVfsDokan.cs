@@ -96,9 +96,14 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
                 return mode == FileMode.Open ? DokanResult.FileNotFound : DokanResult.AccessDenied;
             }
 
-            // Deny write access (Read-Only FS)
-            if ((access & (FileAccess.GenericWrite | FileAccess.WriteData | FileAccess.AppendData |
-                           FileAccess.Delete)) != FileAccess.None)
+            // Deny anything outside the read-only access bits (Read-Only FS). The allow
+            // list catches GenericAll, MaximumAllowed, ChangePermissions, SetOwnership
+            // and the other write-capable bits the old deny list missed.
+            const FileAccess readOnlyAccess = FileAccess.ReadData | FileAccess.ReadAttributes |
+                                              FileAccess.ReadExtendedAttributes | FileAccess.ReadPermissions |
+                                              FileAccess.Execute | FileAccess.Synchronize |
+                                              FileAccess.GenericRead | FileAccess.GenericExecute;
+            if ((access & ~readOnlyAccess) != FileAccess.None)
             {
                 return DokanResult.AccessDenied;
             }
@@ -140,8 +145,10 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
 
             if (info.Context is not IVfsEntry entry)
             {
-                entry = _vfs.GetEntry(NormalizePath(fileName)) ??
-                        throw new InvalidOperationException("File entry missing");
+                // A missing lookup is a normal VFS answer, not a logic failure.
+                var lookedUp = _vfs.GetEntry(NormalizePath(fileName));
+                if (lookedUp is null) return DokanResult.FileNotFound;
+                entry = lookedUp;
                 info.Context = entry;
             }
 
@@ -153,7 +160,18 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
 
             if (bytesToRead > 0)
             {
-                internalBytesRead = _vfs.ReadFile(entry, buffer.AsSpan(0, bytesToRead), offset);
+                try
+                {
+                    internalBytesRead = _vfs.ReadFile(entry, buffer.AsSpan(0, bytesToRead), offset);
+                }
+                catch (IOException ex)
+                {
+                    // A data read failure maps to DokanResult.Error instead of a silent
+                    // EOF; the detail stays in the debug log so corrupted media does not
+                    // auto-report as a bug.
+                    Log.Debug(ex, "Read failed for '{FileName}' at offset {Offset}", entry.FileName, offset);
+                    return DokanResult.Error;
+                }
             }
 
             return DokanResult.Success;

@@ -50,12 +50,28 @@ internal static class FuseInterop
     /// <returns><see langword="true"/> when the library can be loaded; otherwise <see langword="false"/>.</returns>
     internal static bool TryLoadLibrary(out string? libraryPath)
     {
+        return TryLoadLibrary(EnumerateCandidates(), out libraryPath);
+    }
+
+    /// <summary>
+    /// Tries to load the first loadable library from the supplied candidates. The probe
+    /// handle is released immediately (the DllImport resolver loads the real handle), and
+    /// the list can be supplied directly so tests probe a deterministic set on any OS.
+    /// </summary>
+    /// <param name="candidates">The library names or paths to try, in order.</param>
+    /// <param name="libraryPath">When this method returns, the candidate that was loaded.</param>
+    /// <returns><see langword="true"/> when a candidate could be loaded; otherwise <see langword="false"/>.</returns>
+    internal static bool TryLoadLibrary(IEnumerable<string> candidates, out string? libraryPath)
+    {
         try
         {
-            foreach (var candidate in EnumerateCandidates())
+            foreach (var candidate in candidates)
             {
-                if (NativeLibrary.TryLoad(candidate, out _))
+                if (NativeLibrary.TryLoad(candidate, out var handle))
                 {
+                    // The probe only checks loadability; release the reference so repeated
+                    // probes do not accumulate native handles.
+                    NativeLibrary.Free(handle);
                     libraryPath = candidate;
                     return true;
                 }
@@ -442,28 +458,53 @@ internal struct FuseOperationsMac
     public IntPtr Destroy;
 }
 
+/// <summary>
+/// Native callback that fills <c>struct stat</c> for a path (FUSE <c>getattr</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int GetAttrDelegate(IntPtr path, IntPtr stat, IntPtr fileInfo);
 
+/// <summary>
+/// Native callback that applies attributes on macOS (macFUSE Darwin-only <c>setattr</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int SetAttrMacDelegate(IntPtr path, IntPtr darwinAttr, int toSet, IntPtr fileInfo);
 
+/// <summary>
+/// Native callback invoked when a file handle is opened (FUSE <c>open</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int OpenDelegate(IntPtr path, IntPtr fileInfo);
 
+/// <summary>
+/// Native callback that reads file data into the supplied buffer (FUSE <c>read</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int ReadDelegate(IntPtr path, IntPtr buffer, nuint size, long offset, IntPtr fileInfo);
 
+/// <summary>
+/// Native callback that fills <c>struct statvfs</c> for the volume (FUSE <c>statfs</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int StatFsDelegate(IntPtr path, IntPtr statvfs);
 
+/// <summary>
+/// Native callback that enumerates a directory through the filler callback (FUSE <c>readdir</c>).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int ReadDirDelegate(IntPtr path, IntPtr buffer, IntPtr filler, long offset, IntPtr fileInfo,
     int flags);
 
+/// <summary>
+/// Native callback that adds one directory entry to the readdir buffer (the FUSE filler).
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate int FillDirDelegate(IntPtr buffer, IntPtr name, IntPtr stat, long offset, int flags);
 
+/// <summary>
+/// Native callback invoked when the file system is initialized (FUSE <c>init</c>); returns the
+/// (possibly replaced) fuse configuration pointer.
+/// </summary>
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate IntPtr InitDelegate(IntPtr connectionInfo, IntPtr fuseConfig);
 
@@ -473,10 +514,21 @@ internal delegate IntPtr InitDelegate(IntPtr connectionInfo, IntPtr fuseConfig);
 /// </summary>
 internal static class PosixError
 {
+    /// <summary>No such file or directory.</summary>
     public const int Enoent = 2;
+
+    /// <summary>Input/output error.</summary>
     public const int Eio = 5;
+
+    /// <summary>Permission denied.</summary>
     public const int Eacces = 13;
+
+    /// <summary>Is a directory.</summary>
     public const int Eisdir = 21;
+
+    /// <summary>Invalid argument.</summary>
     public const int Einval = 22;
+
+    /// <summary>Read-only file system.</summary>
     public const int Erofs = 30;
 }

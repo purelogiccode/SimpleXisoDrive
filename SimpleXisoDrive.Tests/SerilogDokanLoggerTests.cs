@@ -8,6 +8,7 @@ namespace SimpleXisoDrive.Tests;
 /// <summary>
 /// Tests the DokanNet-to-Serilog logging adapter.
 /// </summary>
+[Collection(GlobalLoggerCollection.Name)]
 public class SerilogDokanLoggerTests
 {
     /// <summary>

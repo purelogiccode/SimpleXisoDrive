@@ -4,9 +4,41 @@ namespace SimpleXisoDrive.Tests;
 
 /// <summary>
 /// Tests that bug reports contain the required environment, error and exception sections.
+/// The local log paths are redirected to a temporary directory so the real logs are never touched.
 /// </summary>
-public class BugReportTests
+[Collection(BugReportFileCollection.Name)]
+public class BugReportTests : IDisposable
 {
+    private readonly string _logDirectory;
+
+    /// <summary>
+    /// Redirects the local log files to a fresh temporary directory.
+    /// </summary>
+    public BugReportTests()
+    {
+        _logDirectory = Path.Combine(Path.GetTempPath(), "simplexiso-bugreport-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_logDirectory);
+        BugReport.OverrideLogFilePaths(
+            Path.Combine(_logDirectory, "error.log"),
+            Path.Combine(_logDirectory, "critical_error.log"));
+    }
+
+    /// <summary>
+    /// Restores the default log paths and removes the temporary directory.
+    /// </summary>
+    public void Dispose()
+    {
+        BugReport.OverrideLogFilePaths(null, null);
+        try
+        {
+            Directory.Delete(_logDirectory, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort cleanup.
+        }
+    }
+
     /// <summary>
     /// Verifies a report with an exception contains every required section and field.
     /// </summary>
@@ -104,9 +136,55 @@ public class BugReportTests
 
         BugReport.WriteLocalErrorLog(marker);
 
-        var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
-        var content = File.ReadAllText(logPath);
+        var content = File.ReadAllText(BugReport.ErrorLogFilePath);
         Assert.Contains(marker, content, StringComparison.Ordinal);
         Assert.Contains("--------------------------------------------------", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies consecutive local writes preserve earlier reports.
+    /// </summary>
+    [Fact]
+    public void WriteLocalErrorLog_AppendsMultipleReports()
+    {
+        var first = "first-" + Guid.NewGuid().ToString("N");
+        var second = "second-" + Guid.NewGuid().ToString("N");
+
+        BugReport.WriteLocalErrorLog(first);
+        BugReport.WriteLocalErrorLog(second);
+
+        var content = File.ReadAllText(BugReport.ErrorLogFilePath);
+        Assert.Contains(first, content, StringComparison.Ordinal);
+        Assert.Contains(second, content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies an exception with an explicit source reports that source.
+    /// </summary>
+    [Fact]
+    public void BuildReport_WithExceptionSource_ReportsTheSource()
+    {
+        var exception = new InvalidOperationException("x") { Source = "UnitTestSource" };
+
+        var report = BugReport.BuildReport("Error", "x", exception);
+
+        Assert.Contains("Source: UnitTestSource", report, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies every level string is echoed verbatim in the error section.
+    /// </summary>
+    /// <param name="level">The level to report.</param>
+    [Theory]
+    [InlineData("Debug")]
+    [InlineData("Information")]
+    [InlineData("Warning")]
+    [InlineData("Error")]
+    [InlineData("Fatal")]
+    public void BuildReport_EchoesTheLevel(string level)
+    {
+        var report = BugReport.BuildReport(level, "x", null);
+
+        Assert.Contains($"Level: {level}", report, StringComparison.Ordinal);
     }
 }

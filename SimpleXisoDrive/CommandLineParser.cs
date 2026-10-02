@@ -1,3 +1,5 @@
+using SimpleXisoDrive.Models;
+
 namespace SimpleXisoDrive;
 
 /// <summary>
@@ -8,7 +10,8 @@ internal static class CommandLineParser
 {
     /// <summary>
     /// Parses the supplied arguments. At least one argument is required; the zero-argument
-    /// case (usage display) is handled by the caller.
+    /// case (usage display) is handled by the caller. Options may appear before or after
+    /// the mount path, matching the Unix front end.
     /// </summary>
     /// <param name="args">The raw command-line arguments.</param>
     /// <returns>The validated arguments.</returns>
@@ -17,22 +20,13 @@ internal static class CommandLineParser
     {
         ArgumentNullException.ThrowIfNull(args);
 
-        if (args.Length == 1)
-        {
-            return new CommandLineArguments
-            {
-                ImagePath = ValidateImagePath(args[0]),
-                IsDragAndDrop = true,
-                Launch = true
-            };
-        }
-
         var imagePath = ValidateImagePath(args[0]);
         var debug = false;
         var launch = false;
         var imageIso = false;
+        string? mountPath = null;
 
-        foreach (var argument in args.Skip(2))
+        foreach (var argument in args.Skip(1))
         {
             if (MatchesAny(argument, "-d", "--debug"))
             {
@@ -50,20 +44,40 @@ internal static class CommandLineParser
             {
                 throw new CommandLineException($"unknown option '{argument}'.", showUsage: true);
             }
+            else if (mountPath is null)
+            {
+                mountPath = argument;
+            }
             else
             {
                 throw new CommandLineException($"unexpected argument '{argument}'.", showUsage: false);
             }
         }
 
+        // Without a mount path the caller falls back to drag-and-drop mode, which
+        // selects a free drive letter and opens Explorer after mounting.
+        var isDragAndDrop = mountPath is null;
+
         return new CommandLineArguments
         {
             ImagePath = imagePath,
-            MountPath = args[1],
+            MountPath = mountPath,
+            IsDragAndDrop = isDragAndDrop,
             Debug = debug,
-            Launch = launch,
+            Launch = launch || isDragAndDrop,
             ImageIso = imageIso
         };
+    }
+
+    /// <summary>
+    /// Determines whether an argument requests the usage text. Matching is case-insensitive
+    /// and consistent with the Unix front end.
+    /// </summary>
+    /// <param name="argument">The command-line argument to test.</param>
+    /// <returns><see langword="true"/> when the argument is <c>-h</c> or <c>--help</c>.</returns>
+    public static bool IsHelpOption(string argument)
+    {
+        return MatchesAny(argument, "-h", "--help");
     }
 
     private static string ValidateImagePath(string isoPath)

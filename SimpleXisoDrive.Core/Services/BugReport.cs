@@ -27,8 +27,28 @@ public static class BugReport
     private static int _pendingReports;
 
     private static readonly string BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-    private static readonly string ErrorLogFilePath = Path.Combine(BaseDirectory, "error.log");
-    private static readonly string CriticalLogFilePath = Path.Combine(BaseDirectory, "critical_error.log");
+
+    /// <summary>
+    /// Gets the path of the local error log.
+    /// </summary>
+    internal static string ErrorLogFilePath { get; private set; } = Path.Combine(BaseDirectory, "error.log");
+
+    /// <summary>
+    /// Gets the path of the critical logging-error log.
+    /// </summary>
+    internal static string CriticalLogFilePath { get; private set; } = Path.Combine(BaseDirectory, "critical_error.log");
+
+    /// <summary>
+    /// Overrides the local log file paths so tests never append to the real logs. Pass
+    /// <see langword="null"/> to restore the default location next to the application.
+    /// </summary>
+    /// <param name="errorLogPath">The error log path, or <see langword="null"/> for the default.</param>
+    /// <param name="criticalLogPath">The critical log path, or <see langword="null"/> for the default.</param>
+    internal static void OverrideLogFilePaths(string? errorLogPath, string? criticalLogPath)
+    {
+        ErrorLogFilePath = errorLogPath ?? Path.Combine(BaseDirectory, "error.log");
+        CriticalLogFilePath = criticalLogPath ?? Path.Combine(BaseDirectory, "critical_error.log");
+    }
 
     static BugReport()
     {

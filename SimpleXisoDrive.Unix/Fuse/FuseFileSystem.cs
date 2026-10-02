@@ -56,7 +56,8 @@ internal sealed class FuseFileSystem
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to create the FUSE file system");
+            // Setup failures are environment conditions, not application defects.
+            Log.Information(ex, "Failed to create the FUSE file system");
             throw;
         }
     }
@@ -79,7 +80,8 @@ internal sealed class FuseFileSystem
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "FUSE session failed for '{MountPoint}'", mountPoint);
+            // A mount/session setup failure is an environment condition.
+            Log.Information(ex, "FUSE session failed for '{MountPoint}'", mountPoint);
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
         }
@@ -192,7 +194,7 @@ internal sealed class FuseFileSystem
         if (fuse == IntPtr.Zero)
         {
             Console.Error.WriteLine("Error: the FUSE library rejected the file system setup.");
-            Log.Error("fuse_new failed");
+            Log.Information("fuse_new failed");
             return 1;
         }
 
@@ -202,7 +204,7 @@ internal sealed class FuseFileSystem
             if (mountResult != 0)
             {
                 Console.Error.WriteLine($"Error: failed to mount at '{_mountPoint}' (code {mountResult}).");
-                Log.Error("fuse_mount failed with {Result}", mountResult);
+                Log.Information("fuse_mount failed with {Result}", mountResult);
                 return 1;
             }
 
@@ -389,6 +391,13 @@ internal sealed class FuseFileSystem
                 var span = new Span<byte>((void*)buffer, bytesToRead);
                 return _vfs.ReadFile(entry, span, offset);
             }
+        }
+        catch (IOException ex)
+        {
+            // A data read failure maps to EIO instead of a silent EOF; the detail stays
+            // in the debug log so corrupted media does not auto-report as a bug.
+            Log.Debug(ex, "FUSE read failed for '{Path}' at offset {Offset}", SafePath(path), offset);
+            return -PosixError.Eio;
         }
         catch (Exception ex)
         {

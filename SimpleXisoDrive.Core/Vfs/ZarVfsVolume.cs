@@ -18,12 +18,14 @@ internal sealed class ZarVfsVolume : IVfsVolume
     private const int ChildrenCacheLimit = 512;
 
     private readonly ZArchiveReader _reader;
+    private readonly Lock _readerLock = new();
 
+    // Ordinal keys keep case-distinct names apart on case-sensitive file systems.
     private readonly BoundedCache<string, ZarEntry>
-        _entryCache = new(EntryCacheLimit, StringComparer.OrdinalIgnoreCase);
+        _entryCache = new(EntryCacheLimit, StringComparer.Ordinal);
 
     private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
-        new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);
+        new(ChildrenCacheLimit, StringComparer.Ordinal);
 
     private bool _disposed;
 
@@ -173,7 +175,12 @@ internal sealed class ZarVfsVolume : IVfsVolume
             return cachedEntry;
         }
 
-        var node = _reader.LookUp(normalizedPath);
+        uint node;
+        lock (_readerLock)
+        {
+            node = _reader.LookUp(normalizedPath);
+        }
+
         if (node == ZArchiveReader.InvalidNode)
         {
             return null;
@@ -184,13 +191,18 @@ internal sealed class ZarVfsVolume : IVfsVolume
 
     private ZarEntry CreateEntry(string normalizedPath, uint node)
     {
-        var isDirectory = _reader.IsDirectory(node);
-        var size = isDirectory ? 0 : (long)Math.Min(_reader.GetFileSize(node), long.MaxValue);
-        var fileName = _reader.TryGetNodeName(node, out var name) ? name : string.Empty;
+        // ZArchiveReader is not documented as thread-safe; serialize every reader call
+        // so Explorer and an emulator reading concurrently cannot corrupt its state.
+        lock (_readerLock)
+        {
+            var isDirectory = _reader.IsDirectory(node);
+            var size = isDirectory ? 0 : (long)Math.Min(_reader.GetFileSize(node), long.MaxValue);
+            var fileName = _reader.TryGetNodeName(node, out var name) ? name : string.Empty;
 
-        var entry = new ZarEntry(node, fileName, isDirectory, size);
-        CacheEntry(normalizedPath, entry);
-        return entry;
+            var entry = new ZarEntry(node, fileName, isDirectory, size);
+            CacheEntry(normalizedPath, entry);
+            return entry;
+        }
     }
 
     /// <inheritdoc />
@@ -225,24 +237,28 @@ internal sealed class ZarVfsVolume : IVfsVolume
 
         var children = new List<IVfsEntry>();
         var atRoot = string.Equals(normalizedPath, "\\", StringComparison.Ordinal);
-        var childCount = _reader.GetDirEntryCount(directory.Node);
 
-        for (uint i = 0; i < childCount; i++)
+        lock (_readerLock)
         {
-            // TryGetDirEntry resolves the child handle in one step (the library
-            // clamps the count and bounds-checks the index), so no path rebuild
-            // or second lookup is needed per child.
-            if (!_reader.TryGetDirEntry(directory.Node, i, out var childNode, out var child) ||
-                string.IsNullOrEmpty(child.Name))
-            {
-                continue;
-            }
+            var childCount = _reader.GetDirEntryCount(directory.Node);
 
-            var childPath = atRoot ? "\\" + child.Name : normalizedPath + "\\" + child.Name;
-            var size = child.IsDirectory ? 0 : (long)Math.Min(child.Size, long.MaxValue);
-            var childEntry = new ZarEntry(childNode, child.Name, child.IsDirectory, size);
-            CacheEntry(childPath, childEntry);
-            children.Add(childEntry);
+            for (uint i = 0; i < childCount; i++)
+            {
+                // TryGetDirEntry resolves the child handle in one step (the library
+                // clamps the count and bounds-checks the index), so no path rebuild
+                // or second lookup is needed per child.
+                if (!_reader.TryGetDirEntry(directory.Node, i, out var childNode, out var child) ||
+                    string.IsNullOrEmpty(child.Name))
+                {
+                    continue;
+                }
+
+                var childPath = atRoot ? "\\" + child.Name : normalizedPath + "\\" + child.Name;
+                var size = child.IsDirectory ? 0 : (long)Math.Min(child.Size, long.MaxValue);
+                var childEntry = new ZarEntry(childNode, child.Name, child.IsDirectory, size);
+                CacheEntry(childPath, childEntry);
+                children.Add(childEntry);
+            }
         }
 
         return children;
@@ -264,12 +280,17 @@ internal sealed class ZarVfsVolume : IVfsVolume
                 return 0;
             }
 
-            return (int)_reader.ReadFromFile(zarEntry.Node, (ulong)offset, buffer);
+            lock (_readerLock)
+            {
+                return (int)_reader.ReadFromFile(zarEntry.Node, (ulong)offset, buffer);
+            }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "ZarVfsVolume.ReadFile failed for {FileName}", entry.FileName);
-            return 0;
+            // A read failure must not look like EOF: propagate it so the mount layers
+            // can return DokanResult.Error / -EIO instead of a silent truncation.
+            Log.Debug(ex, "ZarVfsVolume.ReadFile failed for {FileName}", entry.FileName);
+            throw new IOException($"Failed to read '{entry.FileName}' from the archive.", ex);
         }
     }
 

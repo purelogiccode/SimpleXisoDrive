@@ -121,14 +121,14 @@ public class StreamRawImageSourceTests
     }
 
     /// <summary>
-    /// Verifies stream failures degrade to a zero-byte read.
+    /// Verifies stream failures propagate as an I/O error instead of a silent zero-byte read.
     /// </summary>
     [Fact]
-    public void Read_WhenStreamThrows_ReturnsZero()
+    public void Read_WhenStreamThrows_ThrowsIOException()
     {
         using var source = new StreamRawImageSource(new FaultyStream());
 
-        Assert.Equal(0, source.Read(new byte[4], 0));
+        Assert.Throws<IOException>(() => source.Read(new byte[4], 0));
     }
 
     /// <summary>

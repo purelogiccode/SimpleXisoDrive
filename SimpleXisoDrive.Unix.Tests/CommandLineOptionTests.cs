@@ -40,4 +40,32 @@ public class CommandLineOptionTests
     {
         Assert.False(Program.IsKnownOption(option));
     }
+
+    /// <summary>
+    /// Verifies help flags are recognized in any letter case.
+    /// </summary>
+    /// <param name="argument">The help argument to test.</param>
+    [Theory]
+    [InlineData("-h")]
+    [InlineData("--help")]
+    [InlineData("-H")]
+    [InlineData("--HELP")]
+    public void IsHelpOption_RecognizesHelpCaseInsensitively(string argument)
+    {
+        Assert.True(Program.IsHelpOption(argument));
+    }
+
+    /// <summary>
+    /// Verifies non-help arguments are not treated as help.
+    /// </summary>
+    /// <param name="argument">The argument to test.</param>
+    [Theory]
+    [InlineData("-d")]
+    [InlineData("help")]
+    [InlineData("--debug")]
+    [InlineData("")]
+    public void IsHelpOption_RejectsOtherArguments(string argument)
+    {
+        Assert.False(Program.IsHelpOption(argument));
+    }
 }

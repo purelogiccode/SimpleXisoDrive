@@ -68,11 +68,37 @@ internal static class VfsVolumeFactory
 
             return OpenDetected(imagePath, exposeImageIso, extensionFailure: null);
         }
+        catch (Exception ex) when (IsExpectedOpenFailure(ex))
+        {
+            // Expected input/environment failures are already surfaced by the front end;
+            // keep the detail in the debug log so they do not auto-report as bugs.
+            Log.Debug(ex, "Could not open image '{ImagePath}'", imagePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to open image '{ImagePath}'", imagePath);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Determines whether an open failure is an expected input/environment condition
+    /// (invalid image, missing or unreadable file) rather than an application defect.
+    /// </summary>
+    /// <param name="exception">The failure to classify.</param>
+    /// <returns><see langword="true"/> for expected failures.</returns>
+    private static bool IsExpectedOpenFailure(Exception exception)
+    {
+        for (var ex = exception; ex is not null; ex = ex.InnerException)
+        {
+            if (ex is InvalidImageException or IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

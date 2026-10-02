@@ -82,12 +82,14 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
         }
         catch (InvalidImageException ex)
         {
-            Log.Error(ex, "Cannot synthesize image.iso for '{ArchivePath}'", archivePath);
+            // The factory logs the user-visible error; keep the detail in the debug log
+            // so one failure is not reported twice.
+            Log.Debug(ex, "Cannot synthesize image.iso for '{ArchivePath}'", archivePath);
             throw;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to synthesize image.iso for '{ArchivePath}'", archivePath);
+            Log.Debug(ex, "Failed to synthesize image.iso for '{ArchivePath}'", archivePath);
             throw new InvalidImageException(
                 $"Failed to synthesize an image.iso from the ZArchive tree '{archivePath}': {ex.Message}", ex);
         }
@@ -157,8 +159,10 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Virtual XISO read failed at offset {Offset}", offset);
-                return 0;
+                // A read failure must not look like EOF: propagate it so the mount layers
+                // can return DokanResult.Error / -EIO instead of a silent truncation.
+                Log.Debug(ex, "Virtual XISO read failed at offset {Offset}", offset);
+                throw new IOException($"Failed to read the synthesized image at offset {offset}.", ex);
             }
         }
     }
@@ -515,9 +519,11 @@ internal sealed class VirtualXisoImageSource : IRawImageSource
 
         public List<FileNode> Files { get; } = [];
 
-        public Dictionary<string, FileNode> FilesByName { get; } = new(StringComparer.OrdinalIgnoreCase);
+        // Ordinal keys preserve AVL-node identity: case-only-distinct names are separate
+        // entries, and collapsing them would leave one file without its allocated sectors.
+        public Dictionary<string, FileNode> FilesByName { get; } = new(StringComparer.Ordinal);
 
-        public Dictionary<string, DirectoryNode> DirectoriesByName { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, DirectoryNode> DirectoriesByName { get; } = new(StringComparer.Ordinal);
 
         public AvlNode? Table { get; set; }
 

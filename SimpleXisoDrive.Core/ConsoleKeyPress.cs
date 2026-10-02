@@ -21,24 +21,28 @@ internal static class ConsoleKeyPress
     /// <returns>A task that completes on the next key press.</returns>
     public static Task<ConsoleKeyInfo> WaitAsync()
     {
+        // Capture the source so a concurrent Reset can never leave the caller awaiting a
+        // task that no reader will complete.
+        var source = Volatile.Read(ref _pressed);
+
         if (Interlocked.Exchange(ref _readerStarted, 1) == 0)
         {
-            _ = Task.Run(static () =>
+            _ = Task.Run(() =>
             {
                 try
                 {
-                    _pressed.TrySetResult(Console.ReadKey(true));
+                    source.TrySetResult(Console.ReadKey(true));
                 }
                 catch (Exception ex)
                 {
                     // Redirected input (or no console): complete immediately.
                     Log.Debug(ex, "Console key read unavailable; completing immediately");
-                    _pressed.TrySetResult(default);
+                    source.TrySetResult(default);
                 }
             });
         }
 
-        return _pressed.Task;
+        return source.Task;
     }
 
     /// <summary>
@@ -48,7 +52,7 @@ internal static class ConsoleKeyPress
     /// </summary>
     internal static void Reset()
     {
-        _pressed = CreateSource();
+        Volatile.Write(ref _pressed, CreateSource());
         Interlocked.Exchange(ref _readerStarted, 0);
     }
 

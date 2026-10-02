@@ -1,4 +1,4 @@
-namespace SimpleXisoDrive;
+namespace SimpleXisoDrive.Models;
 
 /// <summary>
 /// The validated command-line arguments for a mount.

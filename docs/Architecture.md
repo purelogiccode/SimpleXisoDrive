@@ -77,7 +77,7 @@ flowchart TD
 | `FuseAvailability` | `internal static class` (Unix) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
 | `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
-| `SerilogDokanLogger` | `public sealed class` | Routes DokanNet's internal log messages into Serilog. |
+| `SerilogDokanLogger` | `internal sealed class` | Routes DokanNet's internal log messages into Serilog. |
 | `InvalidImageException` | `public class` | Signals that a file is not a readable Xbox ISO/XISO image, Xbox ISO CHD or ZArchive. |
 
 ### Services
@@ -103,19 +103,26 @@ flowchart TD
    - `TaskScheduler.UnobservedTaskException`
 
    Both route exceptions to `BugReport.LogFatalException`.
-3. The application reports launch statistics (`StatsService.ReportLaunch`, fire-and-forget) and
-   verifies its mount backend: the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`) on Windows,
-   or the FUSE library plus `/dev/fuse` on Linux (`FuseAvailability.Check`).
-4. Arguments are parsed and the image path is resolved (see
+3. The application reports launch statistics (`StatsService.ReportLaunch`). The request is tracked
+   so shutdown can give it a bounded grace period (`StatsService.WaitForPendingReportAsync`).
+4. Help flags (`-h`/`--help`) print the usage text and exit without a network call.
+5. At startup, `UpdateChecker.CheckForUpdateAsync` queries the GitHub releases API. When a newer
+   release exists, the user is notified and asked whether to open the download page: on Windows
+   through a native message box (skipped when the console is redirected), on Unix through the
+   console prompt (skipped when input is redirected).
+6. A run without arguments prints the usage text and the drag-and-drop hint before the mount
+   backend is probed, so a missing runtime cannot hide the usage text.
+7. The mount backend is verified: the Dokan runtime (`%SystemRoot%\System32\dokan2.dll`) on
+   Windows, or the FUSE library plus `/dev/fuse` on Linux (`FuseAvailability.Check`).
+8. Arguments are parsed and the image path is resolved (see
    [Command-Line Reference](Command-Line-Reference)).
-5. `UpdateChecker.CheckForUpdateAsync` runs; on Windows an available update is offered through a
-   message box (skipped when the console is redirected), on Unix through the console prompt.
-6. `RunMountAsync` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`)
+9. `RunMountAsync` builds the `VfsContainer` (which selects an `IVfsVolume` via `VfsVolumeFactory`)
    and mounts the Dokan file system (Windows) or the FUSE file system (Unix).
-7. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), `fusermount3 -u`/`umount`
-   (Unix), or a failure.
-8. On shutdown the `VfsContainer` is disposed, the file stream is closed, pending bug reports get a
-   bounded grace period (`BugReport.WaitForPendingReportsAsync`), and `Log.CloseAndFlush()` is called.
+10. The process blocks until `Ctrl+C`, a key press (drag-and-drop mode), `fusermount3 -u`/`umount`
+    (Unix), or a failure.
+11. On shutdown the `VfsContainer` is disposed, the file stream is closed, pending stats and bug
+    reports get a bounded grace period (`StatsService.WaitForPendingReportAsync`,
+    `BugReport.WaitForPendingReportsAsync`), and `Log.CloseAndFlush()` is called.
 
 ---
 
@@ -286,12 +293,18 @@ CSharp_SimpleXisoDrive/
 |-- SimpleXisoDrive/                    # Windows application (net10.0-windows, Dokan)
 |   |-- Program.cs
 |   |-- CommandLineParser.cs            # argument parsing/validation
+|   |-- CommandLineException.cs         # invalid-argument error with usage hint
 |   |-- DriveLetterSelector.cs          # free M-R drive letter for drag-and-drop
 |   |-- DokanInstallation.cs            # dokan2.dll/dokan2.sys detection
+|   |-- DokanDownloadPrompt.cs          # missing-Dokan warning + download-page offer
+|   |-- WindowsMessageBox.cs            # shared native Yes/No message box
 |   |-- WindowsUpdatePrompt.cs          # native message box for update notifications
 |   |-- XboxIsoVfsDokan.cs
 |   |-- SerilogDokanLogger.cs
 |   |-- UsageText.cs
+|   |-- Models/
+|   |   |-- CommandLineArguments.cs     # parsed command-line data
+|   |   `-- DokanInstallationStatus.cs  # detected Dokan installation state
 |   `-- icon/xiso.ico, icon/xiso.png
 |-- SimpleXisoDrive.Unix/               # Linux/macOS application (net10.0, FUSE 3)
 |   |-- Program.cs

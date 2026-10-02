@@ -49,6 +49,7 @@ public interface IVfsVolume : IDisposable
     /// <param name="entry">The file entry to read from.</param>
     /// <param name="buffer">The buffer that receives the data.</param>
     /// <param name="offset">The byte offset within the file at which to start reading.</param>
-    /// <returns>The number of bytes read, or zero if the read fails.</returns>
+    /// <returns>The number of bytes read.</returns>
+    /// <exception cref="IOException">Thrown when the underlying data cannot be read.</exception>
     int ReadFile(IVfsEntry entry, Span<byte> buffer, long offset);
 }

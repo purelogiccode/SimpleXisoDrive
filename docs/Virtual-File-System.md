@@ -104,9 +104,11 @@ during construction.
    paths).
 4. Cache and return the result.
 
-Every step is wrapped so that a failure logs an error and returns `null` instead of propagating to
-Dokan. ZArchive lookups preserve the archive's original name casing in the returned entry even when
-the requested path uses different case.
+Every step is wrapped so that a failure returns `null` instead of propagating to Dokan. A path that
+simply does not exist in the image (which Windows routinely probes, for example
+`\System Volume Information`) is logged at Debug level so it is not forwarded to the bug report API;
+only unexpected failures are logged as errors. ZArchive lookups preserve the archive's original name
+casing in the returned entry even when the requested path uses different case.
 
 ### Path normalization in Dokan callbacks
 

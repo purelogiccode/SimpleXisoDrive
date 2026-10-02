@@ -7,7 +7,6 @@
 [![Stars](https://img.shields.io/github/stars/purelogiccode/SimpleXisoDrive?style=flat&logo=github)](https://github.com/purelogiccode/SimpleXisoDrive/stargazers)
 [![Issues](https://img.shields.io/github/issues/purelogiccode/SimpleXisoDrive?logo=github)](https://github.com/purelogiccode/SimpleXisoDrive/issues)
 [![Last commit](https://img.shields.io/github/last-commit/purelogiccode/SimpleXisoDrive?logo=git)](https://github.com/purelogiccode/SimpleXisoDrive/commits/master)
-
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](#license)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 ![Windows](https://img.shields.io/badge/Windows-x64_%7C_ARM64-0078D6?logo=windows&logoColor=white)

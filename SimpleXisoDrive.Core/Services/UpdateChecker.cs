@@ -33,7 +33,7 @@ public static class UpdateChecker
     /// <param name="latest">The latest available version.</param>
     /// <param name="releaseUrl">The release page URL.</param>
     /// <returns><see langword="true"/> when the browser should be launched; otherwise <see langword="false"/>.</returns>
-    internal delegate bool UpdatePrompt(Version current, Version latest, string releaseUrl);
+    public delegate bool UpdatePrompt(Version current, Version latest, string releaseUrl);
 
     /// <summary>
     /// Queries the latest release information and, when a newer version is available,
@@ -59,7 +59,7 @@ public static class UpdateChecker
     /// Used by the front ends to replace the console prompt (for example with a message box).
     /// </summary>
     /// <param name="prompt">The notification/confirmation the user sees.</param>
-    internal static Task CheckForUpdateAsync(UpdatePrompt prompt)
+    public static Task CheckForUpdateAsync(UpdatePrompt prompt)
     {
         return CheckForUpdateAsync(Http, prompt);
     }
@@ -106,7 +106,7 @@ public static class UpdateChecker
                     FileName = htmlUrl,
                     UseShellExecute = true
                 };
-                Process.Start(psi);
+                using var process = Process.Start(psi);
                 Console.WriteLine("Browser opened to latest release page.");
             }
             catch (Exception ex)

@@ -91,6 +91,23 @@ public class ReaderOwningVfsVolumeTests
     }
 
     /// <summary>
+    /// Verifies disposal is idempotent for the wrapped volume and the owner.
+    /// </summary>
+    [Fact]
+    public void Dispose_IsIdempotent()
+    {
+        var inner = new FakeVfsVolume();
+        var owner = new RecordingDisposable();
+        var volume = new ReaderOwningVfsVolume(inner, owner);
+
+        volume.Dispose();
+        volume.Dispose();
+
+        Assert.Equal(1, inner.DisposeCount);
+        Assert.Equal(1, owner.DisposeCount);
+    }
+
+    /// <summary>
     /// Verifies the owner is still disposed when the inner volume throws.
     /// </summary>
     [Fact]

@@ -65,4 +65,73 @@ public class RequestModelTests
         Assert.Equal("Windows (X64)", root.GetProperty("environment").GetString());
         Assert.Equal("at Example()", root.GetProperty("stackTrace").GetString());
     }
+
+    /// <summary>
+    /// Verifies omitted optional fields serialize as JSON null rather than being dropped.
+    /// </summary>
+    [Fact]
+    public void BugReportRequest_OptionalFieldsDefaultToNull()
+    {
+        var request = new BugReportRequest { Message = "only the required field" };
+
+        Assert.Null(request.ApplicationName);
+        Assert.Null(request.Version);
+        Assert.Null(request.UserInfo);
+        Assert.Null(request.Environment);
+        Assert.Null(request.StackTrace);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(request));
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("stackTrace").ValueKind);
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("userInfo").ValueKind);
+    }
+
+    /// <summary>
+    /// Verifies an API-shaped bug report payload deserializes with every field mapped.
+    /// </summary>
+    [Fact]
+    public void BugReportRequest_DeserializesApiShapedJson()
+    {
+        const string json = """
+                            {"message":"m","applicationName":"app","version":"2.0","userInfo":"u",
+                             "environment":"e","stackTrace":"s"}
+                            """;
+
+        var request = JsonSerializer.Deserialize<BugReportRequest>(json);
+
+        Assert.NotNull(request);
+        Assert.Equal("m", request.Message);
+        Assert.Equal("app", request.ApplicationName);
+        Assert.Equal("2.0", request.Version);
+        Assert.Equal("u", request.UserInfo);
+        Assert.Equal("e", request.Environment);
+        Assert.Equal("s", request.StackTrace);
+    }
+
+    /// <summary>
+    /// Verifies an API-shaped statistics payload deserializes with both fields mapped.
+    /// </summary>
+    [Fact]
+    public void StatsRequest_DeserializesApiShapedJson()
+    {
+        var request = JsonSerializer.Deserialize<StatsRequest>(
+            "{\"applicationId\":\"simplexisodrive\",\"version\":\"1.4.0\"}");
+
+        Assert.NotNull(request);
+        Assert.Equal("simplexisodrive", request.ApplicationId);
+        Assert.Equal("1.4.0", request.Version);
+    }
+
+    /// <summary>
+    /// Verifies unknown JSON properties are ignored instead of failing deserialization.
+    /// </summary>
+    [Fact]
+    public void BugReportRequest_IgnoresUnknownProperties()
+    {
+        const string json = "{\"message\":\"m\",\"unexpected\":\"ignored\"}";
+
+        var request = JsonSerializer.Deserialize<BugReportRequest>(json);
+
+        Assert.NotNull(request);
+        Assert.Equal("m", request.Message);
+    }
 }

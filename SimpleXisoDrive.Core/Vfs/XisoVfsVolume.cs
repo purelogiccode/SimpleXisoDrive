@@ -35,11 +35,14 @@ internal sealed class XisoVfsVolume : IVfsVolume
     private readonly VolumeInfo _volume;
     private readonly Lock _streamLock = new();
 
+    // Ordinal keys keep case-distinct names apart on case-sensitive file systems;
+    // Windows can still look a name up with any case because the library lookup
+    // itself is case-insensitive and each spelling is cached separately.
     private readonly BoundedCache<string, XisoEntry> _entryCache = new(EntryCacheLimit,
-        StringComparer.OrdinalIgnoreCase);
+        StringComparer.Ordinal);
 
     private readonly BoundedCache<string, List<IVfsEntry>> _childrenCache =
-        new(ChildrenCacheLimit, StringComparer.OrdinalIgnoreCase);
+        new(ChildrenCacheLimit, StringComparer.Ordinal);
 
     private bool _disposed;
 
@@ -85,7 +88,18 @@ internal sealed class XisoVfsVolume : IVfsVolume
                 throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
             }
 
-            _volume = _explorer.Volume;
+            try
+            {
+                _volume = _explorer.Volume;
+            }
+            catch (Exception ex)
+            {
+                // The explorer already opened the image handle; never leak it when the
+                // volume descriptor cannot be read.
+                Log.Debug(ex, "Failed to read the volume descriptor of '{ImagePath}'", isoPath);
+                _explorer.Dispose();
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -131,7 +145,8 @@ internal sealed class XisoVfsVolume : IVfsVolume
         if (!_volume.IsValid)
         {
             DisposeStream(stream);
-            Log.Error("XDVDFS magic string not found in '{ImagePath}'", displayName);
+            // An invalid input, matching the path-based constructor and the front ends.
+            Log.Debug("XDVDFS magic string not found in '{ImagePath}'", displayName);
             throw new InvalidImageException("XDVDFS magic string not found.");
         }
     }
@@ -154,6 +169,14 @@ internal sealed class XisoVfsVolume : IVfsVolume
         try
         {
             return GetEntryInternal(path);
+        }
+        catch (Exception ex) when (XisoPathNotFound.Is(ex))
+        {
+            // Windows probes paths that do not exist in the image (for example
+            // "\System Volume Information"); a lookup miss is a normal outcome,
+            // so it must not be reported as an application error.
+            Log.Debug(ex, "GetEntry: '{Path}' does not exist in the image", path);
+            return null;
         }
         catch (Exception ex)
         {
@@ -262,6 +285,13 @@ internal sealed class XisoVfsVolume : IVfsVolume
                 normalizedPath);
             return children;
         }
+        catch (Exception ex) when (XisoPathNotFound.Is(ex))
+        {
+            // A directory that is not present in the image (or is a file) yields an
+            // empty listing; Windows routinely probes directories that do not exist.
+            Log.Debug(ex, "GetFolderList: '{Path}' is not a directory in the image", path);
+            return [];
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "GetFolderList failed for '{Path}'", path);
@@ -294,7 +324,8 @@ internal sealed class XisoVfsVolume : IVfsVolume
                 var position = _volume.DiscLseek + ((long)xisoEntry.StartSector * SectorSize) + offset;
                 if (position >= _stream!.Length)
                 {
-                    return 0;
+                    throw new IOException(
+                        $"The image ends before the data of '{xisoEntry.FileName}' at offset {offset}.");
                 }
 
                 _stream.Seek(position, SeekOrigin.Begin);
@@ -303,8 +334,10 @@ internal sealed class XisoVfsVolume : IVfsVolume
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "XisoVfsVolume.ReadFile failed for {FileName}", entry.FileName);
-            return 0;
+            // A read failure must not look like EOF: propagate it so the mount layers
+            // can return DokanResult.Error / -EIO instead of a silent truncation.
+            Log.Debug(ex, "XisoVfsVolume.ReadFile failed for {FileName}", entry.FileName);
+            throw new IOException($"Failed to read '{entry.FileName}' from the image.", ex);
         }
     }
 
@@ -320,6 +353,12 @@ internal sealed class XisoVfsVolume : IVfsVolume
             }
 
             totalRead += read;
+        }
+
+        if (totalRead < buffer.Length)
+        {
+            // A short read means the data is truncated; never let it look like EOF.
+            throw new IOException($"The image ended after {totalRead} of {buffer.Length} requested bytes.");
         }
 
         return totalRead;

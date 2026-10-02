@@ -15,6 +15,7 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
 {
     private readonly IVfsVolume _inner = inner;
     private readonly IDisposable _owner = owner;
+    private bool _disposed;
 
     /// <inheritdoc />
     public ulong VolumeSize => _inner.VolumeSize;
@@ -46,9 +47,18 @@ internal sealed class ReaderOwningVfsVolume(IVfsVolume inner, IDisposable owner)
         return _inner.ReadFile(entry, buffer, offset);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Disposes the wrapped volume and the owning reader. Disposing more than once is a no-op.
+    /// </summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         try
         {
             _inner.Dispose();

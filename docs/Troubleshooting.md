@@ -34,7 +34,8 @@ The sections below describe each failure in detail.
 
 **Cause:** `%SystemRoot%\System32\dokan2.dll` is missing, so the application exits immediately.
 
-**Resolution:**
+**Resolution:** SimpleXisoDrive offers to open the Dokan download page in your browser. Choose
+**Yes** to be redirected, or install it manually:
 
 1. Download Dokan from <https://github.com/dokan-dev/dokany/releases>.
 2. Install it with the default options (the runtime library is included).
@@ -48,7 +49,8 @@ The sections below describe each failure in detail.
 
 **Cause:** The runtime library exists but the kernel driver does not. Mounting may fail.
 
-**Resolution:** Reinstall Dokan and restart the computer. Verify
+**Resolution:** SimpleXisoDrive offers to open the Dokan download page in your browser. Choose
+**Yes** to be redirected, reinstall Dokan and restart the computer, then verify
 `%SystemRoot%\System32\drivers\dokan2.sys` exists.
 
 ### "Error: Failed to load the Dokan runtime library (dokan2.dll)."

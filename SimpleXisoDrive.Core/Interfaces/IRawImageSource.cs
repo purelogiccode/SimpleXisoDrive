@@ -18,6 +18,7 @@ internal interface IRawImageSource : IDisposable
     /// </summary>
     /// <param name="buffer">The buffer that receives the data.</param>
     /// <param name="offset">The byte offset within the image at which to start reading.</param>
-    /// <returns>The number of bytes read, or zero if the read fails.</returns>
+    /// <returns>The number of bytes read.</returns>
+    /// <exception cref="IOException">Thrown when the underlying data cannot be read.</exception>
     int Read(Span<byte> buffer, long offset);
 }

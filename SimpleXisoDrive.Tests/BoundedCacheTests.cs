@@ -88,4 +88,55 @@ public class BoundedCacheTests
 
         Assert.Equal(7, cache.Limit);
     }
+
+    /// <summary>
+    /// Verifies the default comparer is ordinal (case-sensitive), unlike the volumes'
+    /// case-insensitive caches.
+    /// </summary>
+    [Fact]
+    public void Set_WithoutComparer_UsesOrdinalKeys()
+    {
+        var cache = new BoundedCache<string, int>(2);
+
+        cache.Set("key", 1);
+
+        Assert.True(cache.TryGetValue("key", out _));
+        Assert.False(cache.TryGetValue("KEY", out _));
+    }
+
+    /// <summary>
+    /// Verifies updating an existing key does not grow the entry count.
+    /// </summary>
+    [Fact]
+    public void Count_AfterOverwritingExistingKey_DoesNotChange()
+    {
+        var cache = new BoundedCache<string, int>(4);
+
+        cache.Set("a", 1);
+        cache.Set("a", 2);
+        cache.Set("b", 3);
+
+        Assert.Equal(2, cache.Count);
+    }
+
+    /// <summary>
+    /// Verifies rejected entries after the limit leave the existing entries intact.
+    /// </summary>
+    [Fact]
+    public void Set_AfterLimit_KeepsExistingEntriesIntact()
+    {
+        var cache = new BoundedCache<string, int>(2);
+
+        cache.Set("a", 1);
+        cache.Set("b", 2);
+        cache.Set("c", 3);
+        cache.Set("d", 4);
+
+        Assert.True(cache.TryGetValue("a", out var a));
+        Assert.Equal(1, a);
+        Assert.True(cache.TryGetValue("b", out var b));
+        Assert.Equal(2, b);
+        Assert.False(cache.TryGetValue("c", out _));
+        Assert.False(cache.TryGetValue("d", out _));
+    }
 }

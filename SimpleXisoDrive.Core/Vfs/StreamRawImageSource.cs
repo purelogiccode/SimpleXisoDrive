@@ -80,8 +80,10 @@ internal sealed class StreamRawImageSource : IRawImageSource
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Raw image read failed at offset {Offset}", offset);
-                return 0;
+                // A read failure must not look like EOF: propagate it so the mount layers
+                // can return DokanResult.Error / -EIO instead of a silent truncation.
+                Log.Debug(ex, "Raw image read failed at offset {Offset}", offset);
+                throw new IOException($"Failed to read the raw image at offset {offset}.", ex);
             }
         }
     }

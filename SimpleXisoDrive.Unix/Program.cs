@@ -41,8 +41,9 @@ internal static class Program
         }
         finally
         {
-            // Give fire-and-forget bug reports a bounded grace period before the
-            // process (and its HTTP client) goes away.
+            // Give fire-and-forget stats and bug reports a bounded grace period before
+            // the process (and its HTTP client) goes away.
+            await StatsService.WaitForPendingReportAsync(TimeSpan.FromSeconds(5));
             await BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5));
             Log.CloseAndFlush();
         }
@@ -74,11 +75,16 @@ internal static class Program
         // Report launch statistics (fire and forget)
         StatsService.ReportLaunch();
 
-        if (args.Any(static argument => argument is "-h" or "--help"))
+        // Help never triggers a network call.
+        if (args.Any(static argument => IsHelpOption(argument)))
         {
             PrintUsage();
             return 0;
         }
+
+        // At startup, query GitHub for a newer release and offer the download page
+        // through the console prompt (skipped when input is redirected).
+        await UpdateChecker.CheckForUpdateAsync();
 
         if (args.Length == 0)
         {
@@ -143,7 +149,9 @@ internal static class Program
                         $"Hint: Tried looking for '{args[0]}.iso', '{args[0]}.xiso', '{args[0]}.cso', '{args[0]}.chd' and '{args[0]}.zar' but none were found.");
                 }
 
-                Log.Error(new FileNotFoundException($"Image file not found at '{args[0]}'"),
+                // A missing file is a routine user input condition (friendly message
+                // printed above); keep it below the bug-report threshold.
+                Log.Information(new FileNotFoundException($"Image file not found at '{args[0]}'"),
                     "Mount attempt failed: File not found.");
                 return 1;
             }
@@ -169,8 +177,6 @@ internal static class Program
                 {
                     return 1;
                 }
-
-                await UpdateChecker.CheckForUpdateAsync();
 
                 _vfsContainer = new VfsContainer(resolvedIsoPath, imageIso);
                 try
@@ -223,7 +229,9 @@ internal static class Program
         catch (DllNotFoundException ex)
         {
             await Console.Error.WriteLineAsync($"Error: Failed to load the FUSE runtime library: {ex.Message}");
-            Log.Error(ex, "Unable to load the FUSE 3 runtime library.");
+            // Expected setup condition (a partially installed FUSE); keep it below the
+            // bug-report threshold.
+            Log.Information(ex, "Unable to load the FUSE 3 runtime library.");
             return 1;
         }
         catch (Exception ex)
@@ -272,7 +280,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Could not remove temporary mount directory '{MountPath}'", mountPath);
+            // A filesystem/environment condition, not an application defect.
+            Log.Information(ex, "Could not remove temporary mount directory '{MountPath}'", mountPath);
         }
     }
 
@@ -291,6 +300,18 @@ internal static class Program
     internal static bool IsKnownOption(string option)
     {
         return KnownOptions.Contains(option);
+    }
+
+    /// <summary>
+    /// Determines whether an argument requests the usage text, matching <c>-h</c> and
+    /// <c>--help</c> case-insensitively like the other options.
+    /// </summary>
+    /// <param name="argument">The command-line argument to test.</param>
+    /// <returns><see langword="true"/> when the argument requests help.</returns>
+    internal static bool IsHelpOption(string argument)
+    {
+        return argument.Equals("-h", StringComparison.OrdinalIgnoreCase)
+               || argument.Equals("--help", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -315,7 +336,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to open the file manager at '{MountPath}'", mountPath);
+            // A desktop/environment failure, not an application defect.
+            Log.Information(ex, "Failed to open the file manager at '{MountPath}'", mountPath);
         }
     }
 
@@ -350,5 +372,6 @@ internal static class Program
         Console.WriteLine("  -l, --launch    Open the file manager at the mount path after mounting.");
         Console.WriteLine("  -i, --image-iso Also expose the raw Xbox image as image.iso at the mount root");
         Console.WriteLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
+        Console.WriteLine("  -h, --help      Show this help text and exit.");
     }
 }

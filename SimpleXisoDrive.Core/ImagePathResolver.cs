@@ -37,7 +37,9 @@ public static class ImagePathResolver
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to resolve image path '{ImagePath}'", imagePath);
+            // The front end reports the user-visible failure; keep the detail in the
+            // debug log so one failure is not reported twice.
+            Log.Debug(ex, "Failed to resolve image path '{ImagePath}'", imagePath);
             throw;
         }
     }

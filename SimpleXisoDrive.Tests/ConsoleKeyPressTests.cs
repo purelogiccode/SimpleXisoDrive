@@ -47,4 +47,19 @@ public class ConsoleKeyPressTests
         Assert.Same(task, completed);
         Assert.Equal(default, await task);
     }
+
+    /// <summary>
+    /// Verifies concurrent callers share one wait instead of starting competing reads.
+    /// </summary>
+    [Fact]
+    public async Task WaitAsync_CalledTwice_ReturnsTheSameTask()
+    {
+        ConsoleKeyPress.Reset();
+
+        var first = ConsoleKeyPress.WaitAsync();
+        var second = ConsoleKeyPress.WaitAsync();
+
+        Assert.Same(first, second);
+        await Task.WhenAll(first, second);
+    }
 }

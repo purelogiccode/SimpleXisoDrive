@@ -73,6 +73,26 @@ logging is off.
 
 ---
 
+## DokanInstallation and DokanDownloadPrompt
+
+`DokanInstallation.Check()` probes `%SystemRoot%\System32\dokan2.dll` (the user-mode runtime) and
+`%SystemRoot%\System32\drivers\dokan2.sys` (the driver), printing installation guidance to the
+console and returning a `DokanInstallationStatus`:
+
+| Status | Meaning | Startup behavior |
+| --- | --- | --- |
+| `Installed` | Library and driver present | Mounting proceeds |
+| `DriverMissing` | Library present, driver missing | A warning is printed, then the download offer is shown; mounting still proceeds |
+| `RuntimeMissing` | Library missing | Guidance is printed, then the download offer is shown, and the application exits |
+
+`DokanDownloadPrompt.OfferDownload(component)` warns that a component is missing and offers to open
+the Dokan releases page (<https://github.com/dokan-dev/dokany/releases>) in the default browser via
+a native `WindowsMessageBox` Yes/No dialog. Non-interactive runs (scripts, scheduled tasks, CI)
+never show a modal window: the URL is printed to standard error instead. These conditions are
+logged at Information level and are **not** forwarded to the bug report API.
+
+---
+
 ## BugReport
 
 `BugReport` is the local and remote reporting pipeline for warnings, errors, and crashes.
@@ -122,7 +142,10 @@ the shared `ApiHttpClientFactory`, which reuses one connection pool and TLS conf
 | Unobserved task exception | `TaskScheduler.UnobservedTaskException` -> `LogFatalException` |
 
 Update checker network failures are deliberately logged at Information level only and are **not**
-forwarded. See [Privacy and Networking](Privacy-and-Networking) for the full data-flow description.
+forwarded. Expected environment conditions are likewise kept below the threshold and not reported:
+a missing Dokan runtime (`DokanInstallation`) and lookup misses for paths that do not exist in the
+mounted image (`XisoVfsVolume`). See [Privacy and Networking](Privacy-and-Networking) for the full
+data-flow description.
 
 Remote reports are tracked while in flight (`BugReport.PendingReports`), and both front ends call
 `BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5))` during shutdown so a clean exit does
@@ -164,8 +187,9 @@ The result controls two behaviors:
 ## StatsService
 
 `StatsService.ReportLaunch()` reports an anonymous launch event. It is fire-and-forget and never
-blocks startup; the internal `ReportLaunchAsync(HttpClient)` overload is the awaitable, testable
-core and skips the request when no API key is available.
+blocks startup, but the request is tracked so shutdown can wait briefly for it
+(`StatsService.WaitForPendingReportAsync`). The internal `ReportLaunchAsync(HttpClient)` overload
+is the awaitable, testable core and skips the request when no API key is available.
 
 | Property | Value |
 | --- | --- |
@@ -182,8 +206,10 @@ No user, machine, or file information is included in this request.
 
 ## UpdateChecker
 
-`UpdateChecker.CheckForUpdateAsync()` queries the GitHub releases API at startup. The front end
-supplies the user prompt: Windows uses a native message box, Unix uses the console prompt.
+`UpdateChecker.CheckForUpdateAsync()` queries the GitHub releases API immediately at startup, before
+argument handling and mounting. When a newer release exists the user is notified and asked whether
+to open the download page. The front end supplies the user prompt: Windows uses a native message
+box, Unix uses the console prompt.
 
 | Step | Detail |
 | --- | --- |

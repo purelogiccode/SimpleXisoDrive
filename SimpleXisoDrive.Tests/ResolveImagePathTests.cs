@@ -4,7 +4,10 @@ namespace SimpleXisoDrive.Tests;
 
 /// <summary>
 /// Tests image path resolution: extensions, directories and the current directory.
+/// The class mutates the process-wide current directory, so it runs in a
+/// non-parallel collection.
 /// </summary>
+[Collection(CurrentDirectoryCollection.Name)]
 public class ResolveImagePathTests
 {
     /// <summary>
@@ -424,34 +427,6 @@ public class ResolveImagePathTests
 
         try
         {
-            var result = ImagePathResolver.Resolve(tempDir);
-            Assert.Null(result);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    /// <summary>
-    /// Verifies directory scanning failures degrade gracefully to null.
-    /// </summary>
-    [Fact]
-    public void ReturnsNullWhenDirectoryScanThrowsException()
-    {
-        // A path that looks like a directory but is actually a file with no extension
-        // Directory.Exists returns false for files, but we can simulate a permission issue
-        // by using a path format that causes GetFiles to throw. However, the simplest
-        // real-world scenario is a directory path that exists but GetFiles throws
-        // (e.g., due to permissions). We'll use a directory and rely on the fact that
-        // the code catches exceptions gracefully.
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
-
-        try
-        {
-            // In normal conditions GetFiles won't throw here, so this test mainly verifies
-            // that the method does not crash when Directory.Exists is true.
             var result = ImagePathResolver.Resolve(tempDir);
             Assert.Null(result);
         }

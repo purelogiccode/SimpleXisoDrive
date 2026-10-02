@@ -451,6 +451,55 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies write-capable access bits outside the old deny mask are denied too.
+    /// </summary>
+    [Fact]
+    public void CreateFile_ExtendedWriteAccessBits_ReturnAccessDenied()
+    {
+        foreach (var access in new[]
+                 {
+                     FileAccess.GenericAll,
+                     FileAccess.MaximumAllowed,
+                     FileAccess.AccessSystemSecurity,
+                     FileAccess.WriteAttributes,
+                     FileAccess.WriteExtendedAttributes,
+                     FileAccess.ChangePermissions,
+                     FileAccess.SetOwnership,
+                     FileAccess.DeleteChild
+                 })
+        {
+            var status = _dokan.CreateFile("\\default.xbe", access, FileShare.Read, FileMode.Open, FileOptions.None,
+                FileAttributes.Normal, new MockDokanFileInfo());
+            Assert.Equal(DokanResult.AccessDenied, status);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the read-only access bits (including no access) are still allowed.
+    /// </summary>
+    [Fact]
+    public void CreateFile_ReadOnlyAccessBits_ReturnSuccess()
+    {
+        foreach (var access in new[]
+                 {
+                     FileAccess.None,
+                     FileAccess.ReadData,
+                     FileAccess.ReadAttributes,
+                     FileAccess.ReadExtendedAttributes,
+                     FileAccess.ReadPermissions,
+                     FileAccess.Execute,
+                     FileAccess.Synchronize,
+                     FileAccess.GenericRead,
+                     FileAccess.GenericExecute
+                 })
+        {
+            var status = _dokan.CreateFile("\\default.xbe", access, FileShare.Read, FileMode.Open, FileOptions.None,
+                FileAttributes.Normal, new MockDokanFileInfo());
+            Assert.Equal(DokanResult.Success, status);
+        }
+    }
+
+    /// <summary>
     /// Verifies create and truncate modes are denied on the read-only volume.
     /// </summary>
     [Fact]
@@ -493,14 +542,14 @@ public class XboxIsoVfsDokanTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies reads for missing entries report a generic error.
+    /// Verifies reads for missing entries report FileNotFound instead of a reported error.
     /// </summary>
     [Fact]
-    public void ReadFile_MissingEntry_ReturnsError()
+    public void ReadFile_MissingEntry_ReturnsFileNotFound()
     {
         var status = _dokan.ReadFile("\\missing.xbe", new byte[8], out var bytesRead, 0, new MockDokanFileInfo());
 
-        Assert.Equal(DokanResult.Error, status);
+        Assert.Equal(DokanResult.FileNotFound, status);
         Assert.Equal(0, bytesRead);
     }
 
@@ -728,5 +777,107 @@ public class XboxIsoVfsDokanTests : IDisposable
             new MockDokanFileInfo());
 
         Assert.Equal(DokanResult.AccessDenied, status);
+    }
+
+    /// <summary>
+    /// Verifies directory listing failures are reported as errors instead of escaping.
+    /// </summary>
+    [Fact]
+    public void FindFiles_WhenVolumeThrows_ReturnsError()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume { ThrowOnGetEntry = true });
+
+        Assert.Equal(DokanResult.Error, dokan.FindFiles("\\", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies pattern listing failures are reported as errors instead of escaping.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_WhenVolumeThrows_ReturnsError()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume { ThrowOnGetEntry = true });
+
+        Assert.Equal(DokanResult.Error,
+            dokan.FindFilesWithPattern("\\", "*", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies security descriptor failures are reported as errors instead of escaping.
+    /// </summary>
+    [Fact]
+    public void GetFileSecurity_WhenVolumeThrows_ReturnsError()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume { ThrowOnGetEntry = true });
+
+        var status = dokan.GetFileSecurity("\\x", out var security, AccessControlSections.Access,
+            new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Error, status);
+        Assert.Null(security);
+    }
+
+    /// <summary>
+    /// Verifies open failures are reported as errors instead of escaping.
+    /// </summary>
+    [Fact]
+    public void CreateFile_WhenVolumeThrows_ReturnsError()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume { ThrowOnGetEntry = true });
+
+        var status = dokan.CreateFile("\\x", FileAccess.ReadData, FileShare.Read, FileMode.Open, FileOptions.None,
+            FileAttributes.Normal, new MockDokanFileInfo());
+
+        Assert.Equal(DokanResult.Error, status);
+    }
+
+    /// <summary>
+    /// Verifies a missing entry reported as null maps to FileNotFound.
+    /// </summary>
+    [Fact]
+    public void GetFileInformation_WhenVolumeReturnsNull_ReturnsFileNotFound()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume());
+
+        Assert.Equal(DokanResult.FileNotFound,
+            dokan.GetFileInformation("\\missing.bin", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies listing a path the volume does not know maps to NotADirectory.
+    /// </summary>
+    [Fact]
+    public void FindFiles_WhenVolumeReturnsNull_ReturnsNotADirectory()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume());
+
+        Assert.Equal(DokanResult.NotADirectory, dokan.FindFiles("\\missing", out _, new MockDokanFileInfo()));
+    }
+
+    /// <summary>
+    /// Verifies OpenOrCreate on an existing file is treated as a read-only open.
+    /// </summary>
+    [Fact]
+    public void CreateFile_ExistingFile_OpenOrCreate_Succeeds()
+    {
+        IDokanFileInfo info = new MockDokanFileInfo();
+
+        var status = _dokan.CreateFile("\\default.xbe", FileAccess.ReadData, FileShare.Read,
+            FileMode.OpenOrCreate, FileOptions.None, FileAttributes.Normal, info);
+
+        Assert.Equal(DokanResult.Success, status);
+        Assert.NotNull(info.Context);
+    }
+
+    /// <summary>
+    /// Verifies listing a missing path with a wildcard maps to NotADirectory.
+    /// </summary>
+    [Fact]
+    public void FindFilesWithPattern_WhenVolumeReturnsNull_ReturnsNotADirectory()
+    {
+        var dokan = new XboxIsoVfsDokan(new FakeVfsVolume());
+
+        Assert.Equal(DokanResult.NotADirectory,
+            dokan.FindFilesWithPattern("\\missing", "*", out _, new MockDokanFileInfo()));
     }
 }

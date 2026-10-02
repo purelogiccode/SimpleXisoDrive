@@ -20,6 +20,8 @@ public static class StatsService
 
     private static readonly HttpClient Http;
 
+    private static Task? _pendingReport;
+
     static StatsService()
     {
         Http = ApiHttpClientFactory.Create(TimeSpan.FromSeconds(10));
@@ -33,13 +35,38 @@ public static class StatsService
     {
         try
         {
-            // Fire and forget - don't await, don't block startup
-            _ = ReportLaunchAsync(Http);
+            // Fire and forget - don't await, don't block startup. The task is tracked so
+            // shutdown can give it a bounded grace period.
+            var report = ReportLaunchAsync(Http);
+            Volatile.Write(ref _pendingReport, report);
         }
         catch (Exception ex)
         {
             // Advisory only: log locally at Debug so the bug report sink stays out of it.
             Log.Debug(ex, "Stats reporting could not be started (non-fatal)");
+        }
+    }
+
+    /// <summary>
+    /// Waits up to <paramref name="timeout"/> for the in-flight launch report so a fast
+    /// exit does not cut it off. Never throws.
+    /// </summary>
+    /// <param name="timeout">The maximum time to wait.</param>
+    public static async Task WaitForPendingReportAsync(TimeSpan timeout)
+    {
+        var report = Volatile.Read(ref _pendingReport);
+        if (report is null || report.IsCompleted)
+        {
+            return;
+        }
+
+        try
+        {
+            await report.WaitAsync(timeout).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Stats reporting did not complete before shutdown (non-fatal)");
         }
     }
 

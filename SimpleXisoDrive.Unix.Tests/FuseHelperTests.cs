@@ -127,4 +127,87 @@ public class FuseHelperTests
 
         Assert.Equal(1, count);
     }
+
+    /// <summary>
+    /// Verifies an empty directory fills nothing and reports success.
+    /// </summary>
+    [Fact]
+    public void FillDirectory_EmptyList_FillsNothing()
+    {
+        var count = 0;
+
+        var result = FuseFileSystem.FillDirectory([], 0, (_, _) =>
+        {
+            count++;
+            return 0;
+        });
+
+        Assert.Equal(0, result);
+        Assert.Equal(0, count);
+    }
+
+    /// <summary>
+    /// Verifies an offset at the end of the list fills nothing.
+    /// </summary>
+    [Fact]
+    public void FillDirectory_OffsetAtEnd_FillsNothing()
+    {
+        var names = new List<string> { ".", ".." };
+        var count = 0;
+
+        FuseFileSystem.FillDirectory(names, names.Count, (_, _) =>
+        {
+            count++;
+            return 0;
+        });
+
+        Assert.Equal(0, count);
+    }
+
+    /// <summary>
+    /// Verifies the reported next offsets are one-based.
+    /// </summary>
+    [Fact]
+    public void FillDirectory_ReportsOneBasedNextOffsets()
+    {
+        var names = new List<string> { "a", "b", "c" };
+        var offsets = new List<long>();
+
+        FuseFileSystem.FillDirectory(names, 0, (_, nextOffset) =>
+        {
+            offsets.Add(nextOffset);
+            return 0;
+        });
+
+        Assert.Equal(new[] { 1L, 2L, 3L }, offsets);
+    }
+
+    /// <summary>
+    /// Verifies trailing separators are preserved when converting the native path.
+    /// </summary>
+    [Fact]
+    public void ToVfsPath_PreservesTrailingSeparator()
+    {
+        var pointer = Marshal.StringToCoTaskMemUTF8("/sub/");
+        try
+        {
+            Assert.Equal("\\sub\\", FuseFileSystem.ToVfsPath(pointer));
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pointer);
+        }
+    }
+
+    /// <summary>
+    /// Verifies post-epoch UTC timestamps convert to the matching epoch seconds.
+    /// </summary>
+    [Fact]
+    public void ToUnixTime_ForFutureDate_MatchesOffset()
+    {
+        var value = new DateTime(2030, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(new DateTimeOffset(value).ToUnixTimeSeconds(), FuseFileSystem.ToUnixTime(value));
+        Assert.True(FuseFileSystem.ToUnixTime(value) > 0);
+    }
 }

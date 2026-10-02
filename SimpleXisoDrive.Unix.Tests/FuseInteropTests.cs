@@ -3,16 +3,11 @@ using SimpleXisoDrive.Fuse;
 namespace SimpleXisoDrive.Unix.Tests;
 
 /// <summary>
-/// Tests the FUSE library resolver and availability probe. Tests that can only be
-/// deterministic on a host without FUSE 3 (Windows) return early on other systems.
+/// Tests the FUSE library resolver and availability probe. Probes use explicit candidate
+/// lists so the outcome is deterministic regardless of whether the host has FUSE 3.
 /// </summary>
 public class FuseInteropTests
 {
-    /// <summary>
-    /// The environment variable that overrides the FUSE library path.
-    /// </summary>
-    private const string LibraryOverrideVariable = "SIMPLEXISODRIVE_FUSE_LIBRARY";
-
     /// <summary>
     /// Verifies the resolver registration is idempotent and never throws.
     /// </summary>
@@ -24,57 +19,38 @@ public class FuseInteropTests
     }
 
     /// <summary>
-    /// Verifies a bogus override path does not break the library probe on hosts without FUSE 3.
+    /// Verifies probing a list that contains only an unloadable candidate fails on every platform.
     /// </summary>
     [Fact]
-    public void TryLoadLibrary_WithMissingOverride_ReturnsFalseOnWindows()
+    public void TryLoadLibrary_WithOnlyBogusCandidate_ReturnsFalse()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        var bogus = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll");
 
-        WithLibraryOverride(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll"), () =>
-        {
-            Assert.False(FuseInterop.TryLoadLibrary(out var libraryPath));
-            Assert.Null(libraryPath);
-        });
+        Assert.False(FuseInterop.TryLoadLibrary([bogus], out var libraryPath));
+        Assert.Null(libraryPath);
     }
 
     /// <summary>
-    /// Verifies the availability probe reports failure (and prints guidance) without FUSE 3.
+    /// Verifies the availability probe reports failure (and prints guidance) for a
+    /// candidate list that cannot be loaded, on every platform.
     /// </summary>
     [Fact]
-    public void Check_WithoutFuseLibrary_ReturnsFalseOnWindows()
+    public void Check_WithOnlyBogusCandidate_ReturnsFalse()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        var bogus = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll");
+        var originalError = Console.Error;
+        using var suppressed = new StringWriter();
+        Console.SetError(suppressed);
 
-        WithLibraryOverride(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll"), () =>
+        try
         {
-            Assert.False(FuseAvailability.Check(out var libraryPath));
+            Assert.False(FuseAvailability.Check(out var libraryPath, [bogus]));
             Assert.Null(libraryPath);
-        });
-    }
-
-    /// <summary>
-    /// Verifies calling into the FUSE library without it installed surfaces the
-    /// platform loader exception rather than crashing the resolver.
-    /// </summary>
-    [Fact]
-    public void FuseVersion_WithoutFuseLibrary_ThrowsLoaderExceptionOnWindows()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
         }
-
-        FuseInterop.RegisterResolver();
-
-        WithLibraryOverride(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll"),
-            () => Assert.Throws<DllNotFoundException>(() => _ = FuseInterop.FuseVersion()));
+        finally
+        {
+            Console.SetError(originalError);
+        }
     }
 
     /// <summary>
@@ -92,22 +68,51 @@ public class FuseInteropTests
     }
 
     /// <summary>
-    /// Runs an action with the library override variable set to the specified path.
+    /// Verifies identical library names compare as equal.
     /// </summary>
-    /// <param name="path">The override path to expose to the probe.</param>
-    /// <param name="action">The assertions to run.</param>
-    private static void WithLibraryOverride(string path, Action action)
+    [Fact]
+    public void CompareLibraryFileNames_IdenticalNames_ReturnZero()
     {
-        var original = Environment.GetEnvironmentVariable(LibraryOverrideVariable);
-        Environment.SetEnvironmentVariable(LibraryOverrideVariable, path);
-
-        try
-        {
-            action();
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(LibraryOverrideVariable, original);
-        }
+        Assert.Equal(0, FuseInterop.CompareLibraryFileNames("libfuse3.so.3", "libfuse3.so.3"));
     }
+
+    /// <summary>
+    /// Verifies an unversioned library sorts below a versioned one.
+    /// </summary>
+    [Fact]
+    public void CompareLibraryFileNames_UnversionedRanksBelowVersioned()
+    {
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so", "libfuse3.so.3") < 0);
+    }
+
+    /// <summary>
+    /// Verifies patch-level differences are ordered numerically.
+    /// </summary>
+    [Fact]
+    public void CompareLibraryFileNames_OrdersPatchLevelsNumerically()
+    {
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so.3.14.0", "libfuse3.so.3.15.0") < 0);
+        Assert.True(FuseInterop.CompareLibraryFileNames("libfuse3.so.3.15.0", "libfuse3.so.3.14.0") > 0);
+    }
+
+    /// <summary>
+    /// Verifies the same file name in different directories compares as equal.
+    /// </summary>
+    [Fact]
+    public void CompareLibraryFileNames_SameNameDifferentDirectory_ReturnZero()
+    {
+        Assert.Equal(0,
+            FuseInterop.CompareLibraryFileNames("/usr/lib/libfuse3.so.3", "/opt/lib/libfuse3.so.3"));
+    }
+
+    /// <summary>
+    /// Verifies a whitespace-only candidate is rejected without throwing.
+    /// </summary>
+    [Fact]
+    public void TryLoadLibrary_WithWhitespaceCandidate_ReturnsFalse()
+    {
+        Assert.False(FuseInterop.TryLoadLibrary(["   "], out var libraryPath));
+        Assert.Null(libraryPath);
+    }
+
 }

@@ -36,7 +36,9 @@ internal static class DriveLetterSelector
                 }
             }
 
-            Log.Warning("No available drive letters found in preferred range M-R");
+            // Exhausting the preferred range is a user environment condition; the
+            // caller prints a friendly error and returns a non-zero exit code.
+            Log.Information("No available drive letters found in preferred range M-R");
             return null;
         }
         catch (Exception ex)

@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace SimpleXisoDrive;
 
 /// <summary>
@@ -8,12 +6,6 @@ namespace SimpleXisoDrive;
 /// </summary>
 internal static class WindowsUpdatePrompt
 {
-    private const uint MbYesNo = 0x00000004;
-    private const uint MbIconInformation = 0x00000040;
-    private const uint MbSetForeground = 0x00010000;
-    private const uint MbTopmost = 0x00040000;
-    private const int IdYes = 6;
-
     private const string Caption = "SimpleXisoDrive Update";
 
     /// <summary>
@@ -28,48 +20,14 @@ internal static class WindowsUpdatePrompt
     /// <returns><see langword="true"/> when the user accepts; otherwise <see langword="false"/>.</returns>
     public static bool ConfirmOpenRelease(Version current, Version latest, string releaseUrl)
     {
-        if (!IsInteractive)
+        if (!WindowsMessageBox.IsInteractive)
         {
             Console.WriteLine($"A newer version of SimpleXisoDrive is available ({latest}).");
             Console.WriteLine($"Download it from: {releaseUrl}");
             return false;
         }
 
-        var result = MessageBoxW(IntPtr.Zero, BuildMessage(current, latest, releaseUrl), Caption,
-            MbYesNo | MbIconInformation | MbSetForeground | MbTopmost);
-        return result == IdYes;
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether the process can show a blocking message box.
-    /// </summary>
-    private static bool IsInteractive
-    {
-        get
-        {
-            try
-            {
-                return ShouldUseMessageBox(Environment.UserInteractive, Console.IsInputRedirected,
-                    Console.IsOutputRedirected);
-            }
-            catch (IOException)
-            {
-                // No usable console handles: treat the run as non-interactive.
-                return false;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Decides whether the update notification may use a message box.
-    /// </summary>
-    /// <param name="userInteractive">Whether the process owns an interactive desktop session.</param>
-    /// <param name="inputRedirected">Whether standard input is redirected.</param>
-    /// <param name="outputRedirected">Whether standard output is redirected.</param>
-    /// <returns><see langword="true"/> when a message box can be shown safely.</returns>
-    internal static bool ShouldUseMessageBox(bool userInteractive, bool inputRedirected, bool outputRedirected)
-    {
-        return userInteractive && !inputRedirected && !outputRedirected;
+        return WindowsMessageBox.Confirm(BuildMessage(current, latest, releaseUrl), Caption);
     }
 
     /// <summary>
@@ -87,7 +45,4 @@ internal static class WindowsUpdatePrompt
                $"Do you want to open the release page to download it?{Environment.NewLine}{Environment.NewLine}" +
                releaseUrl;
     }
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW")]
-    private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
 }

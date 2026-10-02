@@ -77,4 +77,111 @@ public class UpdateCheckerHttpTests
 
         await UpdateChecker.CheckForUpdateAsync(client);
     }
+
+    /// <summary>
+    /// Verifies a release that is not newer than the running build never reaches the prompt.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenVersionNotNewer_DoesNotPrompt()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK,
+            "{\"tag_name\":\"v0.0.1\",\"html_url\":\"https://example.invalid/release\"}");
+        using var client = new HttpClient(handler);
+        var prompted = false;
+
+        await UpdateChecker.CheckForUpdateAsync(client, (_, _, _) =>
+        {
+            prompted = true;
+            return false;
+        });
+
+        Assert.False(prompted);
+    }
+
+    /// <summary>
+    /// Verifies a tag without a numeric version never reaches the prompt.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenTagHasNoNumericVersion_DoesNotPrompt()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK,
+            "{\"tag_name\":\"nightly\",\"html_url\":\"https://example.invalid/release\"}");
+        using var client = new HttpClient(handler);
+        var prompted = false;
+
+        await UpdateChecker.CheckForUpdateAsync(client, (_, _, _) =>
+        {
+            prompted = true;
+            return false;
+        });
+
+        Assert.False(prompted);
+    }
+
+    /// <summary>
+    /// Verifies a response that is missing the tag field is swallowed.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenResponseMissesTag_DoesNotThrow()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK,
+            "{\"html_url\":\"https://example.invalid/release\"}");
+        using var client = new HttpClient(handler);
+
+        await UpdateChecker.CheckForUpdateAsync(client);
+    }
+
+    /// <summary>
+    /// Verifies a response that is missing the URL field never reaches the prompt.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenResponseMissesUrl_DoesNotPrompt()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK, "{\"tag_name\":\"v999.0.0\"}");
+        using var client = new HttpClient(handler);
+        var prompted = false;
+
+        await UpdateChecker.CheckForUpdateAsync(client, (_, _, _) =>
+        {
+            prompted = true;
+            return false;
+        });
+
+        Assert.False(prompted);
+    }
+
+    /// <summary>
+    /// Verifies a JSON array body is swallowed instead of throwing.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WithJsonArrayBody_DoesNotThrow()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK, "[]");
+        using var client = new HttpClient(handler);
+
+        await UpdateChecker.CheckForUpdateAsync(client);
+    }
+
+    /// <summary>
+    /// Verifies an empty response body is swallowed instead of throwing.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WithEmptyBody_DoesNotThrow()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK, string.Empty);
+        using var client = new HttpClient(handler);
+
+        await UpdateChecker.CheckForUpdateAsync(client);
+    }
+
+    /// <summary>
+    /// Verifies a network failure is swallowed instead of throwing.
+    /// </summary>
+    [Fact]
+    public async Task CheckForUpdateAsync_WhenNetworkFails_DoesNotThrow()
+    {
+        using var client = new HttpClient(new ThrowingHttpMessageHandler(new HttpRequestException("offline")));
+
+        await UpdateChecker.CheckForUpdateAsync(client);
+    }
 }

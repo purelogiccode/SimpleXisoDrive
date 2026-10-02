@@ -3,6 +3,7 @@ using DokanNet;
 using Serilog;
 using SimpleXisoDrive.Core;
 using SimpleXisoDrive.Core.Services;
+using SimpleXisoDrive.Models;
 using SimpleXisoDrive.Services;
 
 namespace SimpleXisoDrive;
@@ -42,8 +43,9 @@ internal static class Program
         }
         finally
         {
-            // Give fire-and-forget bug reports a bounded grace period before the
-            // process (and its HTTP client) goes away.
+            // Give fire-and-forget stats and bug reports a bounded grace period before
+            // the process (and its HTTP client) goes away.
+            await StatsService.WaitForPendingReportAsync(TimeSpan.FromSeconds(5));
             await BugReport.WaitForPendingReportsAsync(TimeSpan.FromSeconds(5));
             Log.CloseAndFlush();
         }
@@ -73,11 +75,43 @@ internal static class Program
             // Report launch statistics (fire and forget)
             StatsService.ReportLaunch();
 
-            if (!DokanInstallation.IsInstalled())
+            // Help never triggers a network call or a Dokan probe.
+            if (args.Any(CommandLineParser.IsHelpOption))
             {
-                Log.Error("Dokan is not installed. Exiting.");
+                UsageText.Print();
+                return 0;
+            }
+
+            // At startup, query GitHub for a newer release and offer the download page.
+            // The Windows front end notifies the user with a native message box; the
+            // prompt is skipped for non-interactive runs.
+            await UpdateChecker.CheckForUpdateAsync(WindowsUpdatePrompt.ConfirmOpenRelease);
+
+            // Usage is shown before the Dokan probe so a missing runtime cannot hide
+            // the usage text and the drag-and-drop hint.
+            if (args.Length == 0)
+            {
+                UsageText.Print();
+                Console.WriteLine(
+                    "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
                 await WaitForExitKeyPressAsync();
                 return 1;
+            }
+
+            switch (DokanInstallation.Check())
+            {
+                case DokanInstallationStatus.RuntimeMissing:
+                    // Expected user-setup condition (guidance is printed above); keep it
+                    // below the bug-report threshold.
+                    Log.Information("Dokan is not installed. Exiting.");
+                    DokanDownloadPrompt.OfferDownload("runtime library (dokan2.dll)");
+                    await WaitForExitKeyPressAsync();
+                    return 1;
+                case DokanInstallationStatus.DriverMissing:
+                    // The library exists but the driver is missing: warn and offer the
+                    // download before continuing (mounting may still work).
+                    DokanDownloadPrompt.OfferDownload("driver (dokan2.sys)");
+                    break;
             }
         }
         catch (Exception ex)
@@ -89,15 +123,6 @@ internal static class Program
 
         try
         {
-            if (args.Length == 0)
-            {
-                UsageText.Print();
-                Console.WriteLine(
-                    "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
-                await WaitForExitKeyPressAsync();
-                return 1;
-            }
-
             var arguments = CommandLineParser.Parse(args);
             var isoPath = arguments.ImagePath;
 
@@ -134,8 +159,9 @@ internal static class Program
                         "Hint: If your file path contains spaces, ensure it is wrapped in \"quotes\".");
                 }
 
-                // Report this to the API so the developer knows the path was invalid
-                Log.Error(new FileNotFoundException(errorMsg), "Mount attempt failed: File not found.");
+                // A missing file is a routine user input condition (friendly message
+                // printed above); keep it below the bug-report threshold.
+                Log.Information(new FileNotFoundException(errorMsg), "Mount attempt failed: File not found.");
 
                 await WaitForExitKeyPressAsync();
                 return 1;
@@ -144,10 +170,17 @@ internal static class Program
             // Use the resolved path for mounting
             isoPath = resolvedIsoPath;
 
-            // Check for updates only after the arguments and image path have been
-            // validated, matching the Unix front end. The Windows front end notifies
-            // the user with a message box instead of the console prompt.
-            await UpdateChecker.CheckForUpdateAsync(WindowsUpdatePrompt.ConfirmOpenRelease);
+            // A folder mount path must already exist (drive letters are created by Dokan).
+            if (arguments.MountPath is not null && !MountPathValidator.IsDriveLetterPath(arguments.MountPath) &&
+                !Directory.Exists(arguments.MountPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                await Console.Error.WriteLineAsync(
+                    $"Error: Mount path '{arguments.MountPath}' is not an existing directory.");
+                await Console.Error.WriteLineAsync("Create the directory first (for example: mkdir \"C:\\mount\\xiso\").");
+                await WaitForExitKeyPressAsync();
+                return 1;
+            }
 
             if (arguments.IsDragAndDrop)
             {
@@ -230,16 +263,12 @@ internal static class Program
             Console.Error.WriteLine("Error: Failed to load the Dokan runtime library (dokan2.dll).");
             Console.Error.WriteLine(
                 "The file may be corrupted, of the wrong architecture, or its dependencies are missing.");
-            Console.Error.WriteLine("");
-            Console.Error.WriteLine("To fix this:");
-            Console.Error.WriteLine("  1. Uninstall Dokan via Windows Settings > Apps");
-            Console.Error.WriteLine(
-                "  2. Download the latest version from: https://github.com/dokan-dev/dokany/releases");
-            Console.Error.WriteLine("  3. Install the package matching your system architecture (x64)");
-            Console.Error.WriteLine("  4. Restart your computer");
-            Console.Error.WriteLine("  5. Re-run SimpleXisoDrive");
 
-            Log.Error(ex, "Unable to load dokan2.dll or its dependencies.");
+            // Expected setup condition: keep it below the bug-report threshold and
+            // reuse the same download offer as the other missing-Dokan paths.
+            Log.Information(ex, "Unable to load dokan2.dll or its dependencies.");
+            DokanDownloadPrompt.OfferDownload("runtime library (dokan2.dll)");
+
             await WaitForExitKeyPressAsync();
             return 1;
         }
@@ -296,7 +325,7 @@ internal static class Program
     private static async Task RunMountAsync(string isoPath, string mountPath, bool debug, bool launch, bool imageIso)
     {
         // Check for admin rights for drive letter mounting
-        if (mountPath.EndsWith(":\\", StringComparison.Ordinal) && !CheckAccess.IsAdministrator())
+        if (MountPathValidator.IsDriveLetterPath(mountPath) && !CheckAccess.IsAdministrator())
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("WARNING: Administrator privileges are recommended for mounting drive letters.");
@@ -357,7 +386,8 @@ internal static class Program
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Failed to launch explorer at '{MountPath}'", mountPath);
+                    // A shell/environment failure, not an application defect.
+                    Log.Information(ex, "Failed to launch explorer at '{MountPath}'", mountPath);
                 }
             }
 
@@ -378,6 +408,7 @@ internal static class Program
         finally
         {
             _vfsContainer?.Dispose();
+            _vfsContainer = null;
             Log.Information("Unmounted.");
         }
     }

@@ -15,23 +15,40 @@ internal static class FuseAvailability
     /// <returns><see langword="true"/> when mounting can be attempted; otherwise <see langword="false"/>.</returns>
     public static bool Check(out string? libraryPath)
     {
+        return Check(out libraryPath, candidates: null);
+    }
+
+    /// <summary>
+    /// Checks availability against an explicit candidate list. Used by tests so the probe
+    /// is deterministic regardless of whether the host has FUSE 3 installed.
+    /// </summary>
+    /// <param name="libraryPath">When this method returns, the FUSE library that was found.</param>
+    /// <param name="candidates">The library candidates to probe, or <see langword="null"/> for the platform list.</param>
+    /// <returns><see langword="true"/> when mounting can be attempted; otherwise <see langword="false"/>.</returns>
+    internal static bool Check(out string? libraryPath, IEnumerable<string>? candidates)
+    {
         try
         {
-            return CheckCore(out libraryPath);
+            return CheckCore(out libraryPath, candidates);
         }
         catch (Exception ex)
         {
+            // A probe failure is genuinely unexpected (not a missing installation).
             Log.Error(ex, "FUSE availability check failed");
             libraryPath = null;
             return false;
         }
     }
 
-    private static bool CheckCore(out string? libraryPath)
+    private static bool CheckCore(out string? libraryPath, IEnumerable<string>? candidates)
     {
         FuseInterop.RegisterResolver();
 
-        if (!FuseInterop.TryLoadLibrary(out libraryPath))
+        var loaded = candidates is null
+            ? FuseInterop.TryLoadLibrary(out libraryPath)
+            : FuseInterop.TryLoadLibrary(candidates, out libraryPath);
+
+        if (!loaded)
         {
             PrintMissingLibraryInstructions();
             return false;
@@ -57,7 +74,9 @@ internal static class FuseAvailability
         {
             Console.Error.WriteLine("Error: /dev/fuse was not found, so FUSE mounts cannot work.");
             Console.Error.WriteLine("Load the FUSE kernel module (for example: sudo modprobe fuse) and re-run.");
-            Log.Error("FUSE check failed: /dev/fuse is missing.");
+            // A missing kernel module is an expected user-setup condition, not an
+            // application error; log it below the bug-report threshold.
+            Log.Information("FUSE check failed: /dev/fuse is missing.");
             return false;
         }
 
@@ -65,7 +84,7 @@ internal static class FuseAvailability
         {
             Console.WriteLine("Warning: fusermount3 was not found on PATH. Mounting may fail.");
             Console.WriteLine("Install the FUSE tools package (for example: sudo apt install fuse3).");
-            Log.Warning("fusermount3 not found on PATH; mounting may fail.");
+            Log.Information("fusermount3 not found on PATH; mounting may fail.");
         }
 
         return true;
@@ -113,7 +132,7 @@ internal static class FuseAvailability
             Console.Error.WriteLine("  2. On macOS 15.4 or later, choose the FSKit backend when prompted");
             Console.Error.WriteLine("     (no kernel extension required).");
             Console.Error.WriteLine("  3. Re-run SimpleXisoDrive.");
-            Log.Error("FUSE check FAILED: macFUSE libfuse3 was not found.");
+            Log.Information("FUSE check failed: macFUSE libfuse3 was not found.");
         }
         else
         {
@@ -127,7 +146,7 @@ internal static class FuseAvailability
             Console.Error.WriteLine("  Arch:          sudo pacman -S fuse3");
             Console.Error.WriteLine();
             Console.Error.WriteLine("Then re-run SimpleXisoDrive.");
-            Log.Error("FUSE check FAILED: libfuse3 was not found.");
+            Log.Information("FUSE check failed: libfuse3 was not found.");
         }
 
         Console.Error.WriteLine();

@@ -43,6 +43,7 @@ internal static class UsageText
         builder.AppendLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
         builder.AppendLine("  -i, --image-iso Also expose the raw Xbox image as image.iso at the mount root");
         builder.AppendLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
+        builder.AppendLine("  -h, --help      Show this help text and exit.");
         return builder.ToString();
     }
 

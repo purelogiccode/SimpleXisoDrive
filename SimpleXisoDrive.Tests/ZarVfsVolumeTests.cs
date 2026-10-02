@@ -387,4 +387,111 @@ public class ZarVfsVolumeTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// Verifies resolved entries are cached and returned as the same instance.
+    /// </summary>
+    [Fact]
+    public void GetEntry_IsCached()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            Assert.Same(volume.GetEntry("\\default.xbe"), volume.GetEntry("\\default.xbe"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies directory listings are cached and returned as the same list instance.
+    /// </summary>
+    [Fact]
+    public void GetFolderList_IsCached()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            Assert.Same(volume.GetFolderList("\\"), volume.GetFolderList("\\"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies nested directories list their children.
+    /// </summary>
+    [Fact]
+    public void GetFolderList_NestedDirectory_ListsChildren()
+    {
+        var path = CreateSampleArchive();
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+            var children = volume.GetFolderList("\\sub").ToList();
+
+            var child = Assert.Single(children);
+            Assert.Equal("data.bin", child.FileName);
+            Assert.False(child.IsDirectory);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Verifies concurrent lookups and reads return correct data: the archive reader is
+    /// serialized internally because Dokan issues parallel callbacks.
+    /// </summary>
+    [Fact]
+    public void ConcurrentLookupsAndReads_ReturnCorrectData()
+    {
+        var data = new byte[64 * 1024];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i % 251);
+        }
+
+        var path = CreateArchive(writer =>
+        {
+            Assert.True(writer.StartNewFile("big.bin"));
+            writer.AppendData(data);
+            Assert.True(writer.MakeDir("sub", recursive: true));
+            Assert.True(writer.StartNewFile("sub/other.bin"));
+            writer.AppendData("other"u8);
+        });
+
+        try
+        {
+            using var volume = new ZarVfsVolume(path);
+
+            Parallel.For(0, 64, i =>
+            {
+                var entry = volume.GetEntry(i % 2 == 0 ? "\\big.bin" : "\\sub\\other.bin");
+                Assert.NotNull(entry);
+
+                var buffer = new byte[Math.Min(4096, entry.Size)];
+                var read = volume.ReadFile(entry, buffer, 0);
+
+                Assert.Equal(buffer.Length, read);
+                if (i % 2 == 0)
+                {
+                    Assert.Equal(data.AsSpan(0, buffer.Length).ToArray(), buffer);
+                }
+            });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

@@ -105,4 +105,60 @@ public class CommandLineParserTests
     {
         Assert.Throws<ArgumentNullException>(() => CommandLineParser.Parse(null!));
     }
+
+    /// <summary>
+    /// Verifies options may appear before the mount path, matching the Unix front end.
+    /// </summary>
+    [Fact]
+    public void Parse_OptionBeforeMountPath_ParsesBoth()
+    {
+        var arguments = CommandLineParser.Parse(["game.iso", "-d", "M:\\"]);
+
+        Assert.False(arguments.IsDragAndDrop);
+        Assert.Equal("M:\\", arguments.MountPath);
+        Assert.True(arguments.Debug);
+    }
+
+    /// <summary>
+    /// Verifies a single argument plus an option stays in drag-and-drop mode with the
+    /// option applied and launch implied.
+    /// </summary>
+    [Fact]
+    public void Parse_SingleArgumentWithOption_EntersDragAndDropMode()
+    {
+        var arguments = CommandLineParser.Parse(["game.iso", "--image-iso"]);
+
+        Assert.True(arguments.IsDragAndDrop);
+        Assert.True(arguments.Launch);
+        Assert.True(arguments.ImageIso);
+        Assert.Null(arguments.MountPath);
+    }
+
+    /// <summary>
+    /// Verifies help flags are recognized case-insensitively.
+    /// </summary>
+    /// <param name="argument">The help argument to test.</param>
+    [Theory]
+    [InlineData("-h")]
+    [InlineData("--help")]
+    [InlineData("-H")]
+    [InlineData("--HELP")]
+    public void IsHelpOption_RecognizesHelpCaseInsensitively(string argument)
+    {
+        Assert.True(CommandLineParser.IsHelpOption(argument));
+    }
+
+    /// <summary>
+    /// Verifies non-help arguments are not treated as help.
+    /// </summary>
+    /// <param name="argument">The argument to test.</param>
+    [Theory]
+    [InlineData("-d")]
+    [InlineData("help")]
+    [InlineData("--debug")]
+    [InlineData("")]
+    public void IsHelpOption_RejectsOtherArguments(string argument)
+    {
+        Assert.False(CommandLineParser.IsHelpOption(argument));
+    }
 }

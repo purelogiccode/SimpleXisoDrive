@@ -12,11 +12,13 @@ differences are noted inline.
 ```text
 # Windows
 SimpleXisoDrive.exe
+SimpleXisoDrive.exe -h | --help
 SimpleXisoDrive.exe <image-file>
 SimpleXisoDrive.exe <image-file> <mount-path> [options...]
 
 # Linux / macOS
 SimpleXisoDrive
+SimpleXisoDrive -h | --help
 SimpleXisoDrive <image-file>
 SimpleXisoDrive <image-file> [mount-path] [options...]
 ```
@@ -26,8 +28,8 @@ SimpleXisoDrive <image-file> [mount-path] [options...]
 | Argument | Required | Description |
 | --- | --- | --- |
 | `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`, `.chd`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
-| `<mount-path>` | No | Windows: drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`; required when options are supplied. Linux/macOS: an existing directory; when omitted, a temporary directory is created, printed after mounting, and removed on unmount. |
-| `[options...]` | No | Zero or more option flags. All arguments after the mount path must be recognized options; extra positional arguments are rejected. |
+| `<mount-path>` | No | Windows: drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`. When omitted, the application runs in drag-and-drop mode (auto drive letter + Explorer). Linux/macOS: an existing directory; when omitted, a temporary directory is created, printed after mounting, and removed on unmount. |
+| `[options...]` | No | Zero or more option flags. Options may appear anywhere after the image path (before or after the mount path); extra positional arguments are rejected. |
 
 ## Options
 
@@ -36,13 +38,15 @@ SimpleXisoDrive <image-file> [mount-path] [options...]
 | `--debug` | `-d` | Enables Dokan debug mode and routes Dokan's internal log output to stderr/console. Useful for diagnosing mount or file access problems. |
 | `--launch` | `-l` | Opens Windows Explorer at the mount path after a successful mount. |
 | `--image-iso` | `-i` | Also exposes the raw Xbox image as a virtual read-only `image.iso` file at the mount root, for emulators that only accept a disc image (such as xemu). See [Virtual image.iso](#virtual-imageiso). |
+| `--help` | `-h` | Prints the usage text and exits with code `0`. Handled before the update check, so help never triggers a network call. |
 
-Option matching is case-insensitive and options may appear in any order after the mount path.
+Option matching is case-insensitive and options may appear before or after the mount path.
 Unknown options and unexpected positional arguments are rejected with an error and the usage text,
 matching the Unix front end.
 
-> In single-argument (drag-and-drop) mode, `--launch` is implied and `--debug`/`--image-iso` are not
-> available. Use the two-argument form if you need those options.
+> In single-argument (drag-and-drop) mode, `--launch` is implied. Options may be combined with a
+> single image argument (for example `game.iso -i`), which keeps drag-and-drop mode while applying
+> the option.
 
 ## Virtual image.iso
 
@@ -70,7 +74,8 @@ volume is already mounted from, so its length is not added twice.
 | --- | --- |
 | `0` | Prints usage and a drag-and-drop hint, waits for a key press, exits with code `1`. |
 | `1` | Drag-and-drop mode: validates the path, automatically selects the first free drive letter from `M:` through `R:`, mounts, opens Explorer, and waits for a key press or a mount failure. |
-| `2+` | Standard mode: `<image-file>` and `<mount-path>` are used as-is, options are parsed from the remaining arguments. The process stays in the foreground until `Ctrl+C` or process termination. |
+| `1` + options | Same as `1`, with the supplied options applied (`--launch` stays implied). |
+| `2+` | Standard mode: the first positional argument is the image and the next positional argument is the mount path; options are parsed wherever they appear. The process stays in the foreground until `Ctrl+C` or process termination. |
 
 On Linux and macOS there is no drag-and-drop mode or drive-letter selection: a missing mount path
 creates a temporary directory instead, and `--launch` opens the file manager (`xdg-open`/`open`).
@@ -93,8 +98,10 @@ creates a temporary directory instead, and `--launch` opens the file manager (`x
   then exits cleanly with code `0`.
 - Unknown options and unexpected positional arguments print an error and the usage text, then exit
   with code `1` (matching the Unix front end).
-- If the mount path is a drive letter (`X:\`) and the process is not elevated, a warning is printed
-  suggesting that administrator privileges may be required for a successful mount.
+- If the mount path is a drive letter (`X:` or `X:\`) and the process is not elevated, a warning is
+  printed suggesting that administrator privileges may be required for a successful mount.
+- If the mount path is a folder, it must already exist; a missing folder is reported before Dokan is
+  invoked.
 
 ---
 
@@ -171,6 +178,9 @@ Errors are written to `stderr`. Diagnostics are additionally written to the log 
 ```shell
 # Print usage
 SimpleXisoDrive.exe
+
+# Print usage explicitly (no network call)
+SimpleXisoDrive.exe --help
 
 # Drag-and-drop equivalent: auto drive letter + Explorer
 SimpleXisoDrive.exe "D:\Games\Halo.iso"
