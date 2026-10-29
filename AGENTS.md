@@ -128,7 +128,7 @@ $sarif.runs[0].results | Where-Object level -in 'warning','error' |
 
 Semantic versioning (`major.minor.patch`):
 
-- **Patch** (`1.5.1`): bug fixes, dependency updates, docs/infra only.
+- **Patch** (`1.5.2`): bug fixes, dependency updates, docs/infra only.
 - **Minor** (`1.6.0`): new user-visible functionality.
 - **Major**: breaking changes.
 
@@ -169,9 +169,9 @@ The Windows `AssemblyVersion` is the one enforced by `release.yml`.
 Add a new section at the **top**, exactly in this form (the release workflow searches for it):
 
 ```markdown
-# What's New in 1.5.1 (since 1.5.0)
+# What's New in 1.5.2 (since 1.5.1)
 
-Prepared for the `release_1.5.1` tag. Framework-dependent ... require the .NET 10.0 Runtime ...
+Prepared for the `release_1.5.2` tag. Framework-dependent ... require the .NET 10.0 Runtime ...
 
 ## <group>
 
@@ -284,7 +284,7 @@ foreach ($target in $targets) {
 Verify every bundle:
 
 ```powershell
-$version = '1.5.1'
+$version = '1.5.2'
 foreach ($rid in 'win-x64','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64') {
     $zip = "SimpleXisoDrive/bin/Release/release_${version}_$rid.zip"
     $names = tar -tf $zip
@@ -308,7 +308,7 @@ The executable must be a single file and must not contain the .NET runtime
 
 ```powershell
 git add -A
-git commit -m "release: prepare 1.5.1"
+git commit -m "release: prepare 1.5.2"
 git push origin master
 ```
 
@@ -327,7 +327,7 @@ If CI fails, fix and push again; do not tag a red commit.
 ## 11. Step 7 — tag and deploy (CI)
 
 ```powershell
-$version = '1.5.1'
+$version = '1.5.2'
 git tag "release_$version"
 git push origin "release_$version"
 ```
@@ -348,7 +348,7 @@ The workflow:
 Manual packaging without publishing (for inspection only):
 
 ```powershell
-gh workflow run release.yml -f version=1.5.1
+gh workflow run release.yml -f version=1.5.2
 ```
 
 A manual run uploads the six zips as workflow artifacts and **does not** create a GitHub release.
@@ -444,17 +444,17 @@ Never reuse a published version. Current `LibFuseSharp` release: **1.0.1**. The 
 ## 12. Step 8 — post-release verification
 
 ```powershell
-gh release view "release_1.5.1" --json tagName,name,assets `
+gh release view "release_1.5.2" --json tagName,name,assets `
     --jq '{tag:.tagName, name:.name, assets:[.assets[].name] | sort}'
 ```
 
 Required result:
 
-- tag is `release_1.5.1`;
+- tag is `release_1.5.2`;
 - exactly six assets:
-  `release_1.5.1_linux-arm64.zip`, `release_1.5.1_linux-x64.zip`,
-  `release_1.5.1_osx-arm64.zip`, `release_1.5.1_osx-x64.zip`,
-  `release_1.5.1_win-arm64.zip`, `release_1.5.1_win-x64.zip`.
+  `release_1.5.2_linux-arm64.zip`, `release_1.5.2_linux-x64.zip`,
+  `release_1.5.2_osx-arm64.zip`, `release_1.5.2_osx-x64.zip`,
+  `release_1.5.2_win-arm64.zip`, `release_1.5.2_win-x64.zip`.
 
 Also confirm:
 
@@ -463,8 +463,8 @@ Also confirm:
 - The wiki Home and `_Sidebar.md` were refreshed (do not edit them manually).
 - `SECURITY.md` is detected (Security tab → policy).
 - No new Dependabot, CodeQL or secret-scanning alerts.
-- The update checker will parse `release_1.5.1` as `1.5.1`. To test locally, run an older 1.5.0
-  build on an interactive console: it should offer `1.5.1`.
+- The update checker will parse `release_1.5.2` as `1.5.2`. To test locally, run an older 1.5.1
+  build on an interactive console: it should offer `1.5.2`.
 
 ---
 
@@ -475,8 +475,8 @@ Also confirm:
 `release.yml` failed with "Version mismatch". The tag and `<AssemblyVersion>` differ.
 
 ```powershell
-git tag -d release_1.5.1
-git push origin :refs/tags/release_1.5.1
+git tag -d release_1.5.2
+git push origin :refs/tags/release_1.5.2
 # fix the csproj versions, commit, push, then re-tag
 ```
 
@@ -496,10 +496,10 @@ partial release.
 Do not silently replace assets. Confirm with the maintainer, then:
 
 ```powershell
-gh release delete release_1.5.1 --yes
-git push origin :refs/tags/release_1.5.1
-git tag release_1.5.1
-git push origin release_1.5.1
+gh release delete release_1.5.2 --yes
+git push origin :refs/tags/release_1.5.2
+git tag release_1.5.2
+git push origin release_1.5.2
 ```
 
 ### Wiki or Pages out of date

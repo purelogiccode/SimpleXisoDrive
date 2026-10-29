@@ -1,8 +1,33 @@
-> **Library note (2026-10-29):** The FUSE library is now maintained in
-> [purelogiccode/LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) and published as the
-> `LibFuseSharp` NuGet package (MIT). `master` pins that package; the 1.5.1 binaries below still
-> contain the vendored copy. The `SimpleXisoDrive.FuseSharp` name in the 1.5.1 notes was a
-> pre-release placeholder and was never published.
+# What's New in 1.5.2 (since 1.5.1)
+
+Prepared for the `release_1.5.2` tag. Framework-dependent `win-x64`/`win-arm64`,
+`linux-x64`/`linux-arm64` and `osx-x64`/`osx-arm64` builds require the .NET 10.0 Runtime (the base
+runtime; the Desktop Runtime also works but is not required).
+
+## FUSE library as a package
+
+- **`LibFuseSharp` 1.0.1 is now the single source of truth.** The vendored `FuseSharp` project was
+  removed; `SimpleXisoDrive.Unix` pins the MIT-licensed `LibFuseSharp` NuGet package
+  (`net8.0`/`net9.0`/`net10.0`). Library source, tests and releases live in
+  <https://github.com/purelogiccode/LibFuseSharp>.
+- **Clean external unmounts remain.** The package carries the `ENODEV` handling (exit code 0 after
+  `init`) and the `readdir` `ENOTDIR` behavior shipped in 1.5.1.
+- **Library override.** Use `LIBFUSESHARP_LIBRARY` to point at a custom FUSE library; the legacy
+  `SIMPLEXISODRIVE_FUSE_LIBRARY` name is still honored.
+
+## Repository and tests
+
+- **No vendored copy.** The `FuseSharp/` folder and the duplicated library tests were removed from
+  this repository; the solution and build now use the package.
+- **Test split.** The 55 FUSE library tests now live in the LibFuseSharp repository. The app suite
+  is **429 tests** (395 core + 34 Unix), including the `FuseVolumeAdapter` integration tests.
+
+## Documentation
+
+- Refreshed the FuseSharp page, Building, Testing, Architecture, Glossary and both side menus for the
+  package/repository split.
+- Added the library release routine to `AGENTS.md`; corrected the 1.5.1 release notes to reference
+  `LibFuseSharp` (MIT).
 
 # What's New in 1.5.1 (since 1.5.0)
 
@@ -26,8 +51,8 @@ runtime; the Desktop Runtime also works but is not required).
 ## FuseSharp library
 
 - **Published as `LibFuseSharp`.** The standalone library multi-targets `net8.0`, `net9.0` and
-  `net10.0`, carries full NuGet metadata (MIT license, project/repository URLs, tags, README) and is
-  consumed by SimpleXisoDrive as a pinned package.
+  `net10.0`, carries full NuGet metadata (MIT license, project/repository URLs, tags, README). The
+  app consumes the package from 1.5.2 onward.
 - **Side-effect-free capability probe.** `FuseAvailability.Check(out libraryPath, candidates,
   printInstructions: false)` lets callers test FUSE availability without printing installation
   guidance.

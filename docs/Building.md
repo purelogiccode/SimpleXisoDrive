@@ -120,7 +120,7 @@ Release bundles use the **framework-dependent single-file** publish — one exec
 `LICENSE.txt`:
 
 ```powershell
-$version = '1.5.1'
+$version = '1.5.2'
 $targets = @(
     @{ Rid = 'win-x64';     Project = 'SimpleXisoDrive/SimpleXisoDrive.csproj';         Binary = 'SimpleXisoDrive.exe' },
     @{ Rid = 'win-arm64';   Project = 'SimpleXisoDrive/SimpleXisoDrive.csproj';         Binary = 'SimpleXisoDrive.exe' },
@@ -166,9 +166,9 @@ The version is defined in the project files and they must be updated together:
 | `SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Unix.Tests/SimpleXisoDrive.Unix.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 
-The current version is **1.5.1**. The update checker parses the three-part (`major.minor.patch`)
+The current version is **1.5.2**. The update checker parses the three-part (`major.minor.patch`)
 portion of GitHub release tags, so release tags should follow that pattern (for example,
-`release_1.5.1`).
+`release_1.5.2`).
 
 The `LibFuseSharp` package is versioned independently in its own repository (currently `1.0.1`)
 and pinned by the `PackageReference` in `SimpleXisoDrive.Unix`. Release the library first, then
@@ -244,8 +244,8 @@ To cut a release:
 4. Tag and push:
 
    ```shell
-   git tag release_1.5.1
-   git push origin release_1.5.1
+   git tag release_1.5.2
+   git push origin release_1.5.2
    ```
 
 5. Watch the workflow create the GitHub release with the Windows, Linux and macOS zips attached.

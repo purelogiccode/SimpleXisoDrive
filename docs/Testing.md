@@ -16,7 +16,7 @@ separate [LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) repositor
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.1 |
 | Coverage collector | `coverlet.collector` 10.1.0 |
-| Test count | 429 app tests on `master`: 395 core + 34 Unix |
+| Test count | 429 app tests (version 1.5.2): 395 core + 34 Unix |
 | Library tests | 55 in the separate LibFuseSharp repository; 484 combined |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in

@@ -95,7 +95,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Property | Value |
 | --- | --- |
 | Application name | SimpleXisoDrive |
-| Current version | 1.5.1 |
+| Current version | 1.5.2 |
 | Platform | Windows (x64, ARM64), Linux (x64, ARM64), macOS (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows` / `net10.0`) |
 | FUSE library | `LibFuseSharp` 1.0.1 (NuGet, MIT) |

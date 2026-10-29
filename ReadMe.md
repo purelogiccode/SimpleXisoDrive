@@ -12,6 +12,18 @@
 ![Windows](https://img.shields.io/badge/Windows-x64_%7C_ARM64-0078D6?logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-x64_%7C_ARM64-FCC624?logo=linux&logoColor=black)
 ![macOS](https://img.shields.io/badge/macOS-x64_%7C_ARM64-000000?logo=apple&logoColor=white)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2ea44f?logo=githubpages&logoColor=white)](https://purelogiccode.github.io/SimpleXisoDrive/)
+[![Wiki](https://img.shields.io/badge/docs-GitHub%20Wiki-0366d6?logo=github&logoColor=white)](https://github.com/purelogiccode/SimpleXisoDrive/wiki)
+[![LibFuseSharp](https://img.shields.io/nuget/v/LibFuseSharp.svg?label=LibFuseSharp)](https://www.nuget.org/packages/LibFuseSharp/)
+[![NuGet downloads](https://img.shields.io/nuget/dt/LibFuseSharp.svg?label=NuGet%20downloads)](https://www.nuget.org/packages/LibFuseSharp/)
+[![Security policy](https://img.shields.io/badge/security-policy-blue)](https://github.com/purelogiccode/SimpleXisoDrive/security/policy)
+[![CodeQL](https://img.shields.io/badge/CodeQL-enabled-2ea44f)](https://github.com/purelogiccode/SimpleXisoDrive/security/code-scanning)
+[![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot&logoColor=white)](https://github.com/purelogiccode/SimpleXisoDrive/security/dependabot)
+[![Forks](https://img.shields.io/github/forks/purelogiccode/SimpleXisoDrive?style=flat&logo=github)](https://github.com/purelogiccode/SimpleXisoDrive/forks)
+[![Contributors](https://img.shields.io/github/contributors/purelogiccode/SimpleXisoDrive?style=flat)](https://github.com/purelogiccode/SimpleXisoDrive/graphs/contributors)
+[![Commits per month](https://img.shields.io/github/commit-activity/m/purelogiccode/SimpleXisoDrive?label=commits%2Fmonth)](https://github.com/purelogiccode/SimpleXisoDrive/commits/master)
+[![Top language](https://img.shields.io/github/languages/top/purelogiccode/SimpleXisoDrive?logo=csharp&logoColor=white)](https://github.com/purelogiccode/SimpleXisoDrive)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/purelogiccode/SimpleXisoDrive/pulls)
 
 Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD files (`.chd`) and ZArchive (`.zar`) files as read-only virtual drives or directory mount points. Built on Dokan for Windows and FUSE 3 for Linux and macOS, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from your file manager.
 

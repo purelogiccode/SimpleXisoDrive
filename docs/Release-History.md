@@ -5,6 +5,7 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
+| 1.5.2 | `release_1.5.2` | 2026-10-29 |
 | 1.5.1 | `release_1.5.1` | 2026-10-29 |
 | 1.5.0 | `release_1.5.0` | 2026-10-02 |
 | 1.4.0 | `release_1.4.0` | 2026-09-29 |
@@ -21,6 +22,20 @@ history.
 > version is 1.0.1.
 
 ---
+
+## 1.5.2 - 2026-10-29
+
+- **FUSE library is a package.** Removed the vendored `FuseSharp` project and pinned
+  `LibFuseSharp` 1.0.1 (MIT; `net8.0`/`net9.0`/`net10.0`). Library source, tests and releases now
+  live in [purelogiccode/LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp).
+- **Clean unmount behavior preserved.** The package carries the `ENODEV`-after-`init` handling
+  (exit code 0) and `readdir` `ENOTDIR`, and supports `LIBFUSESHARP_LIBRARY` with the legacy
+  `SIMPLEXISODRIVE_FUSE_LIBRARY` fallback.
+- **Tests split.** The 55 FUSE library tests moved to the library repository; the app suite is
+  **429 tests** (395 core + 34 Unix), including the `FuseVolumeAdapter` integration tests.
+- **Docs and runbook.** Updated the FuseSharp page, Building, Testing, Architecture, Glossary, both
+  side menus and `AGENTS.md`; corrected the 1.5.1 release notes to reference `LibFuseSharp`.
+- **No breaking changes** to the command line, mount behavior or supported image formats.
 
 ## 1.5.1 - 2026-10-29
 
@@ -203,7 +218,7 @@ Initial public release lineage:
 ## Version scheme
 
 Versions follow `major.minor.patch`. Release tags use the `release_<version>` prefix (for example
-`release_1.5.1`), and the update checker extracts the numeric portion from GitHub tag names when
+`release_1.5.2`), and the update checker extracts the numeric portion from GitHub tag names when
 comparing against the installed version. The `LibFuseSharp` NuGet package is versioned independently
 in its own repository.
 
