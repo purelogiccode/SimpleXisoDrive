@@ -252,6 +252,14 @@ image if you suspect corruption.
 - make sure the mount actually succeeded (check the console and `logs\`);
 - check that `explorer.exe` is available (customized systems may block it).
 
+### "FUSE exited with code 1" after unmounting (Linux/macOS)
+
+Unmounting from outside the application (`umount`, `fusermount3 -u`, or ejecting the volume in
+Finder) ends the FUSE session cleanly and exits with code 0. A message followed by an automatic bug
+report only appears when the session fails for another reason; run with `--debug` and check the
+preceding log line, which names the actual mount, loop or library failure, then include `logs/` in
+the report.
+
 ### Performance feels slow for very large images
 
 Reads are streamed directly from the image; performance depends on disk speed and fragmentation. Mount

@@ -67,9 +67,12 @@ var exitCode = fileSystem.Run(mountPoint: "/mnt/myvolume", debug: false, onMount
 ```
 
 `Run` blocks until the file system is unmounted (`Ctrl+C`, `SIGTERM`, `SIGHUP` or
-`fusermount3 -u`/`umount`), then returns `0` on a clean unmount. The constructor registers the
-native library resolver, so no separate initialization call is required. `FuseAvailability.Check`
-can be used before mounting to print installation guidance when FUSE is missing.
+`fusermount3 -u`/`umount`), then returns `0` on a clean unmount. Unmounting from outside the
+application (including ejecting the volume in Finder on macOS) closes the FUSE device and makes
+libfuse report `ENODEV`; the library treats that as a normal end of the session too. The constructor
+registers the native library resolver, so no separate initialization call is required.
+`FuseAvailability.Check` can be used before mounting to print installation guidance when FUSE is
+missing.
 
 ## Components
 

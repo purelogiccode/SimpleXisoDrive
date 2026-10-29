@@ -194,18 +194,8 @@ internal static class FuseInterop
     internal static IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsLinux operations, nuint operationSize,
         IntPtr userData)
     {
-        if (OperatingSystem.IsMacOS())
-        {
-            try
-            {
-                return FuseNew31Linux(ref args, ref operations, operationSize, userData);
-            }
-            catch (EntryPointNotFoundException)
-            {
-                return FuseNewLinux(ref args, ref operations, operationSize, userData);
-            }
-        }
-
+        // Linux libfuse exports the 4-argument compat entry point as fuse_new on every
+        // 3.x release and as fuse_new_31 since 3.13.
         try
         {
             return FuseNewLinux(ref args, ref operations, operationSize, userData);
@@ -228,25 +218,15 @@ internal static class FuseInterop
     internal static IntPtr FuseNew(ref FuseArgs args, ref FuseOperationsMac operations, nuint operationSize,
         IntPtr userData)
     {
-        if (OperatingSystem.IsMacOS())
-        {
-            try
-            {
-                return FuseNew31Mac(ref args, ref operations, operationSize, userData);
-            }
-            catch (EntryPointNotFoundException)
-            {
-                return FuseNewMac(ref args, ref operations, operationSize, userData);
-            }
-        }
-
+        // macFUSE's libfuse3 is built without ELF symbol versioning, so only
+        // fuse_new_31 is exported (plain fuse_new is a header macro).
         try
         {
-            return FuseNewMac(ref args, ref operations, operationSize, userData);
+            return FuseNew31Mac(ref args, ref operations, operationSize, userData);
         }
         catch (EntryPointNotFoundException)
         {
-            return FuseNew31Mac(ref args, ref operations, operationSize, userData);
+            return FuseNewMac(ref args, ref operations, operationSize, userData);
         }
     }
 
@@ -522,6 +502,12 @@ internal static class PosixError
 
     /// <summary>Permission denied.</summary>
     public const int Eacces = 13;
+
+    /// <summary>No such device (the FUSE device was closed because the volume was unmounted).</summary>
+    public const int Enodev = 19;
+
+    /// <summary>Not a directory.</summary>
+    public const int Enotdir = 20;
 
     /// <summary>Is a directory.</summary>
     public const int Eisdir = 21;

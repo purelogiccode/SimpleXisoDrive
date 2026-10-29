@@ -199,7 +199,10 @@ internal static class Program
                     if (exitCode != 0)
                     {
                         Console.Error.WriteLine($"Error: FUSE exited with code {exitCode}.");
-                        Log.Error("FUSE exited with code {ExitCode}", exitCode);
+                        // The mount layer already logged the specific cause at the right
+                        // severity; keep this summary below the bug-report threshold so a
+                        // single failure is never reported twice.
+                        Log.Information("FUSE exited with code {ExitCode}", exitCode);
                         return 1;
                     }
 

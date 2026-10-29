@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
         <LangVersion>14</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -10,26 +10,41 @@
         <RootNamespace>FuseSharp</RootNamespace>
         <IsPackable>true</IsPackable>
         <PackageId>SimpleXisoDrive.FuseSharp</PackageId>
-        <Description>FUSE 3 high-level mount library for .NET on Linux (libfuse3) and macOS (macFUSE).</Description>
+        <Version>1.0.0</Version>
+        <Title>FuseSharp</Title>
+        <Description>FUSE 3 high-level mount library for .NET on Linux (libfuse3) and macOS (macFUSE). Implement IFuseVolume, mount it with FuseFileSystem, and probe the runtime with FuseAvailability.</Description>
         <Authors>PureLogicCode.com</Authors>
         <Company>PureLogicCode.com</Company>
+        <Copyright>Copyright (C) 2026 Peterson Fernandes / PureLogicCode.com</Copyright>
+        <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/purelogiccode/SimpleXisoDrive</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/purelogiccode/SimpleXisoDrive</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>fuse;fuse3;libfuse3;macfuse;filesystem;mount;linux;macos;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AssemblyVersion>1.0.0</AssemblyVersion>
         <FileVersion>1.0.0</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
+        <Deterministic>true</Deterministic>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.291">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.317">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Roslynator.Analyzers" Version="5.0.0">
+        <PackageReference Include="Roslynator.Analyzers" Version="5.0.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Serilog" Version="4.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>

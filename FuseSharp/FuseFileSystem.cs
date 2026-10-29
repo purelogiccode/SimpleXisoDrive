@@ -34,6 +34,7 @@ public sealed class FuseFileSystem
     private string _mountPoint = string.Empty;
     private Action? _onMounted;
     private IntPtr _fuseHandle;
+    private bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FuseFileSystem"/> class over a volume.
@@ -94,6 +95,7 @@ public sealed class FuseFileSystem
     {
         _mountPoint = mountPoint;
         _onMounted = onMounted;
+        _initialized = false;
 
         var arguments = BuildArguments(debug);
         var strings = new IntPtr[arguments.Length];
@@ -219,13 +221,21 @@ public sealed class FuseFileSystem
                 using var sighup = PosixSignalRegistration.Create(PosixSignal.SIGHUP, OnPosixSignal);
 
                 var loopResult = FuseInterop.FuseLoop(fuse);
-                if (loopResult != 0)
+                if (IsCleanUnmountResult(loopResult, _initialized))
                 {
-                    Log.Error("fuse_loop failed with {Result}", loopResult);
-                    return 1;
+                    if (loopResult != 0)
+                    {
+                        // ENODEV means the kernel closed the FUSE device because the
+                        // volume was unmounted elsewhere (umount, Finder eject, ...).
+                        // That is a normal way to end a session, not a failure.
+                        Log.Information("The volume was unmounted externally.");
+                    }
+
+                    return 0;
                 }
 
-                return 0;
+                Log.Error("fuse_loop failed with {Result}", loopResult);
+                return 1;
             }
             finally
             {
@@ -239,18 +249,41 @@ public sealed class FuseFileSystem
         }
     }
 
+    /// <summary>
+    /// Determines whether a <c>fuse_loop</c> result represents a normal end of the
+    /// session. External unmounts close the FUSE device, which makes libfuse's loop
+    /// return <c>-ENODEV</c>; once the session was initialized that is a clean unmount,
+    /// not a failure.
+    /// </summary>
+    /// <param name="loopResult">The value returned by <c>fuse_loop</c>.</param>
+    /// <param name="sessionInitialized">Whether the FUSE <c>init</c> callback ran.</param>
+    /// <returns><see langword="true"/> when the session ended normally; otherwise <see langword="false"/>.</returns>
+    internal static bool IsCleanUnmountResult(int loopResult, bool sessionInitialized)
+    {
+        return loopResult == 0 || (loopResult == -PosixError.Enodev && sessionInitialized);
+    }
+
     private void OnPosixSignal(PosixSignalContext context)
     {
         // Suppress the default termination so the FUSE session can be shut down cleanly.
         context.Cancel = true;
 
+        Log.Information("{Signal} received. Unmounting...", context.Signal);
+        Exit();
+    }
+
+    /// <summary>
+    /// Requests a clean shutdown of the running FUSE session. Safe to call from any
+    /// thread; does nothing when the session has not started or has already ended.
+    /// </summary>
+    public void Exit()
+    {
         var fuse = _fuseHandle;
         if (fuse == IntPtr.Zero)
         {
             return;
         }
 
-        Log.Information("{Signal} received. Unmounting...", context.Signal);
         try
         {
             FuseInterop.FuseExit(fuse);
@@ -287,6 +320,7 @@ public sealed class FuseFileSystem
     {
         try
         {
+            _initialized = true;
             Log.Information("Mount successful: '{MountPoint}'", _mountPoint);
             Log.Information("Press Ctrl+C or run 'umount' to unmount.");
             _onMounted?.Invoke();
@@ -438,12 +472,19 @@ public sealed class FuseFileSystem
     {
         try
         {
-            var names = GetDirectoryNames(path);
-            if (names is null)
+            var fusePath = ToFusePath(path);
+            var entry = _vfs.GetEntry(fusePath);
+            if (entry is null)
             {
                 return -PosixError.Enoent;
             }
 
+            if (!entry.IsDirectory)
+            {
+                return -PosixError.Enotdir;
+            }
+
+            var names = GetDirectoryNames(fusePath);
             var fill = Marshal.GetDelegateForFunctionPointer<FillDirDelegate>(filler);
             return FillDirectory(names, offset, (name, nextOffset) => fill(buffer, name, IntPtr.Zero, nextOffset, 0));
         }
@@ -476,14 +517,8 @@ public sealed class FuseFileSystem
         return 0;
     }
 
-    private List<string>? GetDirectoryNames(IntPtr path)
+    private List<string> GetDirectoryNames(string fusePath)
     {
-        var fusePath = ToFusePath(path);
-        if (_vfs.GetEntry(fusePath) is not { IsDirectory: true })
-        {
-            return null;
-        }
-
         var names = new List<string> { "." };
         if (!string.Equals(fusePath, "/", StringComparison.Ordinal))
         {

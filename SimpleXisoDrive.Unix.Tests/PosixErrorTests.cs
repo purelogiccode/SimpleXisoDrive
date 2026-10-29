@@ -16,6 +16,7 @@ public class PosixErrorTests
         Assert.Equal(2, PosixError.Enoent);
         Assert.Equal(5, PosixError.Eio);
         Assert.Equal(13, PosixError.Eacces);
+        Assert.Equal(19, PosixError.Enodev);
         Assert.Equal(21, PosixError.Eisdir);
         Assert.Equal(22, PosixError.Einval);
         Assert.Equal(30, PosixError.Erofs);
