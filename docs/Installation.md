@@ -88,7 +88,7 @@ ls -l /dev/fuse
 ```
 
 If it is missing, load the module with `sudo modprobe fuse`. The application searches for the FUSE
-library in the standard locations; set `SIMPLEXISODRIVE_FUSE_LIBRARY` to an explicit path if it
+library in the standard locations; set `LIBFUSESHARP_LIBRARY` to an explicit path if it
 lives somewhere else.
 
 ### macOS - macFUSE

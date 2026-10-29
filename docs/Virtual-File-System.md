@@ -6,7 +6,7 @@ read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchi
 supported.
 
 The same virtual file system feeds both mount backends: on Windows `XboxIsoVfsDokan` maps Dokan
-callbacks to it, and on Linux/macOS [FuseSharp](FuseSharp)'s `FuseFileSystem` maps the FUSE 3
+callbacks to it, and on Linux/macOS [LibFuseSharp](FuseSharp)'s `FuseFileSystem` maps the FUSE 3
 callbacks (`getattr`, `open`, `read`, `statfs`, `readdir`, `init`) to the same volume contract through
 `FuseVolumeAdapter`, which translates POSIX paths to the VFS backslash paths. The operation matrices
 below describe the Windows/Dokan mapping in detail; the FUSE callbacks apply the equivalent read-only

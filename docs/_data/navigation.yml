@@ -26,7 +26,7 @@
       url: XDVDFS-Format.html
     - title: Virtual File System
       url: Virtual-File-System.html
-    - title: FuseSharp
+    - title: LibFuseSharp
       url: FuseSharp.html
     - title: Services
       url: Services.html

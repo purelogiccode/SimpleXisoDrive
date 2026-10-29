@@ -1,8 +1,9 @@
 # Testing
 
 SimpleXisoDrive has two xUnit test projects covering the parsing, file system, archive,
-path-resolution and FUSE-interop logic. The tests run without Dokan or FUSE installed, and without
-any real image file.
+path-resolution and application-level FUSE adapter logic. The tests run without Dokan or FUSE
+installed, and without any real image file. The FUSE library's own interop tests live in the
+separate [LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) repository.
 
 ---
 
@@ -10,18 +11,19 @@ any real image file.
 
 | Property | Value |
 | --- | --- |
-| Projects | `SimpleXisoDrive.Tests` (application/core), `SimpleXisoDrive.Unix.Tests` (FUSE interop via `FuseSharp`) |
-| Frameworks | `net10.0-windows` (core suite), `net10.0` (FUSE suite) |
+| Projects | `SimpleXisoDrive.Tests` (application/core), `SimpleXisoDrive.Unix.Tests` (Unix front end and `FuseVolumeAdapter`) |
+| Frameworks | `net10.0-windows` (core suite), `net10.0` (Unix suite) |
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.1 |
 | Coverage collector | `coverlet.collector` 10.1.0 |
-| Test count | 484 (version 1.5.1): 395 core + 89 FUSE |
+| Test count | 429 app tests on `master`: 395 core + 34 Unix |
+| Library tests | 55 in the separate LibFuseSharp repository; 484 combined |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
-`SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs`,
-`SimpleXisoDrive.Unix/AssemblyInfo.cs` and `FuseSharp/AssemblyInfo.cs`, which allows tests to use
-internal constructors (such as `XisoVfsVolume(Stream, string)`), decorators, test doubles and FUSE
-helpers.
+`SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
+`SimpleXisoDrive.Unix/AssemblyInfo.cs`, which allows tests to use internal constructors (such as
+`XisoVfsVolume(Stream, string)`), decorators and test doubles. The Unix suite uses the public
+`LibFuseSharp` package API.
 
 ---
 
@@ -34,6 +36,9 @@ dotnet test CSharp_SimpleXisoDrive.sln
 # Run only one test project
 dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj
 dotnet test SimpleXisoDrive.Unix.Tests/SimpleXisoDrive.Unix.Tests.csproj
+
+# Library tests (run from the CSharp_LibFuseSharp repository)
+dotnet test LibFuseSharp.Tests/LibFuseSharp.Tests.csproj
 
 # Release configuration
 dotnet test CSharp_SimpleXisoDrive.sln -c Release

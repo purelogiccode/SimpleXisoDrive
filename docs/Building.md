@@ -43,9 +43,12 @@ The `global.json` file specifies:
 | `SimpleXisoDrive.Core/` | Shared class library (`net10.0`): VFS, image parsing, services |
 | `SimpleXisoDrive/` | Windows application project (`net10.0-windows`, Dokan) |
 | `SimpleXisoDrive.Unix/` | Linux/macOS application project (`net10.0`, FUSE 3) |
-| `FuseSharp/` | Standalone FUSE 3 mount library (`net10.0`, packable) |
 | `SimpleXisoDrive.Tests/` | xUnit test project (`net10.0-windows`) |
 | `docs/` | This documentation |
+
+The FUSE 3 mount library is **not** part of this repository. It is consumed from NuGet as
+`LibFuseSharp` (MIT); its source and releases live in
+<https://github.com/purelogiccode/LibFuseSharp>.
 
 ---
 
@@ -102,12 +105,15 @@ Published output lands in `SimpleXisoDrive/bin/Release/net10.0-windows/<rid>/pub
 for the Windows app and `SimpleXisoDrive.Unix/bin/Release/net10.0/<rid>/publish/`
 for the Unix app.
 
-The standalone FUSE 3 mount library is packed on its own under the NuGet package id
-`SimpleXisoDrive.FuseSharp`:
+The FUSE 3 mount library is consumed from NuGet; it is not packed from this repository:
 
 ```shell
-dotnet pack FuseSharp/FuseSharp.csproj -c Release
+dotnet add package LibFuseSharp --version 1.0.1
 ```
+
+Library source, tests and packing instructions are in
+<https://github.com/purelogiccode/LibFuseSharp>. The app pins the package version in
+`SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj`.
 
 Release bundles use the **framework-dependent single-file** publish — one executable per bundle
 (no runtime included, hence the .NET 10 Runtime prerequisite) plus `ReadMe.md`, `WhatsNew.md` and
@@ -164,8 +170,9 @@ The current version is **1.5.1**. The update checker parses the three-part (`maj
 portion of GitHub release tags, so release tags should follow that pattern (for example,
 `release_1.5.1`).
 
-The standalone `FuseSharp` library (`FuseSharp/FuseSharp.csproj`) is versioned independently
-(currently `1.0.0`) and is packed as `SimpleXisoDrive.FuseSharp`.
+The `LibFuseSharp` package is versioned independently in its own repository (currently `1.0.1`)
+and pinned by the `PackageReference` in `SimpleXisoDrive.Unix`. Release the library first, then
+update that pin; see [`AGENTS.md`](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/AGENTS.md).
 
 ---
 
@@ -173,7 +180,7 @@ The standalone `FuseSharp` library (`FuseSharp/FuseSharp.csproj`) is versioned i
 
 | Setting | Value |
 | --- | --- |
-| Target frameworks | `net10.0-windows` (Windows app, core tests), `net10.0` (core, Unix app, Unix tests), `net8.0`/`net9.0`/`net10.0` (FuseSharp) |
+| Target frameworks | `net10.0-windows` (Windows app, core tests), `net10.0` (core, Unix app, Unix tests); the external `LibFuseSharp` package targets `net8.0`/`net9.0`/`net10.0` |
 | Language version | 14 |
 | Nullable | Enabled |
 | Implicit usings | Enabled |
@@ -188,7 +195,7 @@ status and unmount instructions.
 
 ## Analyzers
 
-The application, the shared core and `FuseSharp` reference the same analyzers:
+The application, the shared core and the `LibFuseSharp` repository reference the same analyzer versions:
 
 | Analyzer | Purpose |
 | --- | --- |
@@ -229,17 +236,19 @@ to.
 
 To cut a release:
 
-1. Bump `<AssemblyVersion>`/`<FileVersion>` in the project files listed above, and update
+1. If the FUSE library changed, release `LibFuseSharp` first and update the pinned
+   `PackageReference` in `SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj`.
+2. Bump `<AssemblyVersion>`/`<FileVersion>` in the project files listed above, and update
    [Release History](Release-History) and `WhatsNew.md`.
-2. Commit and push the version bump.
-3. Tag and push:
+3. Commit and push the version bump.
+4. Tag and push:
 
    ```shell
    git tag release_1.5.1
    git push origin release_1.5.1
    ```
 
-4. Watch the workflow create the GitHub release with the Windows, Linux and macOS zips attached.
+5. Watch the workflow create the GitHub release with the Windows, Linux and macOS zips attached.
 
 A manual run (`workflow_dispatch`) of `release.yml` builds the same zips as artifacts without
 creating a release. The two commands that must always succeed locally are unchanged:

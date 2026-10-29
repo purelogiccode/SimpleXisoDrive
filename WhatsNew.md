@@ -1,3 +1,9 @@
+> **Library note (2026-10-29):** The FUSE library is now maintained in
+> [purelogiccode/LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) and published as the
+> `LibFuseSharp` NuGet package (MIT). SimpleXisoDrive pins that package; the
+> `SimpleXisoDrive.FuseSharp` name in the 1.5.1 notes below was a pre-release placeholder and was
+> never published.
+
 # What's New in 1.5.1 (since 1.5.0)
 
 Prepared for the `release_1.5.1` tag. Framework-dependent `win-x64`/`win-arm64`,
@@ -17,16 +23,19 @@ runtime; the Desktop Runtime also works but is not required).
 - **Correct FUSE entry point per platform.** Linux uses `fuse_new` with the `fuse_new_31` fallback;
   macOS tries `fuse_new_31` first, matching macFUSE's exported symbols.
 
-## FuseSharp 1.0.0
+## FuseSharp library
 
-- **Ready for NuGet.** `SimpleXisoDrive.FuseSharp` now multi-targets `net8.0`, `net9.0` and
-  `net10.0`, carries package metadata (license, project/repository URLs, tags, README) and uses the
-  `GPL-3.0-only` SPDX expression matching `LICENSE.txt`.
+- **Published as `LibFuseSharp`.** The standalone library multi-targets `net8.0`, `net9.0` and
+  `net10.0`, carries full NuGet metadata (MIT license, project/repository URLs, tags, README) and is
+  consumed by SimpleXisoDrive as a pinned package.
 - **Side-effect-free capability probe.** `FuseAvailability.Check(out libraryPath, candidates,
   printInstructions: false)` lets callers test FUSE availability without printing installation
   guidance.
-- See the [FuseSharp page](https://purelogiccode.github.io/SimpleXisoDrive/FuseSharp.html) and
-  `FuseSharp/README.md` for installation and API details.
+- **External unmounts are clean.** `fuse_loop` returning `ENODEV` after `init` ends the session with
+  code 0 instead of reporting a failure.
+- See the [FuseSharp page](https://purelogiccode.github.io/SimpleXisoDrive/FuseSharp.html) and the
+  [LibFuseSharp README](https://github.com/purelogiccode/LibFuseSharp) for installation and API
+  details.
 
 ## Dependencies
 

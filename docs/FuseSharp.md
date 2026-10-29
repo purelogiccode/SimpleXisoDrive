@@ -1,20 +1,23 @@
 # FuseSharp
 
 `FuseSharp` is the standalone FUSE 3 high-level mount library used by the Linux and macOS front
-end of SimpleXisoDrive. It was extracted from the application so the mount layer can be tested,
-reused and versioned on its own: the library knows nothing about Xbox images, XDVDFS or
+end of SimpleXisoDrive. It lives in its own repository so the mount layer can be tested, reused and
+versioned independently: the library knows nothing about Xbox images, XDVDFS or
 `SimpleXisoDrive.Core` - it mounts any read-only volume that implements its interface.
 
-- **Project:** `FuseSharp/FuseSharp.csproj` (`net8.0`, `net9.0`, `net10.0`; packable)
-- **Assembly and namespace:** `FuseSharp`
-- **NuGet package id:** `SimpleXisoDrive.FuseSharp` (version 1.0.0)
+- **Source repository:** <https://github.com/purelogiccode/LibFuseSharp>
+- **NuGet package id:** `LibFuseSharp` (version 1.0.1)
+- **Assembly and namespace:** `LibFuseSharp` / `FuseSharp`
+- **Targets:** `net8.0`, `net9.0`, `net10.0`
 - **Native dependency:** `libfuse3` on Linux, macFUSE's `libfuse3` on macOS
-- **License:** GPL-3.0 (the package uses the `GPL-3.0-only` SPDX expression)
+- **License:** MIT
+- **Used by:** `SimpleXisoDrive.Unix` via a pinned `PackageReference`; the source is no longer
+  vendored in this repository.
 
 Install it with:
 
 ```shell
-dotnet add package SimpleXisoDrive.FuseSharp --version 1.0.0
+dotnet add package LibFuseSharp --version 1.0.1
 ```
 
 ---
@@ -57,7 +60,8 @@ The contract is deliberately read-only and minimal:
 
 `FuseFileSystem` never calls a mutating member: there is none. `open` rejects anything but
 `O_RDONLY` with `EACCES`, macOS `setattr` returns `EROFS`, and every callback the library does not
-implement fails with `ENOSYS` by default.
+implement fails with `ENOSYS` by default. A `readdir` on a regular file returns `ENOTDIR`; a
+missing path returns `ENOENT`.
 
 ## Mounting a volume
 
@@ -96,8 +100,8 @@ if (!FuseAvailability.Check(out _, candidates: null, printInstructions: false))
 | `IFuseVolume` / `IFuseEntry` | The POSIX-path read-only volume contract described above. |
 
 The library targets Linux x64/ARM64 and macOS x64/ARM64. The FUSE library can be overridden with
-the `SIMPLEXISODRIVE_FUSE_LIBRARY` environment variable; otherwise the standard distribution paths
-are probed in version order.
+the `LIBFUSESHARP_LIBRARY` environment variable (the legacy `SIMPLEXISODRIVE_FUSE_LIBRARY` name is
+still honored); otherwise the standard distribution paths are probed in version order.
 
 ## How SimpleXisoDrive uses it
 
@@ -111,8 +115,10 @@ library contract in `SimpleXisoDrive.Unix/FuseVolumeAdapter.cs`:
 - The Unix front end wires the two together:
   `new FuseFileSystem(new FuseVolumeAdapter(vfsContainer))`.
 
-Because the adapter lives in the application, `FuseSharp` has no project reference to
-`SimpleXisoDrive.Core` and can be packed and consumed independently.
+Because the adapter lives in the application, `LibFuseSharp` has no project reference to
+`SimpleXisoDrive.Core` and is consumed as a package. Library changes are made in the
+[LibFuseSharp repository](https://github.com/purelogiccode/LibFuseSharp), published to NuGet, and
+then pinned by updating the `PackageReference` in `SimpleXisoDrive.Unix.csproj`.
 
 ## See also
 

@@ -31,7 +31,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\FuseSharp\FuseSharp.csproj" />
+        <PackageReference Include="LibFuseSharp" Version="1.0.1" />
         <ProjectReference Include="..\SimpleXisoDrive.Core\SimpleXisoDrive.Core.csproj" />
     </ItemGroup>
 

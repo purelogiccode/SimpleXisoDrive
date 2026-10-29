@@ -16,6 +16,10 @@ history.
 | 1.0.1 | `release_1.0.1` | 2026-01-24 |
 | 1.0.0 | `release_1.0.0` | 2026-01-24 |
 
+> The `LibFuseSharp` NuGet package is released separately from
+> [purelogiccode/LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp); the current package
+> version is 1.0.1.
+
 ---
 
 ## 1.5.1 - 2026-10-29
@@ -28,10 +32,12 @@ history.
   returns `ENOENT`.
 - **No duplicate FUSE failure reports.** The mount layer logs the specific cause once; the Unix front
   end keeps the generic exit summary below the bug-report threshold.
-- **FuseSharp 1.0.0.** `SimpleXisoDrive.FuseSharp` multi-targets `net8.0`, `net9.0` and `net10.0`,
-  carries full NuGet metadata (including the `GPL-3.0-only` license expression) and exposes a
-  side-effect-free availability probe via
-  `FuseAvailability.Check(out library, candidates: null, printInstructions: false)`.
+- **FuseSharp library.** The standalone FUSE 3 library now lives in its own repository and is
+  published as `LibFuseSharp` 1.0.1 (MIT; `net8.0`/`net9.0`/`net10.0`). It adds clean
+  external-unmount handling (`ENODEV`), a side-effect-free availability probe via
+  `FuseAvailability.Check(out library, candidates: null, printInstructions: false)`, and the
+  `LIBFUSESHARP_LIBRARY` override (the legacy `SIMPLEXISODRIVE_FUSE_LIBRARY` name still works).
+  SimpleXisoDrive consumes the package instead of a vendored project.
 - **Dependencies.** CHDSharp 1.5.2, XISOSharp 1.4.4, Microsoft.NET.Test.Sdk 18.11.0,
   xunit.runner.visualstudio 4.0.1, Meziantou.Analyzer 3.0.317 and Roslynator.Analyzers 5.0.1.
 - **Documentation and automation.** `pages.yml` deploys the GitHub Pages site and `wiki.yml` mirrors
@@ -55,7 +61,7 @@ history.
   is released on descriptor failures; `ReaderOwningVfsVolume` disposal is idempotent; and image
   lookup misses are classified below the bug-report threshold.
 - **FuseSharp.** The FUSE 3 mount layer is a standalone packable library
-  (`SimpleXisoDrive.FuseSharp`) with a new `IFuseVolume`/`IFuseEntry` POSIX-path contract. The Unix
+  (now published as `LibFuseSharp`) with a new `IFuseVolume`/`IFuseEntry` POSIX-path contract. The Unix
   app adapts the Xbox volume through `FuseVolumeAdapter`, so `FuseSharp` no longer depends on
   `SimpleXisoDrive.Core`.
 - **Logging.** Expected user-setup and input conditions (missing Dokan/FUSE, missing image files,
@@ -197,6 +203,7 @@ Initial public release lineage:
 
 Versions follow `major.minor.patch`. Release tags use the `release_<version>` prefix (for example
 `release_1.5.1`), and the update checker extracts the numeric portion from GitHub tag names when
-comparing against the installed version.
+comparing against the installed version. The `LibFuseSharp` NuGet package is versioned independently
+in its own repository.
 
 See [Building](Building#versioning) for where to bump the version.

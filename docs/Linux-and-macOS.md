@@ -1,7 +1,7 @@
 # Linux and macOS
 
 SimpleXisoDrive mounts Xbox ISO/XISO/CISO/CHD images and ZArchive files as read-only
-directories on Linux and macOS using FUSE 3 through the bundled [FuseSharp](FuseSharp)
+directories on Linux and macOS using FUSE 3 through the [LibFuseSharp](FuseSharp)
 mount library.
 
 ---
@@ -36,7 +36,8 @@ ls -l /dev/fuse
 If it is missing, load the module with `sudo modprobe fuse`.
 
 The application searches for the FUSE library in the standard locations. Set
-`SIMPLEXISODRIVE_FUSE_LIBRARY` to an explicit path if it lives somewhere else.
+`LIBFUSESHARP_LIBRARY` to an explicit path if it lives somewhere else (the old
+`SIMPLEXISODRIVE_FUSE_LIBRARY` name is still accepted).
 
 ---
 

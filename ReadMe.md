@@ -89,7 +89,7 @@ Start here:
 *   [Troubleshooting](docs/Troubleshooting.md) - every known error with causes and fixes.
 *   [FAQ](docs/FAQ.md) - short answers to common questions.
 *   [Architecture](docs/Architecture.md) - components, mount lifecycle, threading.
-*   [FuseSharp](docs/FuseSharp.md) - the standalone FUSE 3 mount library and its `IFuseVolume` contract.
+*   [LibFuseSharp](docs/FuseSharp.md) - the standalone FUSE 3 mount library, now a NuGet package from its own repository.
 *   [Building](docs/Building.md) - build, test, and the CI/release workflow.
 *   [What's New](WhatsNew.md) - release highlights.
 *   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
@@ -162,7 +162,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 *   **XDVDFS Parsing:** Uses the XISOSharp library to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images.
 *   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
-*   **Mount Backends:** Dokan on Windows (`DokanNet`); on Linux and macOS the standalone **FuseSharp** library (NuGet package id `SimpleXisoDrive.FuseSharp`) mounts any `IFuseVolume` through the FUSE 3 high-level API (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
+*   **Mount Backends:** Dokan on Windows (`DokanNet`); on Linux and macOS the standalone **LibFuseSharp** package (namespace `FuseSharp`, MIT, source at <https://github.com/purelogiccode/LibFuseSharp>) mounts any `IFuseVolume` through the FUSE 3 high-level API (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
 *   **Shared Core:** The image parsing, virtual file system and services live in `SimpleXisoDrive.Core`; the Windows and Unix front ends only implement the mount backend and CLI. `FuseSharp` has no dependency on Core: the Unix app adapts the Xbox volume with `FuseVolumeAdapter`.
 *   **Cycle Detection:** Includes safety checks to prevent infinite loops in corrupted or malformed ISO images.
 *   **Mount Sanitization:** Automatically handles mount point strings (e.g., converts `Z:\` to `Z:`) to satisfy Dokan driver requirements.
@@ -245,6 +245,7 @@ of companies and are used here only to describe compatibility and file formats.
 
 *   **DokanNet:** MIT License.
 *   **Dokan Library:** LGPL/MIT.
+*   **LibFuseSharp:** MIT License (separate package/repository).
 *   **CHDSharp:** MIT License.
 *   **libfuse:** LGPL-2.1 (Linux).
 *   **macFUSE:** BSD-style licenses.

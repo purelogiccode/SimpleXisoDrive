@@ -41,7 +41,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | [Architecture](Architecture) | Component overview, startup and mount lifecycle, threading, error handling |
 | [XDVDFS Format](XDVDFS-Format) | On-disk format: volume descriptor, directory entries, partition offsets |
 | [Virtual File System](Virtual-File-System) | Path resolution, caching, mount operation behaviour, read-only enforcement |
-| [FuseSharp](FuseSharp) | The standalone FUSE 3 mount library: `IFuseVolume` contract, components, packaging |
+| [FuseSharp](FuseSharp) | The standalone `LibFuseSharp` FUSE 3 mount library: `IFuseVolume` contract, components, packaging |
 | [Services](Services) | Logging, bug reporting, statistics, update checker, access checks |
 | [Privacy and Networking](Privacy-and-Networking) | Every network request, its payload, and how to run fully offline |
 | [Glossary](Glossary) | Definitions of terms used throughout the documentation |
@@ -98,6 +98,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Current version | 1.5.1 |
 | Platform | Windows (x64, ARM64), Linux (x64, ARM64), macOS (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows` / `net10.0`) |
+| FUSE library | `LibFuseSharp` 1.0.1 (NuGet, MIT) |
 | File systems | XDVDFS (original Xbox disc format), ZArchive (`ZARCHIVE`) |
 | Access mode | Read-only |
 | Volume label | `XBOX_ISO` (ISO/CHD) / `XBOX_ZAR` (ZArchive) |

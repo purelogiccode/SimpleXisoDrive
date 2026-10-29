@@ -47,9 +47,10 @@ A Windows timestamp format representing 100-nanosecond intervals since 1601-01-0
 volume descriptor stores the volume creation time as a FILETIME.
 
 **FuseSharp**
-The standalone `net10.0` FUSE 3 high-level mount library extracted from SimpleXisoDrive and packed
-as `SimpleXisoDrive.FuseSharp`. It mounts any read-only volume that implements `IFuseVolume` and
-has no dependency on `SimpleXisoDrive.Core`. See [FuseSharp](FuseSharp).
+The standalone FUSE 3 high-level mount library used by SimpleXisoDrive. It is published as the
+`LibFuseSharp` NuGet package (MIT, `net8.0`/`net9.0`/`net10.0`) from its own repository, while the
+namespace remains `FuseSharp`. It mounts any read-only volume that implements `IFuseVolume` and has
+no dependency on `SimpleXisoDrive.Core`. See [FuseSharp](FuseSharp).
 
 **FuseVolumeAdapter**
 The internal class in `SimpleXisoDrive.Unix` that adapts an `IVfsVolume` (backslash-separated VFS

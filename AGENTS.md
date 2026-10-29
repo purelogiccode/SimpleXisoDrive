@@ -15,8 +15,8 @@ It is the source of truth for the release routine; `docs/Building.md` links here
 | Windows app | `SimpleXisoDrive/SimpleXisoDrive.csproj` (`net10.0-windows`, Dokan) |
 | Unix app | `SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj` (`net10.0`, FUSE 3 / macFUSE) |
 | Shared core | `SimpleXisoDrive.Core/SimpleXisoDrive.Core.csproj` |
-| FUSE library | `FuseSharp/FuseSharp.csproj` (`net8.0;net9.0;net10.0`, independently versioned) |
-| Tests | `SimpleXisoDrive.Tests` (Windows/core) and `SimpleXisoDrive.Unix.Tests` (FUSE) |
+| FUSE library | External NuGet package **`LibFuseSharp`** (`net8.0;net9.0;net10.0`, MIT); source repo `C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp` |
+| Tests | `SimpleXisoDrive.Tests` (Windows/core) and `SimpleXisoDrive.Unix.Tests` (Unix front end); library tests live in `CSharp_LibFuseSharp` |
 | Docs source | `docs/` (published to GitHub Pages **and** the GitHub wiki) |
 | Local bundles | `SimpleXisoDrive/bin/Release/release_<version>_<rid>.zip` |
 | Solution | `CSharp_SimpleXisoDrive.sln` |
@@ -42,9 +42,12 @@ Runtime identifiers: `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x6
    `docs/_Sidebar.md` (wiki) and `docs/_data/navigation.yml` (Pages).
 7. **Run InspectCode and the full test suite before producing bundles.** No warnings or errors.
 8. **Bump every app project together**: Windows, Unix, Core and both test projects.
-9. **Do not publish `FuseSharp` to NuGet as part of the app release** unless explicitly asked;
-   it is versioned independently (`FuseSharp.csproj`).
-10. **Do not force-push or delete `master`.** The branch ruleset blocks both.
+9. **The FUSE library is a separate package.** Source and releases live in
+   `C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp`; publish `LibFuseSharp` there, then
+   update the pinned `PackageReference` in this repo. Never re-add a vendored `FuseSharp/` folder.
+10. **Never reuse a NuGet version.** `LibFuseSharp 1.0.0` and `1.0.1` are already published; bump
+    before pushing again.
+11. **Do not force-push or delete `master`.** The branch ruleset blocks both.
 
 ---
 
@@ -103,7 +106,8 @@ jb inspectcode "C:\Users\HomePC\Dropbox\source\repos\CSharp_SimpleXisoDrive\CSha
 Requirements:
 
 - Build: **0 warnings, 0 errors**.
-- Tests: all pass. Record the counts; `docs/Testing.md`, `WhatsNew.md` and
+- Tests: all pass. Current app suite: **429** (395 core + 34 Unix). If the library changed, its
+  **55** tests must pass too. Record the counts; `docs/Testing.md`, `WhatsNew.md` and
   `docs/Release-History.md` must match.
 - InspectCode: **no `warning` or `error` results**. Notes/suggestions may remain only if they are
   deliberate (false positives or intentional public API).
@@ -131,8 +135,10 @@ Semantic versioning (`major.minor.patch`):
 The tag is `release_<version>`; it must be three numeric parts because the update checker uses
 `\d+\.\d+\.\d+` on the GitHub `tag_name`.
 
-> `FuseSharp` is versioned separately. Only bump it when the library itself changes; the current
-> library version is in `FuseSharp/FuseSharp.csproj`.
+> The FUSE library is versioned separately in `CSharp_LibFuseSharp` and consumed as the
+> `LibFuseSharp` NuGet package. The app pin is in
+> `SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj`; the current pin is `1.0.1`.
+> See section 11b for the library release routine.
 
 ---
 
@@ -193,7 +199,7 @@ Update at minimum:
 | `docs/Testing.md` | Test count and runner version. |
 | `docs/Contributing.md` | "currently X.Y.Z" in the bug-report list. |
 | `docs/Privacy-and-Networking.md` | Example `version` payloads. |
-| `docs/FuseSharp.md` | Library version/targets/API when the library changes. |
+| `docs/FuseSharp.md` | Library package version/targets/API when the library changes. |
 | `docs/_Sidebar.md` | Wiki side menu: add/rename pages here. |
 | `docs/_data/navigation.yml` | Pages side menu: keep identical structure to `_Sidebar.md`. |
 
@@ -206,7 +212,7 @@ Every `README.md` / `ReadMe.md` must start with the project title followed by a 
 
 - `ReadMe.md` — CI, Release, latest release, downloads, stars, issues, last commit, license,
   .NET, Windows, Linux, macOS.
-- `FuseSharp/README.md` — NuGet, license, .NET 8/9/10.
+- `CSharp_LibFuseSharp/LibFuseSharp/README.md` — NuGet, MIT, .NET 8/9/10 (separate repo).
 
 Maintainers may add badges, but do not remove existing ones.
 
@@ -349,6 +355,92 @@ A manual run uploads the six zips as workflow artifacts and **does not** create 
 
 ---
 
+## 11b. Library release (`LibFuseSharp`) — separate repository
+
+The FUSE library is **not** in this repository. It lives in
+`C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp` and is published as the NuGet package
+**`LibFuseSharp`** (namespace `FuseSharp`, MIT). Do this before an app release that needs a library
+change:
+
+```powershell
+Set-Location C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp
+```
+
+1. Bump `<Version>`, `<AssemblyVersion>` and `<FileVersion>` in
+   `LibFuseSharp/LibFuseSharp.csproj` and `LibFuseSharp.Tests/LibFuseSharp.Tests.csproj`.
+   Update `LibFuseSharp/README.md` for behavior or API changes.
+2. Build, test and inspect:
+
+   ```powershell
+   dotnet build LibFuseSharp.slnx -c Release
+   dotnet test LibFuseSharp.Tests/LibFuseSharp.Tests.csproj -c Release
+   jb inspectcode "C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp\LibFuseSharp\LibFuseSharp.csproj" -o="C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp\InspectCode-lib.log"
+   ```
+
+   This InspectCode build does not accept `.slnx`; inspect the project files individually.
+   Requirements: 0 warnings, 0 errors, all tests pass.
+
+3. Pack and inspect the package:
+
+   ```powershell
+   dotnet pack LibFuseSharp/LibFuseSharp.csproj -c Release -o artifacts/nuget
+   ```
+
+   Confirm `lib/net8.0`, `lib/net9.0`, `lib/net10.0`, `README.md`, package id `LibFuseSharp`,
+   MIT license, and the new version in the `.nuspec`.
+
+4. **Compatibility check (required when the public API changed).** In a clean copy of
+   SimpleXisoDrive, replace the `LibFuseSharp` `PackageReference` version with the new one, add a
+   temporary `NuGet.Config` whose first source is `artifacts/nuget`, then run:
+
+   ```powershell
+   dotnet restore
+   dotnet build CSharp_SimpleXisoDrive.sln -c Release
+   dotnet test CSharp_SimpleXisoDrive.sln -c Release
+   ```
+
+   Only publish after the app builds and all tests pass against the packed package.
+
+5. Publish (never print or commit the key):
+
+   ```powershell
+   dotnet nuget push "artifacts/nuget/LibFuseSharp.X.Y.Z.nupkg" `
+       --api-key $env:NUGET_API_KEY `
+       --source https://api.nuget.org/v3/index.json
+   ```
+
+6. Wait for indexing and verify:
+
+   ```powershell
+   (Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/libfusesharp/index.json').versions
+   ```
+
+7. Commit, tag and push the library repo:
+
+   ```powershell
+   git add -A
+   git commit -m "release: LibFuseSharp X.Y.Z"
+   git tag vX.Y.Z
+   git push origin master
+   git push origin vX.Y.Z
+   ```
+
+8. Update the app pin in both files, then restore/build/test and commit:
+
+   - `SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj`
+   - `SimpleXisoDrive.Unix.Tests/SimpleXisoDrive.Unix.Tests.csproj`
+
+```powershell
+dotnet restore CSharp_SimpleXisoDrive.sln
+dotnet build CSharp_SimpleXisoDrive.sln -c Release
+dotnet test CSharp_SimpleXisoDrive.sln -c Release
+```
+
+Never reuse a published version. Current `LibFuseSharp` release: **1.0.1**. The namespace stays
+`FuseSharp`; only the package/assembly name is `LibFuseSharp`.
+
+---
+
 ## 12. Step 8 — post-release verification
 
 ```powershell
@@ -453,6 +545,7 @@ plan.
 | `docs/_layouts/default.html` | Pages layout and inline link rewriter. |
 | `docs/_config.yml` | Jekyll configuration and defaults. |
 | `SimpleXisoDrive/bin/Release/` | Local release bundles (never delete). |
+| `C:\Users\HomePC\Dropbox\source\repos\CSharp_LibFuseSharp` | Source, tests and NuGet package for `LibFuseSharp` (MIT); not vendored here. |
 
 ---
 
@@ -460,9 +553,12 @@ plan.
 
 - [ ] `git status` clean; `master` pushed.
 - [ ] Build: 0 warnings, 0 errors.
-- [ ] All tests pass; counts match the docs.
-- [ ] InspectCode: no warnings or errors.
+- [ ] All app tests pass (currently **429**: 395 core + 34 Unix); if the library changed, its
+      **55** tests pass too.
+- [ ] InspectCode: no warnings or errors (app and, when changed, the library).
 - [ ] Version bumped in all five app projects.
+- [ ] The `LibFuseSharp` package version is pinned in both Unix projects and matches the published
+      NuGet version.
 - [ ] `WhatsNew.md` has the matching `# What's New in X.Y.Z` section.
 - [ ] `ReadMe.md` badges intact; docs lists current.
 - [ ] `docs/Release-History.md`, `Home.md`, `Building.md`, `Testing.md`, `Contributing.md`,

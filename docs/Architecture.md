@@ -4,7 +4,7 @@ This page describes how SimpleXisoDrive is structured, how a mount is created, a
 operations flow through the system.
 
 The application is split into a shared core (`SimpleXisoDrive.Core`), a standalone FUSE 3 mount
-library ([FuseSharp](FuseSharp)) and two front ends: the Windows Dokan app (`SimpleXisoDrive`) and
+library ([LibFuseSharp](FuseSharp)) and two front ends: the Windows Dokan app (`SimpleXisoDrive`) and
 the Linux/macOS FUSE 3 app (`SimpleXisoDrive.Unix`). The core owns image parsing, the virtual file
 system and the services; the front ends only implement the mount backend, the command line and the
 platform UX. The diagram below shows the Windows front end; the Unix front end replaces
@@ -73,10 +73,10 @@ flowchart TD
 | `IRawImageSource` / `StreamRawImageSource` | `internal` | Reads raw image bytes at an offset from a seekable stream (plain ISO, CISO block device, decompressed CHD, or embedded XISO) or from the in-memory virtual XISO layout. Reads are serialized for Dokan's concurrent callbacks. |
 | `VirtualXisoImageSource` | `internal sealed class` | Synthesizes an XISO for a ZArchive directory tree entirely in memory: builds the directory tables with `DirectoryEntryTableWriter`, allocates sectors with `SectorAllocator`, emits the volume descriptor/ECMA-119 header/optimized tag, and serves file data from the archive on demand. No extraction, no temporary files. |
 | `XboxIsoVfsDokan` | `internal sealed class` (Windows) | Implements DokanNet's `IDokanOperations`. Maps Windows file system requests to `VfsContainer` calls, enforces read-only behaviour, and normalizes paths. |
-| `FuseFileSystem` | `public sealed class` (FuseSharp) | Mounts an `IFuseVolume` through the FUSE 3 high-level API: `getattr`/`open`/`read`/`statfs`/`readdir`/`init` callbacks for Linux and macOS, read-only enforcement, and signal-driven unmounting through `fuse_exit`. |
-| `FuseInterop` | `internal static class` (FuseSharp) | Platform-aware P/Invoke layer: resolves and loads `libfuse3`/macFUSE, declares the Linux and macOS `fuse_operations` layouts, picks the exported `fuse_new` entry point per platform, and pokes the mount with `statfs` to wake the loop. |
-| `FuseAvailability` | `public static class` (FuseSharp) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
-| `IFuseVolume` / `IFuseEntry` | `public interface` (FuseSharp) | The read-only volume contract consumed by `FuseFileSystem`: POSIX-path entry lookup, directory listing and file reads, plus label, creation time and size. |
+| `FuseFileSystem` | `public sealed class` (LibFuseSharp) | Mounts an `IFuseVolume` through the FUSE 3 high-level API: `getattr`/`open`/`read`/`statfs`/`readdir`/`init` callbacks for Linux and macOS, read-only enforcement, and signal-driven unmounting through `fuse_exit`. |
+| `FuseInterop` | `internal static class` (LibFuseSharp) | Platform-aware P/Invoke layer: resolves and loads `libfuse3`/macFUSE, declares the Linux and macOS `fuse_operations` layouts, picks the exported `fuse_new` entry point per platform, and pokes the mount with `statfs` to wake the loop. |
+| `FuseAvailability` | `public static class` (LibFuseSharp) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
+| `IFuseVolume` / `IFuseEntry` | `public interface` (LibFuseSharp) | The read-only volume contract consumed by `FuseFileSystem`: POSIX-path entry lookup, directory listing and file reads, plus label, creation time and size. |
 | `FuseVolumeAdapter` | `internal sealed class` (Unix) | Adapts an `IVfsVolume` (backslash-separated VFS paths) to `IFuseVolume`, translating paths and wrapping entries. |
 | `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
@@ -310,12 +310,6 @@ CSharp_SimpleXisoDrive/
 |   |   |-- CommandLineArguments.cs     # parsed command-line data
 |   |   `-- DokanInstallationStatus.cs  # detected Dokan installation state
 |   `-- icon/xiso.ico, icon/xiso.png
-|-- FuseSharp/                          # FUSE 3 mount library (net10.0, packable)
-|   |-- FuseFileSystem.cs               # high-level API mount + callbacks
-|   |-- FuseInterop.cs                  # library loading, layouts, P/Invoke
-|   |-- FuseAvailability.cs             # libfuse3 / /dev/fuse / fusermount3 checks
-|   |-- IFuseVolume.cs / IFuseEntry.cs  # POSIX-path volume contract
-|   `-- AssemblyInfo.cs
 |-- SimpleXisoDrive.Unix/               # Linux/macOS application (net10.0, FUSE 3)
 |   |-- Program.cs
 |   `-- FuseVolumeAdapter.cs            # IVfsVolume -> IFuseVolume path adaptation
@@ -336,6 +330,7 @@ CSharp_SimpleXisoDrive/
 | `XISOSharp` | 1.4.4 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
 | `CHDSharp` | 1.5.2 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
 | `ZArchiveSharp` | 1.4.0 | Pure-C# ZArchive reader/writer; the mount-friendly reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
+| `LibFuseSharp` | 1.0.1 | FUSE 3 high-level mount library (MIT), consumed from NuGet; source lives in <https://github.com/purelogiccode/LibFuseSharp>. |
 | `Meziantou.Analyzer` | 3.0.317 | Build-time code analyzers. |
 | `Roslynator.Analyzers` | 5.0.1 | Build-time code analyzers. |
 
