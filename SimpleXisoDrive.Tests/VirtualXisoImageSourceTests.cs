@@ -186,7 +186,7 @@ public class VirtualXisoImageSourceTests
                     continue;
                 }
 
-                var length = Math.Min(requestedLength, (int)(full.Length - offset));
+                var length = Math.Min(requestedLength, full.Length - offset);
                 var buffer = new byte[length];
                 Assert.Equal(length, source.Read(buffer, offset));
                 Assert.Equal(full.AsSpan(offset, length).ToArray(), buffer);

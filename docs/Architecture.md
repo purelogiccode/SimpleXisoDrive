@@ -333,13 +333,13 @@ CSharp_SimpleXisoDrive/
 | `Serilog` | 4.4.0 | Structured logging core. |
 | `Serilog.Sinks.Console` | 6.1.1 | Console log output. |
 | `Serilog.Sinks.File` | 7.0.0 | Rolling file log output. |
-| `XISOSharp` | 1.4.2 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
-| `CHDSharp` | 1.4.3 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
+| `XISOSharp` | 1.4.4 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
+| `CHDSharp` | 1.5.2 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
 | `ZArchiveSharp` | 1.4.0 | Pure-C# ZArchive reader/writer; the mount-friendly reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
-| `Meziantou.Analyzer` | 3.0.291 | Build-time code analyzers. |
-| `Roslynator.Analyzers` | 5.0.0 | Build-time code analyzers. |
+| `Meziantou.Analyzer` | 3.0.317 | Build-time code analyzers. |
+| `Roslynator.Analyzers` | 5.0.1 | Build-time code analyzers. |
 
-Test projects: `Microsoft.NET.Test.Sdk` 18.10.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.0,
+Test projects: `Microsoft.NET.Test.Sdk` 18.11.0, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.1,
 `coverlet.collector` 10.1.0.
 
 ---

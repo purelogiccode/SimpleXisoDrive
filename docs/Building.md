@@ -109,21 +109,42 @@ The standalone FUSE 3 mount library is packed on its own under the NuGet package
 dotnet pack FuseSharp/FuseSharp.csproj -c Release
 ```
 
-Release bundles use the **framework-dependent single-file** publish — one executable
-(no runtime included, hence the .NET 10 Runtime prerequisite):
+Release bundles use the **framework-dependent single-file** publish — one executable per bundle
+(no runtime included, hence the .NET 10 Runtime prerequisite) plus `ReadMe.md`, `WhatsNew.md` and
+`LICENSE.txt`:
 
-```shell
-dotnet publish SimpleXisoDrive/SimpleXisoDrive.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
-Compress-Archive -Path SimpleXisoDrive/bin/Release/net10.0-windows/win-x64/publish/SimpleXisoDrive.exe -DestinationPath release_1.5.0_win-x64.zip
+```powershell
+$version = '1.5.1'
+$targets = @(
+    @{ Rid = 'win-x64';     Project = 'SimpleXisoDrive/SimpleXisoDrive.csproj';         Binary = 'SimpleXisoDrive.exe' },
+    @{ Rid = 'win-arm64';   Project = 'SimpleXisoDrive/SimpleXisoDrive.csproj';         Binary = 'SimpleXisoDrive.exe' },
+    @{ Rid = 'linux-x64';   Project = 'SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj'; Binary = 'SimpleXisoDrive' },
+    @{ Rid = 'linux-arm64'; Project = 'SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj'; Binary = 'SimpleXisoDrive' },
+    @{ Rid = 'osx-x64';     Project = 'SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj'; Binary = 'SimpleXisoDrive' },
+    @{ Rid = 'osx-arm64';   Project = 'SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj'; Binary = 'SimpleXisoDrive' }
+)
 
-dotnet publish SimpleXisoDrive.Unix/SimpleXisoDrive.Unix.csproj -c Release -r linux-x64 --self-contained false -p:PublishSingleFile=true
-Compress-Archive -Path SimpleXisoDrive.Unix/bin/Release/net10.0/linux-x64/publish/SimpleXisoDrive -DestinationPath release_1.5.0_linux-x64.zip
+foreach ($target in $targets) {
+    $publish = "artifacts/$version/$($target.Rid)"
+    $bundle = "artifacts/bundle/$($target.Rid)"
+    dotnet publish $target.Project -c Release -r $target.Rid --self-contained false `
+        -p:PublishSingleFile=true -o $publish
+    New-Item -ItemType Directory -Force $bundle | Out-Null
+    Copy-Item "$publish/$($target.Binary)" $bundle
+    Copy-Item ReadMe.md, WhatsNew.md, LICENSE.txt $bundle
+    Compress-Archive -Path "$bundle/*" `
+        -DestinationPath "SimpleXisoDrive/bin/Release/release_${version}_$($target.Rid).zip" -Force
+}
 ```
 
-> If you plan to upload a release, the release notes convention uses archive suffixes
-> `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`
-> (see [Installation](Installation)). The `release.yml` workflow does this for you on a
-> `release_*` tag.
+Local bundles are written to `SimpleXisoDrive/bin/Release/`; never delete existing bundles in that
+folder. `Compress-Archive` on Windows does not preserve the Unix executable bit — the canonical
+zips are built by `release.yml`, which sets it explicitly. The archive suffixes are `win-x64`,
+`win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64` (see [Installation](Installation)).
+
+> The complete copy-paste release routine — version bump, docs refresh, bundle verification, tag,
+> CI monitoring and post-release checks — is in
+> [`AGENTS.md`](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/AGENTS.md).
 
 ---
 
@@ -139,9 +160,9 @@ The version is defined in the project files and they must be updated together:
 | `SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 | `SimpleXisoDrive.Unix.Tests/SimpleXisoDrive.Unix.Tests.csproj` | `<AssemblyVersion>` and `<FileVersion>` |
 
-The current version is **1.5.0**. The update checker parses the three-part (`major.minor.patch`)
+The current version is **1.5.1**. The update checker parses the three-part (`major.minor.patch`)
 portion of GitHub release tags, so release tags should follow that pattern (for example,
-`release_1.5.0`).
+`release_1.5.1`).
 
 The standalone `FuseSharp` library (`FuseSharp/FuseSharp.csproj`) is versioned independently
 (currently `1.0.0`) and is packed as `SimpleXisoDrive.FuseSharp`.
@@ -152,7 +173,7 @@ The standalone `FuseSharp` library (`FuseSharp/FuseSharp.csproj`) is versioned i
 
 | Setting | Value |
 | --- | --- |
-| Target frameworks | `net10.0-windows` (Windows app, tests), `net10.0` (core, Unix app, FuseSharp) |
+| Target frameworks | `net10.0-windows` (Windows app, core tests), `net10.0` (core, Unix app, Unix tests), `net8.0`/`net9.0`/`net10.0` (FuseSharp) |
 | Language version | 14 |
 | Nullable | Enabled |
 | Implicit usings | Enabled |
@@ -171,8 +192,8 @@ The application, the shared core and `FuseSharp` reference the same analyzers:
 
 | Analyzer | Purpose |
 | --- | --- |
-| `Meziantou.Analyzer` 3.0.291 | Best-practice and performance rules |
-| `Roslynator.Analyzers` 5.0.0 | Code quality and style rules |
+| `Meziantou.Analyzer` 3.0.317 | Best-practice and performance rules |
+| `Roslynator.Analyzers` 5.0.1 | Code quality and style rules |
 
 Three rules are disabled in `.editorconfig`:
 
@@ -193,7 +214,7 @@ Four GitHub Actions workflows automate build, test, documentation and release (`
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
 | `ci.yml` | Push/PR to `master`, manual | Restores, builds `Release`, runs the test suite on `windows-latest`, and uploads the `.trx` results and Cobertura coverage as artifacts. A second job builds and publishes the Unix app on `ubuntu-latest` (hosted runners have no FUSE device, so it does not mount). A third job builds the documentation site with the same Jekyll toolchain as Pages. |
-| `release.yml` | `release_*` tag, manual | Verifies the tag against `<AssemblyVersion>`, runs the suite, publishes framework-dependent single-file executables for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`, packs each as `release_<version>_<rid>.zip` containing only the executable, and creates the GitHub release with those assets. |
+| `release.yml` | `release_*` tag, manual | Verifies the tag against `<AssemblyVersion>`, runs the suite, publishes framework-dependent single-file executables for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`, packs each as `release_<version>_<rid>.zip` containing the executable plus `ReadMe.md`, `WhatsNew.md` and `LICENSE.txt`, and creates the GitHub release with those assets. |
 | `pages.yml` | Push to `master` touching `docs/`, manual | Builds `docs/` with the GitHub Pages Jekyll toolchain and deploys the result to the documentation site at <https://purelogiccode.github.io/SimpleXisoDrive/>. |
 | `wiki.yml` | Push to `master` touching `docs/`, manual | Regenerates the GitHub wiki from `docs/`; commits only when the generated pages differ. |
 
@@ -214,8 +235,8 @@ To cut a release:
 3. Tag and push:
 
    ```shell
-   git tag release_1.5.0
-   git push origin release_1.5.0
+   git tag release_1.5.1
+   git push origin release_1.5.1
    ```
 
 4. Watch the workflow create the GitHub release with the Windows, Linux and macOS zips attached.

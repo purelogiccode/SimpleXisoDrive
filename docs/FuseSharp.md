@@ -5,10 +5,17 @@ end of SimpleXisoDrive. It was extracted from the application so the mount layer
 reused and versioned on its own: the library knows nothing about Xbox images, XDVDFS or
 `SimpleXisoDrive.Core` - it mounts any read-only volume that implements its interface.
 
-- **Project:** `FuseSharp/FuseSharp.csproj` (`net10.0`, packable)
+- **Project:** `FuseSharp/FuseSharp.csproj` (`net8.0`, `net9.0`, `net10.0`; packable)
 - **Assembly and namespace:** `FuseSharp`
-- **NuGet package id:** `SimpleXisoDrive.FuseSharp`
+- **NuGet package id:** `SimpleXisoDrive.FuseSharp` (version 1.0.0)
 - **Native dependency:** `libfuse3` on Linux, macFUSE's `libfuse3` on macOS
+- **License:** GPL-3.0 (the package uses the `GPL-3.0-only` SPDX expression)
+
+Install it with:
+
+```shell
+dotnet add package SimpleXisoDrive.FuseSharp --version 1.0.0
+```
 
 ---
 
@@ -72,7 +79,12 @@ application (including ejecting the volume in Finder on macOS) closes the FUSE d
 libfuse report `ENODEV`; the library treats that as a normal end of the session too. The constructor
 registers the native library resolver, so no separate initialization call is required.
 `FuseAvailability.Check` can be used before mounting to print installation guidance when FUSE is
-missing.
+missing. Pass `printInstructions: false` for a side-effect-free capability probe:
+
+```csharp
+if (!FuseAvailability.Check(out _, candidates: null, printInstructions: false))
+    return;
+```
 
 ## Components
 

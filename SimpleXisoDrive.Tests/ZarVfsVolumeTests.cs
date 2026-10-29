@@ -474,13 +474,17 @@ public class ZarVfsVolumeTests
         {
             using var volume = new ZarVfsVolume(path);
 
+            // Capture a non-disposable local so the parallel lambda never closes over the
+            // using-scoped variable (the volume is disposed only after Parallel.For returns).
+            var sharedVolume = volume;
+
             Parallel.For(0, 64, i =>
             {
-                var entry = volume.GetEntry(i % 2 == 0 ? "\\big.bin" : "\\sub\\other.bin");
+                var entry = sharedVolume.GetEntry(i % 2 == 0 ? "\\big.bin" : "\\sub\\other.bin");
                 Assert.NotNull(entry);
 
                 var buffer = new byte[Math.Min(4096, entry.Size)];
-                var read = volume.ReadFile(entry, buffer, 0);
+                var read = sharedVolume.ReadFile(entry, buffer, 0);
 
                 Assert.Equal(buffer.Length, read);
                 if (i % 2 == 0)

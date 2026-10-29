@@ -94,6 +94,8 @@ Start here:
 *   [What's New](WhatsNew.md) - release highlights.
 *   [XDVDFS Format](docs/XDVDFS-Format.md) - on-disk structures and supported variants.
 *   [Privacy and Networking](docs/Privacy-and-Networking.md) - telemetry, endpoints, offline use.
+*   [Release History](docs/Release-History.md) - every tagged release and its notable changes.
+*   [Security Policy](SECURITY.md) - supported versions and private vulnerability reporting.
 
 The full documentation map (Virtual File System, Services, Glossary, Testing, Contributing and
 Release History) is on [Home](docs/Home.md).
@@ -213,6 +215,19 @@ are advisory and can be blocked (see [Privacy and Networking](docs/Privacy-and-N
 macOS needs macFUSE. See [Install dependencies](#install-dependencies).
 
 More answers are in the [FAQ](docs/FAQ.md).
+
+## Security
+
+Security issues should be reported privately through the repository's
+[Security Policy](SECURITY.md) (GitHub's **Report a vulnerability** form), not in public issues.
+Dependabot alerts, Dependabot security updates, CodeQL code scanning, secret scanning and push
+protection are enabled for this repository.
+
+## Releasing
+
+The complete release and deployment checklist for maintainers and AI agents is in
+[`AGENTS.md`](AGENTS.md): version bump, documentation refresh, local bundle creation, CI release,
+and post-release verification.
 
 ## Support the Project
 

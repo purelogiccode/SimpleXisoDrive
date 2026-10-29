@@ -59,7 +59,7 @@ public class InvalidImageExceptionTests
     [Fact]
     public void MessageOnlyConstructor_AcceptsNull()
     {
-        var ex = new InvalidImageException((string?)null);
+        var ex = new InvalidImageException(null);
 
         Assert.NotNull(ex.Message);
     }

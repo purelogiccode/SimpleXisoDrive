@@ -19,7 +19,7 @@ public static class LoggingSetup
     /// enabled by the front ends when the user passes <c>--debug</c>; the file sink
     /// always keeps the full debug log for diagnostics.
     /// </summary>
-    public static LoggingLevelSwitch ConsoleLevelSwitch { get; } = new(LogEventLevel.Information);
+    public static LoggingLevelSwitch ConsoleLevelSwitch { get; } = new();
 
     /// <summary>
     /// Creates and assigns the global logger used across the application. Calling this

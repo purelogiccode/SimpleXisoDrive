@@ -5,7 +5,8 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
-| Unreleased | `master` | 2026-10-02 |
+| 1.5.1 | `release_1.5.1` | 2026-10-29 |
+| 1.5.0 | `release_1.5.0` | 2026-10-02 |
 | 1.4.0 | `release_1.4.0` | 2026-09-29 |
 | 1.3.0 | `release_1.3.0` | 2026-09-13 |
 | 1.2.0 | `release_1.2.0` | 2026-06-21 |
@@ -17,7 +18,29 @@ history.
 
 ---
 
-## Unreleased (1.5.0)
+## 1.5.1 - 2026-10-29
+
+- **External unmounts are clean.** `umount`, `fusermount3 -u` and Finder eject close the FUSE device;
+  `fuse_loop` reports `ENODEV`, which is treated as a normal end of the session once `init` ran. The
+  process exits with code 0 and logs that the volume was unmounted externally instead of reporting a
+  failure.
+- **Correct directory errors.** `readdir` on a regular file returns `ENOTDIR`; a missing path still
+  returns `ENOENT`.
+- **No duplicate FUSE failure reports.** The mount layer logs the specific cause once; the Unix front
+  end keeps the generic exit summary below the bug-report threshold.
+- **FuseSharp 1.0.0.** `SimpleXisoDrive.FuseSharp` multi-targets `net8.0`, `net9.0` and `net10.0`,
+  carries full NuGet metadata (including the `GPL-3.0-only` license expression) and exposes a
+  side-effect-free availability probe via
+  `FuseAvailability.Check(out library, candidates: null, printInstructions: false)`.
+- **Dependencies.** CHDSharp 1.5.2, XISOSharp 1.4.4, Microsoft.NET.Test.Sdk 18.11.0,
+  xunit.runner.visualstudio 4.0.1, Meziantou.Analyzer 3.0.317 and Roslynator.Analyzers 5.0.1.
+- **Documentation and automation.** `pages.yml` deploys the GitHub Pages site and `wiki.yml` mirrors
+  `docs/` to the wiki, both with side menus; added `SECURITY.md` and the `AGENTS.md` release runbook;
+  corrected the release history, version references, test counts and dependency tables.
+- **Tests.** 484 tests (395 Windows + 89 Unix), including new FUSE session-result coverage for
+  external unmounts.
+
+## 1.5.0 - 2026-10-02
 
 - **Startup experience.** The GitHub update check runs immediately at startup on both front ends;
   non-interactive runs print the version and URL instead of showing a dialog. A missing Dokan
@@ -173,7 +196,7 @@ Initial public release lineage:
 ## Version scheme
 
 Versions follow `major.minor.patch`. Release tags use the `release_<version>` prefix (for example
-`release_1.4.0`), and the update checker extracts the numeric portion from GitHub tag names when
+`release_1.5.1`), and the update checker extracts the numeric portion from GitHub tag names when
 comparing against the installed version.
 
 See [Building](Building#versioning) for where to bump the version.

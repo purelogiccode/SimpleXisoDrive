@@ -34,11 +34,6 @@ internal sealed class FakeVfsVolume : IVfsVolume
     public IVfsEntry Entry { get; } = new FakeVfsEntry("entry.bin", isDirectory: false, size: 7);
 
     /// <summary>
-    /// Gets a value indicating whether the volume has been disposed.
-    /// </summary>
-    public bool Disposed { get; private set; }
-
-    /// <summary>
     /// Gets the number of <see cref="Dispose"/> calls.
     /// </summary>
     public int DisposeCount { get; private set; }
@@ -105,7 +100,6 @@ internal sealed class FakeVfsVolume : IVfsVolume
     public void Dispose()
     {
         DisposeCount++;
-        Disposed = true;
 
         if (ThrowOnDispose)
         {

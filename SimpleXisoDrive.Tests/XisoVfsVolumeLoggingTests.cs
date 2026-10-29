@@ -31,8 +31,8 @@ public class XisoVfsVolumeLoggingTests
         try
         {
             using var volume = new XisoVfsVolume(path);
-            var (entry, events) = CaptureLog(() =>
-                volume.GetEntry(@"\System Volume Information\MountPointManagerRemoteDatabase"));
+            var (entry, events) = CaptureLog(volume, static v =>
+                v.GetEntry(@"\System Volume Information\MountPointManagerRemoteDatabase"));
 
             Assert.Null(entry);
             AssertNoLookupError(events);
@@ -54,7 +54,7 @@ public class XisoVfsVolumeLoggingTests
         try
         {
             using var volume = new XisoVfsVolume(path);
-            var (children, events) = CaptureLog(() => volume.GetFolderList(@"\Images\Camera").ToList());
+            var (children, events) = CaptureLog(volume, static v => v.GetFolderList(@"\Images\Camera").ToList());
 
             Assert.Empty(children);
             AssertNoLookupError(events);
@@ -73,7 +73,7 @@ public class XisoVfsVolumeLoggingTests
     {
         using var stream = new MemoryStream(TestImageFactory.CreateMinimalXdvdfsImage());
         using var volume = new XisoVfsVolume(stream, "embedded.iso");
-        var (entry, events) = CaptureLog(() => volume.GetEntry(@"\Images\Camera"));
+        var (entry, events) = CaptureLog(volume, static v => v.GetEntry(@"\Images\Camera"));
 
         Assert.Null(entry);
         AssertNoLookupError(events);
@@ -86,13 +86,19 @@ public class XisoVfsVolumeLoggingTests
     /// </summary>
     private static void AssertNoLookupError(IReadOnlyCollection<LogEvent> events)
     {
-        Assert.DoesNotContain(events, e =>
-            e.Level >= LogEventLevel.Warning &&
-            (e.MessageTemplate.Text.StartsWith("GetEntry failed", StringComparison.Ordinal) ||
-             e.MessageTemplate.Text.StartsWith("GetFolderList failed", StringComparison.Ordinal)));
+        Assert.DoesNotContain(events, IsLookupError);
     }
 
-    private static (T Result, IReadOnlyCollection<LogEvent> Events) CaptureLog<T>(Func<T> action)
+    private static bool IsLookupError(LogEvent logEvent)
+    {
+        return logEvent.Level >= LogEventLevel.Warning &&
+               (logEvent.MessageTemplate.Text.StartsWith("GetEntry failed", StringComparison.Ordinal) ||
+                logEvent.MessageTemplate.Text.StartsWith("GetFolderList failed", StringComparison.Ordinal));
+    }
+
+    private static (T Result, IReadOnlyCollection<LogEvent> Events) CaptureLog<TState, T>(
+        TState state,
+        Func<TState, T> action)
     {
         var original = Log.Logger;
         var sink = new CollectingSink();
@@ -100,7 +106,7 @@ public class XisoVfsVolumeLoggingTests
 
         try
         {
-            return (action(), sink.Events);
+            return (action(state), sink.Events);
         }
         finally
         {

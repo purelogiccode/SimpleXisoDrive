@@ -43,4 +43,5 @@ Use the side menu to browse the documentation, or jump straight to a page:
 
 - Repository: <https://github.com/purelogiccode/SimpleXisoDrive>
 - [What's New](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/WhatsNew.md)
+- [Security Policy](https://github.com/purelogiccode/SimpleXisoDrive/blob/master/SECURITY.md)
 - [Releases](https://github.com/purelogiccode/SimpleXisoDrive/releases)

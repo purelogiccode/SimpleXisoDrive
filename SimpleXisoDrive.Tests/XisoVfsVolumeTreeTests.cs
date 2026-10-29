@@ -261,7 +261,7 @@ public class XisoVfsVolumeTreeTests
     {
         TestImageEntry[] entries =
         [
-            new("archive.bin", [1], 0x20),
+            new("archive.bin", [1]),
             new("hidden.bin", [1], 0x02),
             new("system.bin", [1], 0x04),
             new("hidden-system.bin", [1], 0x06),

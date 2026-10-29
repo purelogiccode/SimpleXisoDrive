@@ -13,9 +13,9 @@ any real image file.
 | Projects | `SimpleXisoDrive.Tests` (application/core), `SimpleXisoDrive.Unix.Tests` (FUSE interop via `FuseSharp`) |
 | Frameworks | `net10.0-windows` (core suite), `net10.0` (FUSE suite) |
 | Test framework | xUnit 2.9.3 |
-| Runner | `xunit.runner.visualstudio` 4.0.0 |
-| Coverage collector | `coverlet.collector` 10.0.1 |
-| Test count | 476 (version 1.5.0): 395 core + 81 FUSE |
+| Runner | `xunit.runner.visualstudio` 4.0.1 |
+| Coverage collector | `coverlet.collector` 10.1.0 |
+| Test count | 484 (version 1.5.1): 395 core + 89 FUSE |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs`,
