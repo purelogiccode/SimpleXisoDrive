@@ -133,6 +133,8 @@ editing:
   generated pages at runtime;
 - update the side menus when adding or renaming a page: `docs/_Sidebar.md` (wiki) and
   `docs/_data/navigation.yml` (site);
+- do not edit the wiki pages directly: `wiki.yml` replaces them with the contents of `docs/` on
+  every change;
 - prefer precise, verifiable statements over marketing language;
 - include exact error messages and file paths where relevant.
 

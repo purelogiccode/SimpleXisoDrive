@@ -202,6 +202,10 @@ Documentation is published from the single `docs/` source on every push to `mast
 home while `Home.md` is the wiki home, and `_Sidebar.md` is the wiki side menu. Both workflows can
 also be started manually from the **Actions** tab.
 
+For a fork, enable Pages once with **Settings -> Pages -> Source: GitHub Actions**, and initialize
+the wiki (open the **Wiki** tab and create the first page) so `wiki.yml` has a repository to push
+to.
+
 To cut a release:
 
 1. Bump `<AssemblyVersion>`/`<FileVersion>` in the project files listed above, and update
