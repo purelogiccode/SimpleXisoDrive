@@ -1,8 +1,8 @@
 > **Library note (2026-10-29):** The FUSE library is now maintained in
 > [purelogiccode/LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) and published as the
-> `LibFuseSharp` NuGet package (MIT). SimpleXisoDrive pins that package; the
-> `SimpleXisoDrive.FuseSharp` name in the 1.5.1 notes below was a pre-release placeholder and was
-> never published.
+> `LibFuseSharp` NuGet package (MIT). `master` pins that package; the 1.5.1 binaries below still
+> contain the vendored copy. The `SimpleXisoDrive.FuseSharp` name in the 1.5.1 notes was a
+> pre-release placeholder and was never published.
 
 # What's New in 1.5.1 (since 1.5.0)
 

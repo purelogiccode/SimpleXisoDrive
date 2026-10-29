@@ -37,7 +37,8 @@ history.
   external-unmount handling (`ENODEV`), a side-effect-free availability probe via
   `FuseAvailability.Check(out library, candidates: null, printInstructions: false)`, and the
   `LIBFUSESHARP_LIBRARY` override (the legacy `SIMPLEXISODRIVE_FUSE_LIBRARY` name still works).
-  SimpleXisoDrive consumes the package instead of a vendored project.
+  The switch from the vendored project to the package landed on `master` after the 1.5.1 release;
+  the 1.5.1 binaries still contain the vendored copy.
 - **Dependencies.** CHDSharp 1.5.2, XISOSharp 1.4.4, Microsoft.NET.Test.Sdk 18.11.0,
   xunit.runner.visualstudio 4.0.1, Meziantou.Analyzer 3.0.317 and Roslynator.Analyzers 5.0.1.
 - **Documentation and automation.** `pages.yml` deploys the GitHub Pages site and `wiki.yml` mirrors
