@@ -70,13 +70,15 @@ See [Installation](docs/Installation.md) for the detailed, step-by-step guide.
 ## Documentation
 
 Comprehensive documentation lives in the [`docs`](docs/Home.md) folder and is published twice from
-the same Markdown sources:
+the same Markdown sources; both publications are rebuilt automatically on every push to `master`
+that changes `docs/`:
 
 *   **Documentation site (GitHub Pages):** <https://purelogiccode.github.io/SimpleXisoDrive/> -
-    rendered with a side menu built from [`docs/_data/navigation.yml`](docs/_data/navigation.yml) and
+    built by `.github/workflows/pages.yml` and rendered with a side menu from
+    [`docs/_data/navigation.yml`](docs/_data/navigation.yml) and
     [`docs/_layouts/default.html`](docs/_layouts/default.html).
-*   **GitHub wiki:** the same pages with a side menu driven by
-    [`docs/_Sidebar.md`](docs/_Sidebar.md).
+*   **GitHub wiki:** the same pages, mirrored by `.github/workflows/wiki.yml`, with a side menu
+    driven by [`docs/_Sidebar.md`](docs/_Sidebar.md).
 
 Start here:
 

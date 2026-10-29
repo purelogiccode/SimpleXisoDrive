@@ -1,9 +1,10 @@
-# Jekyll configuration for the documentation site published from this folder
-# (GitHub Pages -> Settings -> Pages -> Source: Deploy from a branch -> /docs).
+# Jekyll configuration for the documentation site published from this folder by
+# .github/workflows/pages.yml (GitHub Pages -> Settings -> Pages -> Source: GitHub Actions).
 #
-# The same Markdown files are used by the GitHub wiki, where docs/_Sidebar.md is
-# the side menu. This configuration gives the Pages rendering the same side menu
-# through docs/_layouts/default.html and docs/_data/navigation.yml.
+# The same Markdown files are used by the GitHub wiki, which .github/workflows/wiki.yml
+# regenerates from this folder; docs/_Sidebar.md is the wiki side menu. The Pages
+# rendering gets the same side menu through docs/_layouts/default.html and
+# docs/_data/navigation.yml.
 title: SimpleXisoDrive
 description: Read-only Xbox ISO/XISO/CISO/CHD and ZArchive mounts on Windows, Linux and macOS.
 lang: en

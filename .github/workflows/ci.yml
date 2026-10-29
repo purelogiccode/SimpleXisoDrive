@@ -106,3 +106,19 @@ jobs:
           --self-contained false
           -p:PublishSingleFile=true
           --output publish/linux-x64
+
+  docs:
+    name: docs
+    # Build the documentation site exactly as Pages does so broken Markdown,
+    # Liquid or configuration fails in CI instead of at deploy time.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build documentation site
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+

@@ -188,12 +188,19 @@ Warnings are not treated as errors, but new code should be clean. See [Contribut
 
 ## Continuous integration
 
-Two GitHub Actions workflows automate build, test, and release (`.github/workflows/`):
+Four GitHub Actions workflows automate build, test, documentation and release (`.github/workflows/`):
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `ci.yml` | Push/PR to `master`, manual | Restores, builds `Release`, runs the test suite on `windows-latest`, and uploads the `.trx` results and Cobertura coverage as artifacts. A second job builds and publishes the Unix app on `ubuntu-latest` (hosted runners have no FUSE device, so it does not mount). |
+| `ci.yml` | Push/PR to `master`, manual | Restores, builds `Release`, runs the test suite on `windows-latest`, and uploads the `.trx` results and Cobertura coverage as artifacts. A second job builds and publishes the Unix app on `ubuntu-latest` (hosted runners have no FUSE device, so it does not mount). A third job builds the documentation site with the same Jekyll toolchain as Pages. |
 | `release.yml` | `release_*` tag, manual | Verifies the tag against `<AssemblyVersion>`, runs the suite, publishes framework-dependent single-file executables for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`, packs each as `release_<version>_<rid>.zip` containing only the executable, and creates the GitHub release with those assets. |
+| `pages.yml` | Push to `master` touching `docs/`, manual | Builds `docs/` with the GitHub Pages Jekyll toolchain and deploys the result to the documentation site at <https://purelogiccode.github.io/SimpleXisoDrive/>. |
+| `wiki.yml` | Push to `master` touching `docs/`, manual | Regenerates the GitHub wiki from `docs/`; commits only when the generated pages differ. |
+
+Documentation is published from the single `docs/` source on every push to `master`:
+`pages.yml` deploys the site and `wiki.yml` mirrors the pages to the wiki. `index.md` is the Pages
+home while `Home.md` is the wiki home, and `_Sidebar.md` is the wiki side menu. Both workflows can
+also be started manually from the **Actions** tab.
 
 To cut a release:
 

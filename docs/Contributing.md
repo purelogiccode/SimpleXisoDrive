@@ -125,7 +125,9 @@ Fix directory traversal aborting on empty names
 ## Documentation contributions
 
 The pages in `docs/` are written in Markdown and drive both the GitHub wiki and the published
-documentation site. When editing:
+documentation site. On every push to `master` that changes `docs/`, `pages.yml` rebuilds the site
+and `wiki.yml` mirrors the same files to the wiki; no separate publishing step is required. When
+editing:
 
 - keep links wiki-style (`[Installation](Installation)`); the site layout rewrites them to the
   generated pages at runtime;
