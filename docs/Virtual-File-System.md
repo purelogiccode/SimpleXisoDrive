@@ -107,7 +107,7 @@ during construction.
 
 1. If the path is `\`, return the cached root entry.
 2. If the path is already in the entry cache, return it.
-3. Otherwise ask XISOSharp for the entry: `XisoExplorer.GetNode` for path-based images or
+3. Otherwise ask XISOSharp for the entry: `XisoImage.GetNode` for path-based images or
    `XisoReader.GetEntryInfo` for stream-based images (both case-insensitive, `/`-separated library
    paths).
 4. Cache and return the result.
@@ -140,7 +140,7 @@ Windows can send special relative segments. `XboxIsoVfsDokan.NormalizePath` hand
 
 1. If the listing is cached, it is replayed from the cache.
 2. Otherwise the directory entry is resolved (it must be a directory) and XISOSharp's
-   `XisoExplorer.ListChildren` / `XisoReader.ListDirectory` walks the TOC.
+   `XisoImage.List` / `XisoReader.ListDirectory` walks the TOC.
 3. Every named entry is cached by full path and added to the returned list.
 4. The complete list is stored in the children cache.
 
@@ -263,7 +263,7 @@ written to `error.log` and can be forwarded to the bug report API. See
 
 ## Thread safety notes
 
-- A keep-open `XisoExplorer` serializes its metadata operations on an internal lock; the
+- A keep-open `XisoImage` serializes its metadata operations on an internal lock; the
   stream-backed `XisoVfsVolume` locks its held image stream around every seek/read. `ZArchiveReader`
   is likewise internally locked and swaps whole decompressed 64 KiB blocks in and out of a bounded
   LRU cache. `ChdImageStream` is not thread-safe, so the volume's stream lock serializes CHD reads;

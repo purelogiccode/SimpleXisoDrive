@@ -76,7 +76,7 @@ should build cleanly with the enabled Meziantou and Roslynator analyzers.
 
 - Keep all XDVDFS parsing inside XISOSharp; the application should only map virtual paths to the
   library's entry APIs and translate its exceptions.
-- Keep image stream access serialized: rely on `XisoExplorer`'s internal lock for path-based mounts
+- Keep image stream access serialized: rely on `XisoImage`'s internal lock for path-based mounts
   and hold the volume's stream lock for embedded images.
 - Treat offsets and lengths from the image as untrusted input; validate against the stream length.
 - Never introduce a write path; the volume is read-only by design.

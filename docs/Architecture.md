@@ -65,7 +65,7 @@ flowchart TD
 | `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume`, `ZarVfsVolume` and `ImageIsoVfsVolume`. |
 | `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS), the ZArchive entry type, and the synthetic entry in `ImageIsoVfsVolume`. |
 | `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, `.chd` opens through CHDSharp, everything else as an Xbox ISO/CISO or GOD/SVOD container (with a content fallback for renamed files). Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. With `--image-iso` it wraps the volume in `ImageIsoVfsVolume`, using `XisoImageSource.OpenRead` and synthesizing a virtual XISO for a ZArchive tree when needed. |
-| `XisoVfsVolume` | `internal sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images use a keep-open `XisoExplorer`; embedded images and decompressed CHD images use `XisoReader` stream APIs. |
+| `XisoVfsVolume` | `internal sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images (including CISO/CCI and GOD/SVOD) use a keep-open `XisoImage`; embedded images and decompressed CHD images use `XisoReader` stream APIs. |
 | `ChdImageSource` | `internal static class` | Opens an Xbox ISO CHD with CHDSharp (`ChdFile.Open` + `ChdFile.OpenAsStream`), rejects CD/GD-ROM CHDs up front, and returns a `ChdImageStream` over the decompressed image. The decompressed image must then parse as XDVDFS before the mount succeeds. |
 | `ZarVfsVolume` | `internal sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
 | `ReaderOwningVfsVolume` | `internal sealed class` | Decorates an embedded-XISO volume so the ZArchive reader that backs `ZArchiveReader.OpenRead` is disposed with the volume. |
@@ -78,7 +78,7 @@ flowchart TD
 | `FuseAvailability` | `public static class` (LibFuseSharp) | Probes the FUSE library, `/dev/fuse` and `fusermount3`, and prints installation guidance when FUSE is missing. |
 | `IFuseVolume` / `IFuseEntry` | `public interface` (LibFuseSharp) | The read-only volume contract consumed by `FuseFileSystem`: POSIX-path entry lookup, directory listing and file reads, plus label, creation time and size. |
 | `FuseVolumeAdapter` | `internal sealed class` (Unix) | Adapts an `IVfsVolume` (backslash-separated VFS paths) to `IFuseVolume`, translating paths and wrapping entries. |
-| `XisoExplorer` | `XISOSharp (external)` | Keep-open XISO image handle used by path-based mounts: eager volume probing, directory listing, entry lookup, and bounded file read streams. |
+| `XisoImage` | `XISOSharp (external)` | Open-once image facade used by path-based mounts: ISO/CISO/CCI/GOD detection through `XisoImageSource`, eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
 | `SerilogDokanLogger` | `internal sealed class` | Routes DokanNet's internal log messages into Serilog. |
 | `InvalidImageException` | `public class` | Signals that a file is not a readable Xbox ISO/XISO image, CISO, Xbox ISO CHD, ZArchive or GOD/SVOD container. |
@@ -208,7 +208,7 @@ A typical file read in Explorer becomes:
    `ImageIsoVfsVolume` routes the synthetic `image.iso` entry to its `IRawImageSource` (a serialized
    seek-and-read over the raw image stream); every other entry goes to the wrapped volume.
 5. `XisoVfsVolume` serves the read through XISOSharp. Path-based volumes open a bounded stream with
-   `XisoExplorer.OpenReadStream` (CISO-aware, serialized by the explorer's internal lock); embedded
+   `XisoImage.OpenReadStream` (CISO/CCI/GOD-aware, serialized by the facade's internal lock); embedded
    stream volumes — including decompressed CHDs — compute the absolute byte offset
    `DiscLseek + StartSector * 2048 + offset` and read directly under the volume's stream lock, where
    a CHD read decompresses the covering hunk on demand through CHDSharp. `ZarVfsVolume` calls
@@ -240,9 +240,9 @@ directory at 100,000 enumerated entries (the underlying reader validates node co
 table), takes child node handles directly from `TryGetDirEntry` (the library clamps crafted counts),
 and caches entries as they are discovered.
 
-`XisoExplorer` in keep-open mode serializes its operations on an internal lock, so concurrent Dokan
-requests cannot interleave seeks; the stream-backed XISO volume guards its held stream with its own
-lock. `ZArchiveReader` is internally thread-safe (single lock plus a 4 MiB LRU block cache); both
+`XisoImage` keeps one decompressed view open and serializes its operations on an internal lock, so
+concurrent Dokan requests cannot interleave seeks; the stream-backed XISO volume guards its held
+stream with its own lock. `ZArchiveReader` is internally thread-safe (single lock plus a 4 MiB LRU block cache); both
 volume caches are concurrent dictionaries.
 
 ---
@@ -253,7 +253,7 @@ The application uses a layered approach:
 
 | Layer | Strategy |
 | --- | --- |
-| XISOSharp (`XisoExplorer` / `XisoReader`) | Signals invalid images with `XisoFormatException`/`InvalidDataException`; the volume translates them. |
+| XISOSharp (`XisoImage` / `XisoReader`) | Signals invalid images with `XisoFormatException`/`InvalidDataException`; the volume translates them. |
 | `XisoVfsVolume` / `ZarVfsVolume` | Catch failures per operation, log, return `null`/empty. Construction failures are wrapped in `InvalidImageException`. |
 | `XboxIsoVfsDokan` | Every public operation is wrapped by `ExecuteWithReporting`, which logs the failing operation and returns `DokanResult.Error` instead of propagating. |
 | `Program` | Converts known exceptions (`InvalidImageException`, `DokanException`, `DllNotFoundException`) into user-facing guidance and returns exit code `1`. |
@@ -268,7 +268,7 @@ persisted to `error.log` and, if configured, forwarded to the developer API. See
 ## Threading model
 
 - Dokan invokes callbacks on thread pool threads; multiple operations can be in flight at once.
-- All access to the shared image handle is guarded: a keep-open `XisoExplorer` serializes its
+- All access to the shared image handle is guarded: a keep-open `XisoImage` serializes its
   operations on an internal lock, and the stream-backed XISO volume locks its held stream. ZArchive
   reads are serialized inside `ZArchiveReader` with its own lock.
 - The mount initialization itself runs on the main async flow; the process then waits on a
