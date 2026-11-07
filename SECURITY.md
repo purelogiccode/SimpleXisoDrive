@@ -31,7 +31,7 @@ In scope:
 
 - The application and its libraries in this repository (`SimpleXisoDrive`, `SimpleXisoDrive.Core`,
   `SimpleXisoDrive.Unix`, and `FuseSharp`).
-- Parsing of XISO, CISO, CHD, and ZArchive images, and the virtual filesystem/mount layer.
+- Parsing of XISO, CISO, CHD, ZArchive and GOD/SVOD containers, and the virtual filesystem/mount layer.
 - The update checker, bug-report upload, and other network-facing features.
 
 Out of scope:

@@ -51,6 +51,8 @@ public class UsageTextTests
         Assert.Contains(".iso", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".chd", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".zar", usage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GOD/SVOD", usage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".data", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("xemu", usage, StringComparison.OrdinalIgnoreCase);
     }
 

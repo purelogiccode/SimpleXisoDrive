@@ -1,16 +1,16 @@
 # SimpleXisoDrive Wiki
 
 SimpleXisoDrive is a lightweight, read-only virtual file system driver for Windows, Linux and macOS.
-It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`) and
-ZArchive (`.zar`) files as virtual drive letters or folder mount points and exposes their contents
-directly in the file manager.
+It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`), ZArchive
+(`.zar`) files and Xbox 360 GOD/SVOD containers as virtual drive letters or folder mount points and
+exposes their contents directly in the file manager.
 
 On Windows the application is built on the [Dokan](https://github.com/dokan-dev/dokany) user-mode
 file system driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/master/dokan-dotnet);
 on Linux and macOS it uses the FUSE 3 high-level API (`libfuse3` / macFUSE). All platforms share the
-XISOSharp library that parses the Xbox Disc Video File System (**XDVDFS**). CHD files are
-decompressed hunk-by-hunk with the CHDSharp library, and ZArchive files are read directly with
-on-demand zstd decompression. The source image is never modified: every write operation is rejected
+XISOSharp 1.8 library (`XisoImage`) that parses the Xbox Disc Video File System (**XDVDFS**). CHD
+files are decompressed hunk-by-hunk with the CHDSharp library, ZArchive files are read directly with
+on-demand zstd decompression, and GOD/SVOD containers are mapped through the StfsSharp reader. The source image is never modified: every write operation is rejected
 at the file system layer.
 
 Developed by [PureLogic Code](https://purelogiccode.com/) and released under the **GPL-3.0** license.
@@ -71,6 +71,9 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
   valid Xbox ISO are accepted; CD/GD-ROM CHDs are rejected.
 - **ZArchive support** - `.zar` archives mount directly: either the stored game tree or a single
   embedded XISO image, streamed through the pure-C# zstd block decoder.
+- **GOD/SVOD support** - Xbox 360 Games-on-Demand containers mount through XISOSharp/StfsSharp.
+  Pass the content-hash header, its `.data` directory, or the parent folder; the XDVDFS game
+  partition is mapped on demand and `--image-iso` exposes the decompressed image.
 - **Zero-config drag-and-drop** - drop an image onto the executable and it automatically picks a
   free drive letter from `M:` through `R:`.
 - **Flexible mount targets** - mount to a drive letter such as `Z:` or into an empty NTFS folder on
@@ -99,10 +102,10 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Platform | Windows (x64, ARM64), Linux (x64, ARM64), macOS (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows` / `net10.0`) |
 | FUSE library | `LibFuseSharp` 1.0.1 (NuGet, MIT) |
-| File systems | XDVDFS (original Xbox disc format), ZArchive (`ZARCHIVE`) |
+| File systems | XDVDFS (Xbox disc format), ZArchive (`ZARCHIVE`) |
 | Access mode | Read-only |
-| Volume label | `XBOX_ISO` (ISO/CHD) / `XBOX_ZAR` (ZArchive) |
-| File system name | `XDVDFS` (ISO/CHD) / `ZARCHIVE` (ZArchive) |
+| Volume label | `XBOX_ISO` (ISO/CHD/GOD) / `XBOX_ZAR` (ZArchive) |
+| File system name | `XDVDFS` (ISO/CHD/GOD) / `ZARCHIVE` (ZArchive) |
 | Prerequisites | Windows: Dokan 2.x; Linux: FUSE 3; macOS: macFUSE; .NET 10 Runtime |
 | License | GPL-3.0 |
 | Repository | <https://github.com/purelogiccode/SimpleXisoDrive> |
@@ -128,6 +131,9 @@ SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
 # Mount an Xbox ISO stored as CHD
 SimpleXisoDrive.exe "D:\Games\Halo.chd" Z:
 
+# Mount an Xbox 360 GOD/SVOD container (header, .data folder, or parent folder)
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19" Z:
+
 # Mount an ISO into an empty NTFS folder
 SimpleXisoDrive.exe "D:\Games\Halo.iso" "C:\Mounts\Halo"
 
@@ -145,8 +151,8 @@ mkdir -p ~/mnt/halo
 SimpleXisoDrive ~/Games/Halo.iso ~/mnt/halo --launch
 ```
 
-The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file onto
-`SimpleXisoDrive.exe` (Windows only).
+The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a
+GOD/SVOD header or `.data` folder, onto `SimpleXisoDrive.exe` (Windows only).
 
 ## Support the project
 

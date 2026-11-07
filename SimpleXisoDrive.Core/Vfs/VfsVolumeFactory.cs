@@ -2,6 +2,7 @@ using CHDSharp;
 using Serilog;
 using SimpleXisoDrive.Core.Interfaces;
 using XISOSharp;
+using XISOSharp.BlockDevice;
 using ZArchiveSharp;
 
 namespace SimpleXisoDrive.Core.Vfs;
@@ -93,7 +94,7 @@ internal static class VfsVolumeFactory
         for (var ex = exception; ex is not null; ex = ex.InnerException)
         {
             if (ex is InvalidImageException or InvalidDataException or XisoFormatException or IOException
-                or UnauthorizedAccessException or ArgumentException)
+                or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 return true;
             }
@@ -124,20 +125,30 @@ internal static class VfsVolumeFactory
         }
         catch (InvalidImageException)
         {
-            var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
-            if (reader is null)
+            // XisoImage's detection is extension-led: a valid ISO/CISO renamed
+            // to .zar/.chd would be rejected, so probe the content as a sector
+            // image before falling back to the other containers.
+            if (TryOpenRenamedSectorVolume(imagePath, out xisoVolume))
             {
-                if (extensionFailure is not null)
+                Log.Information("'{ImagePath}' does not match its extension; opening it by content", imagePath);
+            }
+            else
+            {
+                var reader = ZarVfsVolume.TryOpenArchive(imagePath, out _);
+                if (reader is null)
                 {
-                    // The extension-specific failure is more specific than "not an Xbox ISO".
-                    throw extensionFailure;
+                    if (extensionFailure is not null)
+                    {
+                        // The extension-specific failure is more specific than "not an Xbox ISO".
+                        throw extensionFailure;
+                    }
+
+                    throw;
                 }
 
-                throw;
+                Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
+                return OpenZar(reader, imagePath, exposeImageIso);
             }
-
-            Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a ZArchive.", imagePath);
-            return OpenZar(reader, imagePath, exposeImageIso);
         }
 
         if (!exposeImageIso)
@@ -259,12 +270,45 @@ internal static class VfsVolumeFactory
     }
 
     /// <summary>
-    /// Opens the raw image bytes for a path-based image: CISO inputs are decompressed
-    /// on demand through the block device, plain ISO/XISO files are read directly.
+    /// Opens a sector image whose extension does not match its content (for
+    /// example a plain ISO renamed to <c>.zar</c>). CISO containers are
+    /// decompressed on demand; everything else is probed as a plain XDVDFS
+    /// stream.
+    /// </summary>
+    private static bool TryOpenRenamedSectorVolume(string imagePath, out XisoVfsVolume volume)
+    {
+        volume = null!;
+        if (Directory.Exists(imagePath) || !File.Exists(imagePath))
+        {
+            return false;
+        }
+
+        Stream? stream = null;
+        try
+        {
+            stream = CisoReader.IsCso(imagePath)
+                ? new BlockDeviceStream(new CisoBlockDevice(imagePath, FileShare.ReadWrite))
+                : new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536,
+                    FileOptions.SequentialScan);
+            volume = new XisoVfsVolume(stream, imagePath);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidImageException or InvalidDataException)
+        {
+            stream?.Dispose();
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Opens the raw image bytes for a path-based image: CISO/CCI inputs are
+    /// decompressed on demand and GOD/SVOD sets are mapped through
+    /// <see cref="XisoImageSource.OpenRead"/>; plain ISO/XISO files are read
+    /// directly.
     /// </summary>
     private static IRawImageSource OpenPathRawImageSource(string imagePath)
     {
-        return new StreamRawImageSource(XisoReader.OpenImageStream(imagePath, FileShare.ReadWrite));
+        return new StreamRawImageSource(XisoImageSource.OpenRead(imagePath, FileShare.ReadWrite));
     }
 
     /// <summary>

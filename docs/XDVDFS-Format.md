@@ -175,7 +175,9 @@ Supported:
 - XGD3 and GLOBAL partition layouts;
 - CISO-compressed images (`.cso`), including split `.1.cso` part sets, decompressed on the fly;
 - Xbox ISO images stored as CHD (`.chd`), decompressed hunk-by-hunk on demand (CHD V1–V5, all
-  codecs).
+  codecs);
+- Xbox 360 GOD/SVOD containers whose fragments hold an XDVDFS game partition (the SVOD hash-table
+  interleave is mapped away by StfsSharp).
 
 Not supported:
 

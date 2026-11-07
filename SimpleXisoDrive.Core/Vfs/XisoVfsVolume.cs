@@ -11,9 +11,10 @@ namespace SimpleXisoDrive.Core.Vfs;
 /// </summary>
 /// <remarks>
 /// All XDVDFS parsing is delegated to the XISOSharp library. Path-based images
-/// use a keep-open <see cref="XisoExplorer"/> (one shared image handle for the
-/// lifetime of the mount); images embedded in another container, such as a
-/// ZArchive, are read through the <see cref="XisoReader"/> stream APIs.
+/// (including GOD/SVOD sets) use a keep-open <see cref="XisoImage"/> facade
+/// (one shared image handle for the lifetime of the mount); images embedded in
+/// another container, such as a ZArchive, are read through the
+/// <see cref="XisoReader"/> stream APIs.
 /// </remarks>
 internal sealed class XisoVfsVolume : IVfsVolume
 {
@@ -29,7 +30,7 @@ internal sealed class XisoVfsVolume : IVfsVolume
     /// <summary>Maximum number of cached directory listings before new listings stop being stored.</summary>
     private const int ChildrenCacheLimit = 512;
 
-    private readonly XisoExplorer? _explorer;
+    private readonly XisoImage? _image;
     private readonly Stream? _stream;
     private readonly string _displayName;
     private readonly VolumeInfo _volume;
@@ -70,34 +71,42 @@ internal sealed class XisoVfsVolume : IVfsVolume
 
         _displayName = isoPath;
 
+        // XisoImage.Open reports detection failures (including a missing file) as
+        // XisoFormatException; preserve the front end's missing-file contract.
+        if (!File.Exists(isoPath) && !Directory.Exists(isoPath))
+        {
+            throw new FileNotFoundException($"Image not found: {isoPath}", isoPath);
+        }
+
         try
         {
             try
             {
-                // KeepOpen gives the volume one shared image handle for its lifetime;
-                // ReadWrite sharing lets scanners/indexers keep the file open while mounted.
-                _explorer = new XisoExplorer(isoPath, new XisoExplorerOptions
+                // XisoImage keeps one decompressed view open for the mount lifetime;
+                // ReadWrite sharing lets scanners/indexers keep the file open too.
+                // GOD/SVOD headers and their .data folders are routed through
+                // XisoImageSource.OpenRead by the facade.
+                _image = XisoImage.Open(isoPath, new XisoImageOptions
                 {
-                    KeepOpen = true,
                     Share = FileShare.ReadWrite,
                 });
             }
             catch (Exception ex) when (ex is XisoFormatException or InvalidDataException or EndOfStreamException)
             {
-                Log.Debug(ex, "Invalid Xbox ISO image '{ImagePath}'", isoPath);
+                Log.Debug(ex, "Invalid Xbox image '{ImagePath}'", isoPath);
                 throw new InvalidImageException($"'{isoPath}' is not a valid Xbox ISO/XISO image.", ex);
             }
 
             try
             {
-                _volume = _explorer.Volume;
+                _volume = _image.Volume;
             }
             catch (Exception ex)
             {
-                // The explorer already opened the image handle; never leak it when the
+                // The facade already opened the image handle; never leak it when the
                 // volume descriptor cannot be read.
                 Log.Debug(ex, "Failed to read the volume descriptor of '{ImagePath}'", isoPath);
-                _explorer.Dispose();
+                _image.Dispose();
                 throw;
             }
         }
@@ -204,9 +213,9 @@ internal sealed class XisoVfsVolume : IVfsVolume
         var libraryPath = XisoExplorer.Normalize(normalizedPath);
 
         XisoEntry? entry;
-        if (_explorer is not null)
+        if (_image is not null)
         {
-            var node = _explorer.GetNode(libraryPath);
+            var node = _image.GetNode(libraryPath);
             entry = node is null
                 ? null
                 : new XisoEntry(node.Name, node.IsDirectory, node.Size, node.StartSector, node.Attributes, node);
@@ -254,9 +263,9 @@ internal sealed class XisoVfsVolume : IVfsVolume
             var libraryPath = XisoExplorer.Normalize(normalizedPath);
             var children = new List<IVfsEntry>();
 
-            if (_explorer is not null)
+            if (_image is not null)
             {
-                foreach (var node in _explorer.ListChildren(libraryPath))
+                foreach (var node in _image.List(libraryPath))
                 {
                     var child = new XisoEntry(node.Name, node.IsDirectory, node.Size, node.StartSector, node.Attributes,
                         node);
@@ -313,9 +322,9 @@ internal sealed class XisoVfsVolume : IVfsVolume
 
             var bytesToRead = (int)Math.Min(buffer.Length, xisoEntry.Size - offset);
 
-            if (_explorer is not null && xisoEntry.Node is not null)
+            if (_image is not null && xisoEntry.Node is not null)
             {
-                using var fileStream = _explorer.OpenReadStream(xisoEntry.Node);
+                using var fileStream = _image.OpenReadStream(xisoEntry.Node.FullPath);
                 fileStream.Seek(offset, SeekOrigin.Begin);
                 return ReadFully(fileStream, buffer[..bytesToRead]);
             }
@@ -390,7 +399,7 @@ internal sealed class XisoVfsVolume : IVfsVolume
 
         try
         {
-            _explorer?.Dispose();
+            _image?.Dispose();
         }
         catch (Exception ex)
         {

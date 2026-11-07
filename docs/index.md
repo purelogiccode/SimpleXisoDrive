@@ -1,8 +1,8 @@
 # SimpleXisoDrive documentation
 
 SimpleXisoDrive is a lightweight, read-only virtual file system driver for Windows, Linux and macOS.
-It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`) and
-ZArchive (`.zar`) files as virtual drive letters or folder mount points and exposes their contents
+It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`), ZArchive
+(`.zar`) files and Xbox 360 GOD/SVOD containers as virtual drive letters or folder mount points and exposes their contents
 directly in the file manager.
 
 Use the side menu to browse the documentation, or jump straight to a page:

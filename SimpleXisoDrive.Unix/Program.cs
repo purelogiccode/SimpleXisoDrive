@@ -140,13 +140,13 @@ internal static class Program
                 if (Directory.Exists(args[0]))
                 {
                     await Console.Error.WriteLineAsync(
-                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file.");
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file, or a GOD/SVOD header or .data folder.");
                 }
 
                 if (string.IsNullOrEmpty(Path.GetExtension(args[0])))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{args[0]}.iso', '{args[0]}.xiso', '{args[0]}.cso', '{args[0]}.chd' and '{args[0]}.zar' but none were found.");
+                        $"Hint: Tried looking for '{args[0]}.iso', '{args[0]}.xiso', '{args[0]}.cso', '{args[0]}.chd' and '{args[0]}.zar', and checked for a GOD/SVOD container, but none were found.");
                 }
 
                 // A missing file is a routine user input condition (friendly message
@@ -360,13 +360,13 @@ internal static class Program
     {
         var exeName = GetExecutableName();
         Console.WriteLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file as a read-only virtual file system.");
+            "Mounts an Xbox ISO/XISO (.iso, .xiso), CISO (.cso), Xbox ISO CHD (.chd), ZArchive (.zar) or GOD/SVOD container as a read-only virtual file system.");
         Console.WriteLine("");
         Console.WriteLine($"Usage: {exeName} <image-file> [mount-path] [options]");
         Console.WriteLine("");
         Console.WriteLine("Arguments:");
         Console.WriteLine(
-            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file to mount.");
+            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd), ZArchive (.zar) or GOD/SVOD header or .data folder to mount.");
         Console.WriteLine("  <mount-path>    Existing empty directory to mount on. When omitted, a temporary");
         Console.WriteLine("                  directory is created and printed after mounting.");
         Console.WriteLine("");

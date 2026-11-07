@@ -16,8 +16,8 @@ separate [LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) repositor
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.1 |
 | Coverage collector | `coverlet.collector` 10.1.0 |
-| Test count | 429 app tests (version 1.5.2): 395 core + 34 Unix |
-| Library tests | 55 in the separate LibFuseSharp repository; 484 combined |
+| Test count | 436 app tests (unreleased): 402 core + 34 Unix |
+| Library tests | 55 in the separate LibFuseSharp repository; 491 combined |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -50,8 +50,8 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 395, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
-`Passed: 81, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
+A healthy run reports `Passed: 402, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+`Passed: 34, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
 
@@ -66,6 +66,7 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering (`*`, `*.*` including extensionless files, `?`, literal, no-match), metadata for files/directories/root (root reports the volume label), `CreateFile` access and creation modes (failed opens leave no handle context, `OpenOrCreate` opens existing files), `ReadFile` offsets/clamping/directories/empty buffers/missing entries (`FileNotFound`)/negative offsets (`InvalidParameter`), normalized special and interior path segments (including the context-less fallback), the read-only access allow list (write-capable bits including `GenericAll`/`MaximumAllowed`/`ChangePermissions` denied, read-only bits allowed), successful no-op flush, locking, alternate-stream reporting, security descriptors for files/directories and `FileNotFound` for missing entries, and failure injection for listing/open/security/read callbacks |
 | `ApiKeyProviderTests` | API key protection | Deterministic decryption of the double-encrypted key, expected key digest (without storing the key), preload behavior |
 | `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup, null-path guard, case-insensitive extension resolution (the class runs in a non-parallel collection because it mutates the process-wide current directory) |
+| `GodVfsContainerTests` | GOD/SVOD mounting | Header and `.data` folder mounts, nested reads, `--image-iso` decompressed logical image, incomplete-container rejection, `.data`/parent-folder path resolution, renamed plain ISO fallback |
 | `ImagePathResolverExtraTests` | CLI path resolution edge cases | Whitespace-only paths, `.iso`/`.xiso` extension preference, first `.1.cso` part resolution, continuation-only directories (`.2`, `.10`, `.99`), dot-containing names |
 | `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, content-detection fallbacks (ISO renamed to `.chd`/`.zar`, ZAR renamed to `.chd`), invalid archive errors, null/empty path guards, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
 | `VfsContainerLifecycleTests` | Volume facade lifecycle | Null/empty path guards, idempotent disposal, image-handle release, missing-path lookups, metadata delegation |
@@ -116,6 +117,9 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 - **Real CHDs**: `ChdVfsContainerTests` encodes `TestImageFactory` images with `ChdEncoder` (the
   uncompressed codec, for speed) into temporary `.chd` files, so the real CHDSharp reader,
   decompression path and XDVDFS validation are exercised end to end.
+- **Real GOD/SVOD layouts**: `Fixtures/SyntheticGodContainer` wraps `TestImageFactory` images into a
+  deterministic XContent header plus an interleaved `.data/Data0000` fragment, so `GodVfsContainerTests`
+  exercises the real StfsSharp/`XisoImageSource` mapping without retail data.
 - **Temporary files**: `ResolveImagePathTests`, `XisoVfsVolumeTests`, and the Dokan tests create and
   clean up temp files/directories; `ResolveImagePathTests` also temporarily changes
   `Environment.CurrentDirectory`, so it runs in a non-parallel collection

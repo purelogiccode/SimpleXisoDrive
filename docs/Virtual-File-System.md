@@ -2,8 +2,8 @@
 
 This page explains how SimpleXisoDrive turns an Xbox image into a file-manager-visible, read-only
 volume. It covers format selection, path resolution, caching, the Dokan operation layer, and the
-read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`) and ZArchive (`.zar`) trees are
-supported.
+read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`, GOD/SVOD) and ZArchive
+(`.zar`) trees are supported.
 
 The same virtual file system feeds both mount backends: on Windows `XboxIsoVfsDokan` maps Dokan
 callbacks to it, and on Linux/macOS [LibFuseSharp](FuseSharp)'s `FuseFileSystem` maps the FUSE 3
@@ -25,6 +25,7 @@ injected in tests). The actual storage is an `IVfsVolume` implementation selecte
 | Input | Detection | Volume |
 | --- | --- | --- |
 | `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates; a renamed CHD or ZArchive falls back to the matching format | `XisoVfsVolume` |
+| GOD/SVOD header or `.data` folder | The XContent header and `DataNNNN` fragments map to a logical sector image through `XisoImageSource.OpenRead`/`StfsSharp`; the inner XDVDFS volume descriptor must validate | `XisoVfsVolume` over the mapped `XisoImage` |
 | `.chd` | CHDSharp opens the container (CD/GD-ROM rejected); the decompressed image must validate as XDVDFS. A file whose content is not a CHD is detected by content instead | `XisoVfsVolume` over a `ChdImageStream` |
 | `.zar` | ZArchive footer validates. A file whose content is not an archive is detected by content instead | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |
 | Any other extension | Content detection: XISO probe first; a renamed CHD or ZArchive falls back to the matching format | as above |
@@ -33,8 +34,9 @@ injected in tests). The actual storage is an `IVfsVolume` implementation selecte
 
 `XisoVfsVolume`:
 
-1. A keep-open `XisoExplorer` opens the ISO file with `FileShare.ReadWrite` (shared access lets
-   antivirus and indexing tools open the file too) and eagerly probes the volume descriptor.
+1. A keep-open `XisoImage` (XISOSharp 1.8) opens the ISO/CISO/CCI/GOD source with
+   `FileShare.ReadWrite` (shared access lets antivirus and indexing tools open the file too) and
+   eagerly probes the volume descriptor.
 2. XISOSharp probes the rebuilt sector-0 layout and the standard sector-32 layouts (plain, GLOBAL,
    XGD3, XGD2 Hybrid, XGD1) and records the winning disc offset.
 3. Invalid images surface as `XisoFormatException`, which the volume wraps in
@@ -45,6 +47,11 @@ injected in tests). The actual storage is an `IVfsVolume` implementation selecte
 For an embedded XISO, the same class uses the `XisoReader` stream APIs instead: `GetVolumeInfo`
 probes the stream, and lookups/listings go through `GetEntryInfo`/`ListDirectory` under a stream
 lock.
+
+For a GOD/SVOD container, the header (or `.data` folder) is resolved to the header path and
+`XisoImageSource.OpenRead` maps the SVOD fragments into one logical sector stream (StfsSharp-backed,
+with the hash-table interleave removed). The same XDVDFS probe then validates the inner game
+partition. `--image-iso` exposes that decompressed logical image, so an emulator can open it directly.
 
 For a CHD, `ChdImageSource` opens the container with `ChdFile.Open`, rejects CD/GD-ROM images, and
 hands the `XisoVfsVolume` a `ChdImageStream` over the decompressed bytes. The same stream APIs then
@@ -69,7 +76,7 @@ ISO; `ReaderOwningVfsVolume` keeps the archive reader alive and closes it with t
 
 | Member | Behavior |
 | --- | --- |
-| `VolumeSize` | ISO length in bytes (CHD: the decompressed image size), or the summed uncompressed size of a ZArchive tree. |
+| `VolumeSize` | ISO length in bytes (CHD: the decompressed image size; GOD: the mapped logical image length), or the summed uncompressed size of a ZArchive tree. |
 | `VolumeCreationTime` | Timestamp from the volume descriptor (ISO/CHD); for ZAR, the archive file's last-write time (the format stores none). `DateTime.MinValue` when unavailable or invalid. |
 | `GetEntry(path)` | Resolves a virtual path to an `IVfsEntry`, or `null`. Never throws. |
 | `GetFolderList(path)` | Lazily enumerates the children of a directory. Returns nothing when the path is not a valid directory. |

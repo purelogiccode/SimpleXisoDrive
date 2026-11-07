@@ -1,4 +1,5 @@
 using Serilog;
+using XISOSharp;
 
 namespace SimpleXisoDrive.Core;
 
@@ -18,11 +19,13 @@ public static class ImagePathResolver
     /// Resolves the image file path, handling cases where the user provides a path without an
     /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>), CISO-compressed
     /// images (<c>.cso</c>, including split <c>.1.cso</c> sets), Xbox ISO CHD images
-    /// (<c>.chd</c>) and ZArchive (<c>.zar</c>) files. Tries multiple strategies to find the file:
+    /// (<c>.chd</c>), ZArchive (<c>.zar</c>) files and GOD/SVOD containers (a content-hash
+    /// header beside its <c>.data</c> directory). Tries multiple strategies to find the file:
     /// 1. Return original path if file exists
-    /// 2. If path is a directory containing exactly one image file, resolve to it
-    /// 3. If no extension, try appending each supported extension
-    /// 4. If just a filename, try looking in current directory
+    /// 2. If path is a GOD <c>.data</c> directory, resolve to its header
+    /// 3. If path is a directory containing exactly one image file, resolve to it
+    /// 4. If no extension, try appending each supported extension
+    /// 5. If just a filename, try looking in current directory
     /// </summary>
     /// <param name="imagePath">The image path supplied by the user.</param>
     /// <returns>The resolved image file path, or <see langword="null"/> when no file matches.</returns>
@@ -52,7 +55,14 @@ public static class ImagePathResolver
             return imagePath;
         }
 
-        // 2. If the path is a directory, look for a single image file inside it
+        // 2. A GOD/SVOD .data directory resolves to its sibling header.
+        if (Directory.Exists(imagePath) && TryResolveGodHeader(imagePath, out var godHeader))
+        {
+            Log.Debug("Resolved GOD data directory '{ImagePath}' to header '{Resolved}'", imagePath, godHeader);
+            return godHeader;
+        }
+
+        // 3. If the path is a directory, look for a single image file inside it
         if (Directory.Exists(imagePath))
         {
             try
@@ -76,7 +86,7 @@ public static class ImagePathResolver
             }
         }
 
-        // 3. If no extension provided, try appending each supported extension
+        // 4. If no extension provided, try appending each supported extension
         if (string.IsNullOrEmpty(Path.GetExtension(imagePath)))
         {
             var candidate = FindFileWithImageExtension(imagePath);
@@ -87,7 +97,7 @@ public static class ImagePathResolver
             }
         }
 
-        // 4. If it's just a filename (no path), try looking in current directory
+        // 5. If it's just a filename (no path), try looking in current directory
         if (!imagePath.Contains(Path.DirectorySeparatorChar) &&
             !imagePath.Contains(Path.AltDirectorySeparatorChar))
         {
@@ -133,7 +143,36 @@ public static class ImagePathResolver
             }
         }
 
+        // GOD/SVOD headers have no image extension; probe only when no
+        // extension-based image was found so folder scans stay cheap.
+        if (imageFiles.Count == 0)
+        {
+            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (GodHeader.IsGodContainer(file))
+                {
+                    imageFiles.Add(file);
+                }
+            }
+        }
+
         return imageFiles;
+    }
+
+    /// <summary>
+    /// Resolves a GOD <c>.data</c> directory (or a header path) to the canonical
+    /// header file path.
+    /// </summary>
+    private static bool TryResolveGodHeader(string path, out string headerPath)
+    {
+        if (GodHeader.TryReadVolume(path, out var volume))
+        {
+            headerPath = volume.HeaderPath;
+            return true;
+        }
+
+        headerPath = string.Empty;
+        return false;
     }
 
     private static IEnumerable<string> EnumerateFilesByExtension(string directory, string extension)

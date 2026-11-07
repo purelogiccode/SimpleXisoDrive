@@ -6,9 +6,9 @@ Short answers to frequently asked questions.
 
 ### What is SimpleXisoDrive?
 
-A utility that mounts original Xbox ISO/XISO images, Xbox ISO CHD images (`.chd`) and ZArchive
-(`.zar`) files as read-only virtual drives or folder mount points, so their contents can be browsed
-in the file manager or copied with normal tools.
+A utility that mounts original Xbox ISO/XISO images, Xbox ISO CHD images (`.chd`), ZArchive
+(`.zar`) files and Xbox 360 GOD/SVOD containers as read-only virtual drives or folder mount points,
+so their contents can be browsed in the file manager or copied with normal tools.
 
 ### How do I install it?
 
@@ -62,6 +62,14 @@ scene to compress dumped game files). SimpleXisoDrive mounts the archived tree d
 the archive contains a single embedded XISO image — the image's contents. No extraction to disk is
 performed; blocks are decompressed on demand.
 
+### What is a GOD/SVOD container, and can I mount one?
+
+A GOD (Games-on-Demand) container is an Xbox 360 download layout: a content-hash header file beside
+a `<header>.data` directory with one or more `DataNNNN` fragments. The fragments hold the game's
+XDVDFS partition, so SimpleXisoDrive can mount the game tree read-only. Pass the header file, the
+`.data` directory, or a parent folder that contains exactly one header. `--image-iso` exposes the
+decompressed logical image for emulators such as xemu.
+
 ### Does the application modify my ISO or ZAR?
 
 No. The image or archive is opened with read access only, and every mutating file system operation is
@@ -93,11 +101,12 @@ and mount point. Each instance uses its own `VfsContainer`.
 
 ### Does it support Xbox 360 or Xbox One images?
 
-ISO and CHD mounting is limited to the original Xbox XDVDFS format; Xbox 360 and Xbox One discs use
-different file systems and are not parsed (a CHD of an Xbox 360 disc is rejected). ZArchive mounting
-is format-agnostic, though: any `.zar` directory tree (including one packed from Xbox 360 game files)
-is exposed as-is. If a `.zar` contains a raw Xbox 360 ISO as a single file, that file is shown but
-its internal file system is not parsed.
+Xbox 360 GOD/SVOD containers are supported because their fragments contain an XDVDFS game partition;
+the `.data` fragment mapping is handled by StfsSharp. Plain Xbox 360 disc dumps, STFS packages
+(XBLA/XBLIG) and Xbox One discs are not XDVDFS and are rejected. ZArchive mounting is format-agnostic,
+though: any `.zar` directory tree (including one packed from Xbox 360 game files) is exposed as-is.
+If a `.zar` contains a raw Xbox 360 ISO as a single file, that file is shown but its internal file
+system is not parsed.
 
 ### What are XGD1, XGD3, and GLOBAL partitions?
 

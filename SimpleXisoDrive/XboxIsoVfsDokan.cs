@@ -266,11 +266,11 @@ internal sealed class XboxIsoVfsDokan(IVfsVolume vfs) : IDokanOperations
             };
 
             internalFiles.Add(new FileInformation
-                { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
+            { FileName = ".", Attributes = template.Attributes, CreationTime = template.CreationTime });
             if (!string.Equals(path, @"\", StringComparison.OrdinalIgnoreCase))
             {
                 internalFiles.Add(new FileInformation
-                    { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
+                { FileName = "..", Attributes = template.Attributes, CreationTime = template.CreationTime });
             }
 
             foreach (var entry in _vfs.GetFolderList(path))

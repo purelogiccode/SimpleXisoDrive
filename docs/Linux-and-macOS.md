@@ -1,6 +1,6 @@
 # Linux and macOS
 
-SimpleXisoDrive mounts Xbox ISO/XISO/CISO/CHD images and ZArchive files as read-only
+SimpleXisoDrive mounts Xbox ISO/XISO/CISO/CHD images, ZArchive files and GOD/SVOD containers as read-only
 directories on Linux and macOS using FUSE 3 through the [LibFuseSharp](FuseSharp)
 mount library.
 
@@ -47,7 +47,7 @@ The application searches for the FUSE library in the standard locations. Set
 SimpleXisoDrive <image-file> [mount-path] [options]
 ```
 
-*   `<image-file>` — path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. A directory
+*   `<image-file>` — path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a GOD/SVOD header/`.data` folder. A directory
     containing exactly one image, or a path without an extension, is also resolved.
 *   `<mount-path>` — an existing empty directory. When omitted, the application creates
     a temporary directory, prints it after mounting, and removes it again on unmount.

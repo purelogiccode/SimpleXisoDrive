@@ -93,7 +93,7 @@ internal static class Program
             {
                 UsageText.Print();
                 Console.WriteLine(
-                    "\nAlternatively, you can drag and drop an ISO or ZAR file onto the executable to mount it automatically.");
+                    "\nAlternatively, you can drag and drop an ISO, CISO, CHD, ZAR or GOD/SVOD container onto the executable to mount it automatically.");
                 await WaitForExitKeyPressAsync();
                 return 1;
             }
@@ -144,13 +144,13 @@ internal static class Program
                 if (Directory.Exists(isoPath))
                 {
                     await Console.Error.WriteLineAsync(
-                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file.");
+                        "Hint: The specified path is a directory. Please provide the path to a specific .iso, .xiso, .cso, .chd or .zar file, or a GOD/SVOD header or .data folder.");
                 }
 
                 if (string.IsNullOrEmpty(Path.GetExtension(isoPath)))
                 {
                     await Console.Error.WriteLineAsync(
-                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso', '{isoPath}.cso', '{isoPath}.chd' and '{isoPath}.zar' but none were found.");
+                        $"Hint: Tried looking for '{isoPath}.iso', '{isoPath}.xiso', '{isoPath}.cso', '{isoPath}.chd' and '{isoPath}.zar', and checked for a GOD/SVOD container, but none were found.");
                 }
 
                 if (args.Length > 2 && !isoPath.Contains(' '))

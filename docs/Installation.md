@@ -200,6 +200,6 @@ executable and temporary files used by the .NET runtime.
 | `%SystemRoot%\System32\drivers\dokan2.sys` exists (Windows) | Dokan driver is present (warning otherwise) |
 | `ls -l /dev/fuse` (Linux) | The FUSE kernel device exists |
 | `command -v fusermount3` (Linux) | The FUSE tools are on `PATH` |
-| A test mount | The volume appears in the file manager as `XBOX_ISO` (ISO/CHD) or `XBOX_ZAR` (ZArchive) |
+| A test mount | The volume appears in the file manager as `XBOX_ISO` (ISO/CHD/GOD) or `XBOX_ZAR` (ZArchive) |
 
 If a check fails, see [Troubleshooting](Troubleshooting).

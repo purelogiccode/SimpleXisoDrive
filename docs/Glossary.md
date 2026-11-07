@@ -141,6 +141,16 @@ operation layer. `VfsContainer` is the facade; the actual storage is an `IVfsVol
 (`XisoVfsVolume` for XDVDFS images — including decompressed CHD images — and `ZarVfsVolume` for
 ZArchive trees).
 
+**GOD / SVOD**
+Games-on-Demand, the Xbox 360 download layout: a plaintext XContent header (content-hash file name)
+beside a `<header>.data` directory with `DataNNNN` fragments. The fragments carry the XDVDFS game
+partition; StfsSharp maps the interleaved hash tables away so XISOSharp sees one logical image.
+
+**STFS**
+Secure Transacted File System, the single-file Xbox 360 package format (XBLA/XBLIG). An STFS package
+is a file table, not a disc image; SimpleXisoDrive does not mount it. StfsSharp also provides the
+low-level reader used for the GOD/SVOD container.
+
 **XGD1 / XGD3**
 Xbox Game Disc layout variants. XISOSharp probes their known partition offsets when looking for a
 volume descriptor.
@@ -149,9 +159,15 @@ volume descriptor.
 Common shorthand for an Xbox disc image in XDVDFS format. "Rebuilt XISO" images place the volume
 descriptor at sector 0.
 
-**XisoExplorer**
-The XISOSharp explorer used for path-based mounts. Opened in keep-open mode, it holds one image
-stream for the lifetime of the mount and serializes metadata operations on an internal lock.
+**XisoImage**
+The XISOSharp 1.8 open-once facade used for path-based mounts. It keeps one decompressed view open
+for the mount lifetime, detects ISO/CISO/CCI/GOD sources, and serializes metadata/read operations
+internally.
+
+**XisoImageSource**
+The XISOSharp detection and stream layer. `OpenRead` maps a plain ISO, split ISO, CISO, CCI or
+GOD/SVOD container to one logical sector stream; SimpleXisoDrive uses it for path-based images and
+the virtual `image.iso`.
 
 **XisoReader**
 The XISOSharp static API used for images embedded in archives: stream-based volume probing,

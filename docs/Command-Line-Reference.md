@@ -27,7 +27,7 @@ SimpleXisoDrive <image-file> [mount-path] [options...]
 
 | Argument | Required | Description |
 | --- | --- | --- |
-| `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`, `.chd`) or ZArchive (`.zar`). May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
+| `<image-file>` | Yes, when arguments are supplied | Path to the Xbox image (`.iso`, `.xiso`, `.cso`, `.chd`), ZArchive (`.zar`), or GOD/SVOD header/`.data` folder. May omit the extension in some cases (see [path resolution](#image-path-resolution)). Paths containing spaces must be quoted. |
 | `<mount-path>` | No | Windows: drive letter such as `Z:` or `Z:\`, or the full path to an existing empty NTFS folder such as `C:\Mounts\Halo`. When omitted, the application runs in drag-and-drop mode (auto drive letter + Explorer). Linux/macOS: an existing directory; when omitted, a temporary directory is created, printed after mounting, and removed on unmount. |
 | `[options...]` | No | Zero or more option flags. Options may appear anywhere after the image path (before or after the mount path); extra positional arguments are rejected. |
 
@@ -58,6 +58,7 @@ while the normal file tree remains browsable. The raw image bytes are served as 
 | Plain ISO/XISO (`.iso`, `.xiso`) | The image file itself. |
 | CISO (`.cso`, including split `.1.cso` sets) | The decompressed Xbox image, decoded on demand. |
 | Xbox ISO CHD (`.chd`) | The decompressed Xbox image, decoded hunk-by-hunk on demand. |
+| GOD/SVOD container | The decompressed logical image mapped from the header and `DataNNNN` fragments on demand. |
 | ZArchive with a single embedded XISO | The embedded image, decompressed on demand. |
 | ZArchive directory tree | An XISO synthesized in memory from the archived files (volume descriptor, directory tables and file extents built with XISOSharp's layout primitives). File data is read from the archive on demand — nothing is extracted and the mount appears immediately. |
 
@@ -113,9 +114,10 @@ in order and stops at the first match:
 | Order | Rule | Example |
 | --- | --- | --- |
 | 1 | If the path exists as given, use it. | `D:\Games\Halo.iso` |
-| 2 | If the path is a directory that contains exactly one image file (`.iso`, `.xiso`, `.cso`, `.chd` or `.zar`), use that file. A split CISO set (`game.1.cso`, `game.2.cso`, …) counts as one image and resolves to its first part. | `D:\Games` becomes `D:\Games\Halo.iso` |
-| 3 | If the path has no extension, try each supported extension in preference order (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`). | `D:\Games\Halo` becomes `D:\Games\Halo.iso` |
-| 4 | If the path is a bare filename (no directory separator), look in the current working directory, first as given and then with each supported extension appended. | `Halo` becomes `<cwd>\Halo.iso` |
+| 2 | If the path is a GOD <c>.data</c> directory, resolve to its sibling header. | `...\58480813\00007000\4279B61925C340CC1F19.data` becomes its header path |
+| 3 | If the path is a directory that contains exactly one image file (`.iso`, `.xiso`, `.cso`, `.chd` or `.zar`) or GOD/SVOD header, use that file. A split CISO set (`game.1.cso`, `game.2.cso`, …) counts as one image and resolves to its first part. | `D:\Games` becomes `D:\Games\Halo.iso` |
+| 4 | If the path has no extension, try each supported extension in preference order (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`). | `D:\Games\Halo` becomes `D:\Games\Halo.iso` |
+| 5 | If the path is a bare filename (no directory separator), look in the current working directory, first as given and then with each supported extension appended. | `Halo` becomes `<cwd>\Halo.iso` |
 
 If none of the strategies match, the error output includes contextual hints:
 
@@ -215,6 +217,11 @@ SimpleXisoDrive.exe "D:\Games\Halo.chd" Z: -i
 
 # Mount a ZArchive tree and expose a synthesized image.iso for an emulator
 SimpleXisoDrive.exe "D:\Games\Halo.zar" Z: -i
+
+# Mount an Xbox 360 GOD/SVOD container (header, .data folder, or parent folder)
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19" Z:
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19.data" Z:
+SimpleXisoDrive.exe "D:\Games\58480813\00007000" Z: --image-iso
 
 # Mount the only image file in a directory
 SimpleXisoDrive.exe "D:\Games\HaloCollection" Z:

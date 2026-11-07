@@ -29,19 +29,19 @@ internal static class UsageText
     {
         var builder = new StringBuilder();
         builder.AppendLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso), Xbox ISO CHD (.chd) or ZArchive (.zar) file as a virtual file system on Windows.");
+            "Mounts an Xbox ISO/XISO (.iso, .xiso), CISO (.cso), Xbox ISO CHD (.chd), ZArchive (.zar) or GOD/SVOD container as a virtual file system on Windows.");
         builder.AppendLine();
         builder.AppendLine($"Usage: {exeName} <image-file> <mount-path> [options]");
         builder.AppendLine();
         builder.AppendLine("Arguments:");
         builder.AppendLine(
-            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd) or ZArchive (.zar) file to mount.");
+            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd), ZArchive (.zar) or GOD/SVOD header or .data folder to mount.");
         builder.AppendLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
         builder.AppendLine();
         builder.AppendLine("Options:");
         builder.AppendLine("  -d, --debug     Display debug Dokan output in the console window.");
         builder.AppendLine("  -l, --launch    Open Windows Explorer to the mount path after mounting.");
-        builder.AppendLine("  -i, --image-iso Also expose the raw Xbox image as image.iso at the mount root");
+        builder.AppendLine("  -i, --image-iso Also expose the decompressed Xbox image as image.iso at the mount root");
         builder.AppendLine("                  (for emulators such as xemu; ZArchive trees are synthesized).");
         builder.AppendLine("  -h, --help      Show this help text and exit.");
         return builder.ToString();

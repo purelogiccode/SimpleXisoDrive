@@ -25,7 +25,7 @@
 [![Top language](https://img.shields.io/github/languages/top/purelogiccode/SimpleXisoDrive?logo=csharp&logoColor=white)](https://github.com/purelogiccode/SimpleXisoDrive)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/purelogiccode/SimpleXisoDrive/pulls)
 
-Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD files (`.chd`) and ZArchive (`.zar`) files as read-only virtual drives or directory mount points. Built on Dokan for Windows and FUSE 3 for Linux and macOS, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from your file manager.
+Simple Xiso Drive is a lightweight utility that allows you to mount original Xbox ISO files (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD files (`.chd`), ZArchive (`.zar`) files and Xbox 360 GOD/SVOD containers as read-only virtual drives or directory mount points. Built on Dokan for Windows and FUSE 3 for Linux and macOS, it provides high-performance, read-only access to Xbox Disc Video File System (XDVDFS) contents directly from your file manager.
 
 The application is designed for extreme memory efficiency and supports **Windows x64/ARM64**, **Linux x64/ARM64** and **macOS x64/ARM64**.
 
@@ -37,8 +37,9 @@ The application is designed for extreme memory efficiency and supports **Windows
 *   **Broad Format Support:** Handles standard Xbox ISO dumps (Sector 32), rebuilt "XISO" formats (Sector 0), Dual-Layer/Hybrid discs (Game Partition offsets), and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
 *   **Xbox ISO CHD Support:** Mounts Xbox ISO images stored as CHD (`.chd`) — any CHD format version and codec (zlib, lzma, huffman, flac, zstd) — with on-demand hunk decompression via the CHDSharp library. CD and GD-ROM CHDs are rejected; the decompressed image must contain an XDVDFS filesystem.
 *   **ZArchive Support:** Mounts `.zar` archives directly — either the archived game tree or a single embedded XISO image — with on-demand zstd decompression (no extraction or temp files).
-*   **Virtual `image.iso`:** The `--image-iso` option also exposes the raw Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO and CHD images are decompressed on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
-*   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO/XISO/CISO, CHD or ZAR onto the executable to automatically mount it to the first available drive letter (M: through R:).
+*   **GOD/SVOD Support:** Mounts Xbox 360 Games-on-Demand containers (a content-hash header beside its `.data` fragment directory) through XISOSharp/StfsSharp, with on-demand fragment mapping. Pass the header file, the `.data` directory, or the parent folder.
+*   **Virtual `image.iso`:** The `--image-iso` option also exposes the decompressed Xbox image as `image.iso` at the mount root, for emulators that only accept a disc image (such as xemu). CISO, CHD and GOD/SVOD images are decompressed or mapped on demand; a ZArchive directory tree is synthesized into an XISO in memory with XISOSharp's layout primitives — nothing is extracted to disk.
+*   **Zero-Config Mounting:** On Windows, drag-and-drop an ISO/XISO/CISO, CHD, ZAR or GOD/SVOD container onto the executable to automatically mount it to the first available drive letter (M: through R:).
 *   **Flexible Mount Points:** Mount ISOs as Windows drive letters (e.g., `Z:`) or NTFS folders, and as any directory on Linux and macOS.
 *   **Automated Bug Reporting:** Includes a built-in telemetry system that securely reports filesystem crashes to the developer via the PureLogic Code API.
 *   **Update Checker:** Checks for newer versions on GitHub at startup and offers to open the release page; a missing Dokan runtime or driver also offers the Dokan download page.
@@ -118,7 +119,7 @@ Release History) is on [Home](docs/Home.md).
 
 #### Drag-and-drop (easiest)
 
-1. Drag an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file onto `SimpleXisoDrive.exe`.
+1. Drag an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a GOD/SVOD header/`.data` folder, onto `SimpleXisoDrive.exe`.
 2. The app picks the first free drive letter from `M:` through `R:`, mounts the image read-only and opens File Explorer.
 3. **To unmount:** click the console window and press any key (or press `Ctrl+C`).
 
@@ -130,7 +131,7 @@ SimpleXisoDrive.exe <image-file> <mount-path> [options]
 
 | Argument / option | Description |
 | --- | --- |
-| `<image-file>` | Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file. The extension may be omitted when the file can be resolved. |
+| `<image-file>` | Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a GOD/SVOD header or `.data` folder. The extension may be omitted when the file can be resolved. |
 | `<mount-path>` | Drive letter such as `Z:` or `Z:\`, or an existing empty NTFS folder. When omitted, drag-and-drop mode picks a free `M:`-`R:` letter and opens Explorer. |
 | `-l`, `--launch` | Open Explorer at the mount path after mounting. |
 | `-d`, `--debug` | Show verbose Dokan debug output. |
@@ -143,6 +144,7 @@ Options may appear before or after the mount path (`SimpleXisoDrive.exe game.iso
 SimpleXisoDrive.exe "D:\Games\Halo.iso" Z:
 SimpleXisoDrive.exe "D:\Games\Halo.chd" Z: --image-iso
 SimpleXisoDrive.exe "D:\Games\Halo.zar" "C:\Mounts\Halo" -l
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19" Z:
 ```
 
 Press `Ctrl+C` in the console to unmount.
@@ -153,7 +155,7 @@ Press `Ctrl+C` in the console to unmount.
 SimpleXisoDrive <image-file> [mount-path] [options]
 ```
 
-*   `<image-file>`: Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file.
+*   `<image-file>`: Path to the `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a GOD/SVOD header or `.data` folder.
 *   `<mount-path>`: An existing empty directory. When omitted, a temporary directory is created, printed after mounting, and removed on unmount.
 *   Every option listed above works the same on Linux and macOS.
 
@@ -171,7 +173,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 
 ## Technical Details
 
-*   **XDVDFS Parsing:** Uses the XISOSharp library to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images.
+*   **XDVDFS Parsing:** Uses the XISOSharp 1.8 library (`XisoImage`/`XisoImageSource`) to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images, CISO/CCI containers and GOD/SVOD containers (StfsSharp-backed).
 *   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
 *   **Mount Backends:** Dokan on Windows (`DokanNet`); on Linux and macOS the standalone **LibFuseSharp** package (namespace `FuseSharp`, MIT, source at <https://github.com/purelogiccode/LibFuseSharp>) mounts any `IFuseVolume` through the FUSE 3 high-level API (`libfuse3` / macFUSE), with the platform-specific structures for Linux x64/ARM64 and macOS.
@@ -192,7 +194,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 | `macFUSE (libfuse3) was not found` | Install [macFUSE](https://macfuse.io) and allow the system extension. |
 | `Image file not found at '<path>'` | Check the path and quote it if it contains spaces. A directory with exactly one image, or a missing extension, is resolved automatically. |
 | `Mount path '<path>' is not an existing directory` | Create the folder first (`mkdir "C:\mount\xiso"`), or pass a drive letter such as `Z:`. |
-| `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, incomplete, or uses an unsupported layout. Convert it to XISO first. |
+| `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, an STFS package, incomplete, or uses an unsupported layout. Convert it to XISO first; only GOD/SVOD containers carry an XDVDFS partition. |
 | `'<path>' is not an Xbox ISO CHD` | The decompressed CHD is not an Xbox ISO (for example a CD, GD-ROM or Xbox 360 image). A differential child CHD must be merged with its parent first. |
 | `'<path>' is not a valid ZArchive (.zar) file` | The archive is corrupt, is not a ZArchive, or uses an unsupported version. Re-create it from the original image. |
 | `Could not find an available drive letter (M-R)` | Free one of `M:`-`R:` or pass an explicit mount path. |
@@ -206,7 +208,8 @@ The [Troubleshooting](docs/Troubleshooting.md) page lists every message in detai
 ## FAQ
 
 **What formats can I mount?** Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`, including split `.1.cso`
-sets), Xbox ISO CHD (`.chd`) and ZArchive (`.zar`, a directory tree or a single embedded XISO).
+sets), Xbox ISO CHD (`.chd`), ZArchive (`.zar`, a directory tree or a single embedded XISO) and
+Xbox 360 GOD/SVOD containers (the XDVDFS game partition inside the container).
 
 **Does it modify my image?** No. The image or archive is opened read-only and every mutating
 operation is denied.
@@ -217,8 +220,10 @@ like any other read-only drive.
 **Can I mount several images at once?** Yes, start one instance per image; each gets its own mount
 point and console window.
 
-**Does it support Xbox 360 or Xbox One images?** The ISO/CHD parsers are XDVDFS-only. A `.zar` tree
-is exposed as-is whatever produced it, but its contents are not parsed.
+**Does it support Xbox 360 or Xbox One images?** Xbox 360 GOD/SVOD containers are supported because
+their data fragments contain an Xbox 360 XDVDFS game partition. Plain Xbox 360 ISO dumps, STFS
+packages (XBLA/XBLIG) and Xbox One images are not XDVDFS and are rejected. A `.zar` tree is exposed
+as-is whatever produced it, but its contents are not parsed.
 
 **Does it need an internet connection?** No; the update check, launch statistics and crash reporting
 are advisory and can be blocked (see [Privacy and Networking](docs/Privacy-and-Networking.md)).

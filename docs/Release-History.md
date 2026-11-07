@@ -23,6 +23,23 @@ history.
 
 ---
 
+## Unreleased
+
+- **Xbox 360 GOD/SVOD mounting.** Xbox 360 Games-on-Demand containers now mount read-only. Pass
+  the content-hash header, its `.data` fragment directory, or a parent folder containing exactly one
+  header; `ImagePathResolver` resolves `.data`/parent paths to the header. The XDVDFS game partition
+  is mapped on demand through `XisoImageSource.OpenRead` (StfsSharp-backed), and `--image-iso`
+  exposes the decompressed logical image for emulators.
+- **XISOSharp 1.8.0 / `XisoImage`.** Path-based mounts now use the open-once `XisoImage` facade
+  (`XisoImageSource` detection), adding CISO/CCI and GOD support while keeping the existing
+  `FileShare.ReadWrite` behavior. Renamed sector images keep mounting through a content fallback.
+- **StfsSharp 1.0.0.** Added as a direct dependency for the GOD/SVOD reader instead of relying on the
+  XISOSharp facade that is scheduled for removal in 2.0.0.
+- **Tests.** The app suite is **436 tests** (402 core + 34 Unix), including synthetic GOD header,
+  `.data` folder, parent-folder resolution and `--image-iso` coverage.
+- **Docs.** ReadMe, Home, Command-Line Reference, Virtual File System, FAQ, Glossary, Architecture and
+  Testing now describe GOD/SVOD and the `XisoImage` path.
+
 ## 1.5.2 - 2026-10-29
 
 - **FUSE library is a package.** Removed the vendored `FuseSharp` project and pinned

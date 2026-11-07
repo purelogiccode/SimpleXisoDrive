@@ -2,7 +2,7 @@
 
 This page walks through the two supported ways to mount an Xbox image on Windows: drag-and-drop and
 the command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO
-CHD images (`.chd`) and ZArchive (`.zar`) files are supported.
+CHD images (`.chd`), ZArchive (`.zar`) files and Xbox 360 GOD/SVOD containers are supported.
 
 Before you begin, make sure [the .NET runtime and your platform's mount driver are installed](Installation)
 (Dokan on Windows, FUSE 3 on Linux, macFUSE on macOS). On Linux and macOS the workflow is
@@ -47,7 +47,7 @@ Every run follows the same sequence:
 
 This is the fastest way to mount an image and requires no typing.
 
-1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`), Xbox ISO CHD (`.chd`) or ZArchive (`.zar`) file in File Explorer.
+1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`), Xbox ISO CHD (`.chd`), ZArchive (`.zar`) file, or a GOD/SVOD header/`.data` folder in File Explorer.
 2. Drag the file and drop it onto `SimpleXisoDrive.exe`.
 3. A console window opens. The application:
    - validates the path,
@@ -107,6 +107,21 @@ SimpleXisoDrive.exe "D:\Games\Halo.chd" Z:
 
 Only CHDs whose decompressed image is a valid Xbox ISO are accepted. CD/GD-ROM CHDs and
 differential child CHDs (which need their parent merged first) are rejected with a clear error.
+
+### Mount an Xbox 360 GOD/SVOD container
+
+A GOD container is a content-hash header file beside a `<header>.data` directory. Pass either the
+header, the `.data` directory, or the folder that contains exactly one header:
+
+```shell
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19" Z:
+SimpleXisoDrive.exe "D:\Games\58480813\00007000\4279B61925C340CC1F19.data" Z:
+SimpleXisoDrive.exe "D:\Games\58480813\00007000" Z: --image-iso
+```
+
+The fragments are mapped on demand; no extraction to disk is performed. `--image-iso` exposes the
+decompressed logical image for emulators such as xemu. Plain Xbox 360 disc dumps and STFS packages
+(XBLA/XBLIG) are not XDVDFS and are rejected.
 
 ### Mount into an NTFS folder
 
@@ -185,7 +200,7 @@ Expected console output (simplified):
 ```
 
 Windows Explorer opens at `P:\`, which shows the contents of the disc under the volume label
-`XBOX_ISO` (ISO/XISO/CHD) or `XBOX_ZAR` (ZArchive).
+`XBOX_ISO` (ISO/XISO/CHD/GOD) or `XBOX_ZAR` (ZArchive).
 
 ---
 
