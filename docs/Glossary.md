@@ -168,7 +168,7 @@ Common shorthand for an Xbox disc image in XDVDFS format. "Rebuilt XISO" images 
 descriptor at sector 0.
 
 **XisoImage**
-The XISOSharp 1.8 open-once facade used for path-based mounts. It keeps one decompressed view open
+The XISOSharp 1.9 open-once facade used for path-based mounts. It keeps one decompressed view open
 for the mount lifetime, detects ISO/CISO/CCI/GOD sources, and serializes metadata/read operations
 internally.
 

@@ -35,7 +35,7 @@ injected in tests). The actual storage is an `IVfsVolume` implementation selecte
 
 `XisoVfsVolume`:
 
-1. A keep-open `XisoImage` (XISOSharp 1.8) opens the ISO/CISO/CCI/GOD source with
+1. A keep-open `XisoImage` (XISOSharp 1.9) opens the ISO/CISO/CCI/GOD source with
    `FileShare.ReadWrite` (shared access lets antivirus and indexing tools open the file too) and
    eagerly probes the volume descriptor.
 2. XISOSharp probes the rebuilt sector-0 layout and the standard sector-32 layouts (plain, GLOBAL,

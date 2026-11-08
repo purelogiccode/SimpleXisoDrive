@@ -175,7 +175,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 
 ## Technical Details
 
-*   **XDVDFS Parsing:** Uses the XISOSharp 1.8.0 library (`XisoImage`/`XisoImageSource`) to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images, CISO/CCI containers and GOD/SVOD containers (StfsSharp-backed).
+*   **XDVDFS Parsing:** Uses the XISOSharp 1.9.0 library (`XisoImage`/`XisoImageSource`) to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images, CISO/CCI containers and GOD/SVOD containers (StfsSharp-backed).
 *   **CCI Discovery:** Uses XISOSharp's `XisoImageSource` detection (CCISharp-backed) for `.cci` split-set resolution, including multi-digit part names and standalone numeric images.
 *   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.

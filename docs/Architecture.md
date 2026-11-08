@@ -331,12 +331,12 @@ CSharp_SimpleXisoDrive/
 | `Serilog` | 4.4.0 | Structured logging core. |
 | `Serilog.Sinks.Console` | 6.1.1 | Console log output. |
 | `Serilog.Sinks.File` | 7.0.0 | Rolling file log output. |
-| `CHDSharp` | 1.5.2 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
-| `XISOSharp` | 1.8.0 | Xbox image library: `XisoImage`/`XisoImageSource` detect ISO/CISO/CCI/GOD sources, probe XDVDFS and serve entries/streams. CCI/CCIM decoding is CCISharp-backed inside the package. |
+| `CHDSharp` | 1.6.3 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
+| `XISOSharp` | 1.9.0 | Xbox image library: `XisoImage`/`XisoImageSource` detect ISO/CISO/CCI/GOD sources, probe XDVDFS and serve entries/streams. CCI/CCIM decoding is CCISharp-backed inside the package. |
 | `StfsSharp` | 1.0.0 | Xbox 360 STFS/GOD reader; `GodHeader` resolves GOD header/`.data`/parent paths and maps SVOD fragments. |
 | `ZArchiveSharp` | 1.4.0 | Pure-C# ZArchive reader/writer; the mount-friendly reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
 | `LibFuseSharp` | 1.0.1 | FUSE 3 high-level mount library (MIT), consumed from NuGet; source lives in <https://github.com/purelogiccode/LibFuseSharp>. |
-| `Meziantou.Analyzer` | 3.0.317 | Build-time code analyzers. |
+| `Meziantou.Analyzer` | 3.0.322 | Build-time code analyzers. |
 | `Roslynator.Analyzers` | 5.0.1 | Build-time code analyzers. |
 
 Test projects: `Microsoft.NET.Test.Sdk` 18.11.0, `xunit` 2.9.3, `xunit.runner.visualstudio` 4.0.1,

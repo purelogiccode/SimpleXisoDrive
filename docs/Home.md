@@ -8,7 +8,7 @@ exposes their contents directly in the file manager.
 On Windows the application is built on the [Dokan](https://github.com/dokan-dev/dokany) user-mode
 file system driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/master/dokan-dotnet);
 on Linux and macOS it uses the FUSE 3 high-level API (`libfuse3` / macFUSE). All platforms share the
-XISOSharp 1.8 library (`XisoImage`) that parses the Xbox Disc Video File System (**XDVDFS**). CHD
+XISOSharp 1.9 library (`XisoImage`) that parses the Xbox Disc Video File System (**XDVDFS**). CHD
 files are decompressed hunk-by-hunk with the CHDSharp library, ZArchive files are read directly with
 on-demand zstd decompression, and GOD/SVOD containers are mapped through the StfsSharp reader. The
 source image is never modified: every write operation is rejected at the file system layer.

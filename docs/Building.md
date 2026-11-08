@@ -199,7 +199,7 @@ The application, the shared core and the `LibFuseSharp` repository reference the
 
 | Analyzer | Purpose |
 | --- | --- |
-| `Meziantou.Analyzer` 3.0.317 | Best-practice and performance rules |
+| `Meziantou.Analyzer` 3.0.322 | Best-practice and performance rules |
 | `Roslynator.Analyzers` 5.0.1 | Code quality and style rules |
 
 Three rules are disabled in `.editorconfig`:
