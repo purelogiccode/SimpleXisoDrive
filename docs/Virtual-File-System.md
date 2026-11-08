@@ -2,7 +2,7 @@
 
 This page explains how SimpleXisoDrive turns an Xbox image into a file-manager-visible, read-only
 volume. It covers format selection, path resolution, caching, the Dokan operation layer, and the
-read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.chd`, GOD/SVOD) and ZArchive
+read-only guarantees. XDVDFS images (`.iso`, `.xiso`, `.cso`, `.cci`, `.chd`, GOD/SVOD) and ZArchive
 (`.zar`) trees are supported.
 
 The same virtual file system feeds both mount backends: on Windows `XboxIsoVfsDokan` maps Dokan
@@ -25,6 +25,7 @@ injected in tests). The actual storage is an `IVfsVolume` implementation selecte
 | Input | Detection | Volume |
 | --- | --- | --- |
 | `.iso`, `.xiso`, extensionless | XDVDFS volume descriptor validates; a renamed CHD or ZArchive falls back to the matching format | `XisoVfsVolume` |
+| `.cso`, `.cci` (including split sets) | XISOSharp's `XisoImageSource` detection opens the compressed container; the decompressed XDVDFS volume descriptor must validate. CCI split discovery follows the CCISharp-backed detection rule | `XisoVfsVolume` over the decompressed view |
 | GOD/SVOD header or `.data` folder | The XContent header and `DataNNNN` fragments map to a logical sector image through `XisoImageSource.OpenRead`/`StfsSharp`; the inner XDVDFS volume descriptor must validate | `XisoVfsVolume` over the mapped `XisoImage` |
 | `.chd` | CHDSharp opens the container (CD/GD-ROM rejected); the decompressed image must validate as XDVDFS. A file whose content is not a CHD is detected by content instead | `XisoVfsVolume` over a `ChdImageStream` |
 | `.zar` | ZArchive footer validates. A file whose content is not an archive is detected by content instead | `ZarVfsVolume`, unless the archive root holds exactly one file that validates as an XDVDFS image — then that embedded image mounts through `XisoVfsVolume` over `ZArchiveReader.OpenRead` |

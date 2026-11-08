@@ -21,6 +21,14 @@ A compressed ISO container (`.cso`) that stores the image with block compression
 decompresses it on the fly; split sets use numbered parts (`game.1.cso`, `game.2.cso`, …) and are
 mounted from the first part. See [XDVDFS Format](XDVDFS-Format).
 
+**CCI (CCIM)**
+The Cerbios Compressed Image container (`.cci`) used by Xbox emulation and repacking tools. Each
+2048-byte sector is stored raw or compressed as an LZ4 block, with a random-access index.
+SimpleXisoDrive resolves and mounts CCI images through XISOSharp's container detection
+(CCISharp-backed); split sets (`game.1.cci`, `game.2.cci`, …, including multi-digit parts) open
+from the first contiguous part.
+See [Command-Line Reference](Command-Line-Reference).
+
 **Dokan**
 A Windows user-mode file system framework and kernel driver that lets applications expose virtual
 file systems without writing a kernel driver. SimpleXisoDrive uses Dokan 2.x. See

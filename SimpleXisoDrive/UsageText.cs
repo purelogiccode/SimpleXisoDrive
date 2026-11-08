@@ -29,13 +29,13 @@ internal static class UsageText
     {
         var builder = new StringBuilder();
         builder.AppendLine(
-            "Mounts an Xbox ISO/XISO (.iso, .xiso), CISO (.cso), Xbox ISO CHD (.chd), ZArchive (.zar) or GOD/SVOD container as a virtual file system on Windows.");
+            "Mounts an Xbox ISO/XISO (.iso, .xiso), CISO (.cso), CCI/CCIM (.cci), Xbox ISO CHD (.chd), ZArchive (.zar) or GOD/SVOD container as a virtual file system on Windows.");
         builder.AppendLine();
         builder.AppendLine($"Usage: {exeName} <image-file> <mount-path> [options]");
         builder.AppendLine();
         builder.AppendLine("Arguments:");
         builder.AppendLine(
-            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .chd), ZArchive (.zar) or GOD/SVOD header or .data folder to mount.");
+            "  <image-file>    Path to the Xbox image (.iso, .xiso, .cso, .cci, .chd), ZArchive (.zar) or GOD/SVOD header or .data folder to mount.");
         builder.AppendLine("  <mount-path>    Drive letter (\"M:\\\") or folder path on an NTFS partition.");
         builder.AppendLine();
         builder.AppendLine("Options:");

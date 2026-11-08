@@ -187,6 +187,38 @@ public class VfsContainerTests
     }
 
     /// <summary>
+    /// Verifies a CCI image created through XisoCci mounts its XDVDFS contents.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCciFile_MountsXdvdfsImage()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var isoPath = Path.Combine(directory, "source.iso");
+        var cciPath = Path.Combine(directory, "game.cci");
+        File.WriteAllBytes(isoPath, TestImageFactory.CreateMinimalXdvdfsImage("cci data"u8.ToArray()));
+
+        try
+        {
+            Assert.Equal(0, XisoCci.CompressToCci(isoPath, cciPath, level: 1, splitBytes: 0, overwrite: true));
+            File.Delete(isoPath);
+
+            using var vfs = new VfsContainer(cciPath);
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("cci data"u8.Length, file.Size);
+
+            var buffer = new byte[4];
+            Assert.Equal(4, vfs.ReadFile(file, buffer, 4));
+            Assert.Equal("data"u8.ToArray(), buffer);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies an embedded XISO with directories mounts stream-backed contents.
     /// </summary>
     [Fact]

@@ -9,10 +9,10 @@ namespace SimpleXisoDrive.Core.Vfs;
 
 /// <summary>
 /// Opens the correct <see cref="IVfsVolume"/> implementation for an image file.
-/// Xbox ISO/XISO images are opened directly; Xbox ISO CHD (<c>.chd</c>) files are
-/// decompressed on demand through CHDSharp; ZArchive (<c>.zar</c>) files expose either
-/// an embedded XISO image or their archived directory tree. When requested, the raw
-/// image is also exposed as a virtual <c>image.iso</c> file at the volume root.
+/// Xbox ISO/XISO images (including CISO/CCI containers) are opened directly; Xbox ISO CHD
+/// (<c>.chd</c>) files are decompressed on demand through CHDSharp; ZArchive (<c>.zar</c>)
+/// files expose either an embedded XISO image or their archived directory tree. When requested,
+/// the raw image is also exposed as a virtual <c>image.iso</c> file at the volume root.
 /// </summary>
 internal static class VfsVolumeFactory
 {

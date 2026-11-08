@@ -9,7 +9,7 @@ namespace SimpleXisoDrive.Core;
 /// to directory entries and serving file data to the Dokan layer.
 /// </summary>
 /// <remarks>
-/// Xbox ISO/XISO images, CISO containers, Xbox ISO CHDs and GOD/SVOD containers are exposed through
+/// Xbox ISO/XISO images, CISO/CCI containers, Xbox ISO CHDs and GOD/SVOD containers are exposed through
 /// <see cref="XisoVfsVolume"/>; ZArchive (<c>.zar</c>) files are exposed through
 /// <see cref="ZarVfsVolume"/> (directory tree) or as an embedded XISO image. The volume
 /// implementation is chosen automatically by
@@ -43,7 +43,7 @@ public class VfsContainer : IVfsVolume
     /// <summary>
     /// Initializes a new instance of the <see cref="VfsContainer"/> class for the specified image file.
     /// </summary>
-    /// <param name="imagePath">The path to the Xbox ISO/XISO, CISO, Xbox ISO CHD, ZArchive (<c>.zar</c>) or GOD/SVOD container to open.</param>
+    /// <param name="imagePath">The path to the Xbox ISO/XISO, CISO/CCI, Xbox ISO CHD, ZArchive (<c>.zar</c>) or GOD/SVOD container to open.</param>
     /// <param name="exposeImageIso">
     /// When <see langword="true"/>, the mount also exposes the raw Xbox image as a virtual
     /// <c>image.iso</c> file at the volume root, for emulators that only accept a disc image

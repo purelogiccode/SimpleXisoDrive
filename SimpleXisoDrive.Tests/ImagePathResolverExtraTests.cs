@@ -1,4 +1,5 @@
 using SimpleXisoDrive.Core;
+using XISOSharp;
 
 namespace SimpleXisoDrive.Tests;
 
@@ -114,5 +115,107 @@ public class ImagePathResolverExtraTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Verifies a single-part CCI image resolves when the extension is omitted.
+    /// </summary>
+    [Fact]
+    public void Resolve_AppendsCciExtensionWhenOnlyCciExists()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var cciPath = CreateCci(directory, "game");
+
+        try
+        {
+            Assert.Equal(cciPath, ImagePathResolver.Resolve(Path.Combine(directory, "game")));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a directory containing one CCI image resolves to it.
+    /// </summary>
+    [Fact]
+    public void Resolve_DirectoryWithSingleCci_ResolvesToCci()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var cciPath = CreateCci(directory, "game");
+
+        try
+        {
+            Assert.Equal(cciPath, ImagePathResolver.Resolve(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a split CCI set counts as one image and resolves to its first part.
+    /// XISOSharp's `XisoImageSource` owns the split detection rules, so this
+    /// exercises the container layer rather than a copied naming heuristic.
+    /// </summary>
+    [Fact]
+    public void Resolve_DirectoryWithSplitCciSet_ResolvesToFirstPart()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        CreateCci(directory, "game", sectors: 4, splitBytes: 2100);
+        var firstPart = Path.Combine(directory, "game.1.cci");
+        var secondPart = Path.Combine(directory, "game.2.cci");
+        Assert.True(File.Exists(firstPart));
+        Assert.True(File.Exists(secondPart));
+
+        try
+        {
+            Assert.Equal(firstPart, ImagePathResolver.Resolve(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a numeric CCI name that is not part of a set starting at .1 is a
+    /// standalone image (XISOSharp keeps it readable instead of rejecting the name).
+    /// </summary>
+    [Fact]
+    public void Resolve_StandaloneNumericCci_ResolvesToIt()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var cciPath = CreateCci(directory, "game.2");
+
+        try
+        {
+            Assert.Equal(cciPath, ImagePathResolver.Resolve(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string CreateCci(string directory, string baseName, int sectors = 8, long splitBytes = 0)
+    {
+        string isoPath = Path.Combine(directory, baseName + ".source.iso");
+        File.WriteAllBytes(isoPath, new byte[sectors * XISOSharp.Constants.SectorSize]);
+
+        string outputPath = Path.Combine(directory, baseName);
+        int result = XisoCci.CompressToCci(isoPath, outputPath, level: 1, splitBytes: splitBytes, overwrite: true);
+        Assert.Equal(0, result);
+        File.Delete(isoPath);
+
+        return splitBytes > 0
+            ? Path.Combine(directory, baseName + ".1.cci")
+            : outputPath + ".cci";
     }
 }

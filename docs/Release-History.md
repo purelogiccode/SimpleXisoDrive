@@ -35,8 +35,11 @@ history.
   `FileShare.ReadWrite` behavior. Renamed sector images keep mounting through a content fallback.
 - **StfsSharp 1.0.0.** Added as a direct dependency for the GOD/SVOD reader instead of relying on the
   XISOSharp facade that is scheduled for removal in 2.0.0.
-- **Tests.** The app suite is **436 tests** (402 core + 34 Unix), including synthetic GOD header,
-  `.data` folder, parent-folder resolution and `--image-iso` coverage.
+- **CCI/CCIM input.** Path resolution recognizes `.cci`; XISOSharp's `XisoImageSource` resolves
+  split sets (including multi-digit parts and standalone numeric names) and mounts the image through
+  the shared `XisoImage` path. CCISharp stays a transitive dependency of XISOSharp.
+- **Tests.** The app suite is **441 tests** (407 core + 34 Unix), including synthetic GOD header,
+  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage.
 - **Docs.** ReadMe, Home, Command-Line Reference, Virtual File System, FAQ, Glossary, Architecture and
   Testing now describe GOD/SVOD and the `XisoImage` path.
 

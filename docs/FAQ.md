@@ -51,7 +51,8 @@ Yes.
 
 "XISO" commonly refers to an Xbox disc image in the XDVDFS layout. SimpleXisoDrive supports both
 standard dumps (descriptor at sector 32) and rebuilt images (descriptor at sector 0).
-CISO-compressed variants (`.cso`, either a single file or a split `.1.cso` part set) are supported
+CISO-compressed variants (`.cso`, either a single file or a split `.1.cso` part set) and CCI/CCIM
+variants (`.cci`, including split sets) are supported
 too and are decompressed on the fly — no extraction step is needed. Xbox ISO images stored as CHD
 (`.chd`) are supported as well and are decompressed hunk-by-hunk on demand.
 

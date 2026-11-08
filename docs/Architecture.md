@@ -64,7 +64,7 @@ flowchart TD
 | `VfsContainer` | `public class` | Facade over the selected volume: opens the image through `VfsVolumeFactory` and forwards entry lookups, directory listings, reads, and metadata. Implements `IDisposable`. |
 | `IVfsVolume` | `public interface` | The read-only volume contract (size, creation time, label, file-system name, entry lookup, listing, reads). Implemented by `XisoVfsVolume`, `ZarVfsVolume` and `ImageIsoVfsVolume`. |
 | `IVfsEntry` | `public interface` | A file or directory entry (name, directory flag, size, Windows attributes). Implemented by the XISO entry type in `XisoVfsVolume` (XDVDFS), the ZArchive entry type, and the synthetic entry in `ImageIsoVfsVolume`. |
-| `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, `.chd` opens through CHDSharp, everything else as an Xbox ISO/CISO or GOD/SVOD container (with a content fallback for renamed files). Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. With `--image-iso` it wraps the volume in `ImageIsoVfsVolume`, using `XisoImageSource.OpenRead` and synthesizing a virtual XISO for a ZArchive tree when needed. |
+| `VfsVolumeFactory` | `internal static class` | Detects the image format: `.zar` opens as an archive, `.chd` opens through CHDSharp, everything else as an Xbox ISO/CISO/CCI or GOD/SVOD container (with a content fallback for renamed files). Archives with a single embedded XISO file mount that image; otherwise the archived tree mounts directly. With `--image-iso` it wraps the volume in `ImageIsoVfsVolume`, using `XisoImageSource.OpenRead` and synthesizing a virtual XISO for a ZArchive tree when needed. |
 | `XisoVfsVolume` | `internal sealed class` | Opens an Xbox ISO/XISO (path or stream), delegates all parsing to XISOSharp, caches entries and directory listings, and serves file reads. Path-based images (including CISO/CCI and GOD/SVOD) use a keep-open `XisoImage`; embedded images and decompressed CHD images use `XisoReader` stream APIs. |
 | `ChdImageSource` | `internal static class` | Opens an Xbox ISO CHD with CHDSharp (`ChdFile.Open` + `ChdFile.OpenAsStream`), rejects CD/GD-ROM CHDs up front, and returns a `ChdImageStream` over the decompressed image. The decompressed image must then parse as XDVDFS before the mount succeeds. |
 | `ZarVfsVolume` | `internal sealed class` | Exposes a ZArchive directory tree: resolves paths through `ZArchiveReader`, caches entries, and serves decompressed file data. |
@@ -81,7 +81,7 @@ flowchart TD
 | `XisoImage` | `XISOSharp (external)` | Open-once image facade used by path-based mounts: ISO/CISO/CCI/GOD detection through `XisoImageSource`, eager volume probing, directory listing, entry lookup, and bounded file read streams. |
 | `XisoReader` | `XISOSharp (external)` | Static stream APIs used for images embedded in archives: volume probing (including rebuilt sector-0 images), directory listing, entry lookup, and raw data reads. |
 | `SerilogDokanLogger` | `internal sealed class` | Routes DokanNet's internal log messages into Serilog. |
-| `InvalidImageException` | `public class` | Signals that a file is not a readable Xbox ISO/XISO image, CISO, Xbox ISO CHD, ZArchive or GOD/SVOD container. |
+| `InvalidImageException` | `public class` | Signals that a file is not a readable Xbox ISO/XISO image, CISO/CCI image, Xbox ISO CHD, ZArchive or GOD/SVOD container. |
 
 ### Services
 
@@ -144,7 +144,7 @@ sequenceDiagram
 
     P->>V: new VfsContainer(imagePath)
     V->>F: Open(imagePath)
-    alt .iso / .xiso / .cso / GOD-SVOD (or renamed sector image)
+    alt .iso / .xiso / .cso / .cci / GOD-SVOD (or renamed sector image)
         F->>X: new XisoVfsVolume(path)
         X->>X: XisoImage keep-open (XisoImageSource maps the source) + volume probe
     else .chd (or renamed CHD)
@@ -331,10 +331,9 @@ CSharp_SimpleXisoDrive/
 | `Serilog` | 4.4.0 | Structured logging core. |
 | `Serilog.Sinks.Console` | 6.1.1 | Console log output. |
 | `Serilog.Sinks.File` | 7.0.0 | Rolling file log output. |
-| `XISOSharp` | 1.4.4 | Xbox ISO/XISO image access: volume probing (including rebuilt sector-0 images), directory traversal, and file reads for the XISO volume. |
 | `CHDSharp` | 1.5.2 | Pure-C# CHD reader: opens Xbox ISO CHDs and decompresses hunks on demand through `ChdImageStream`. |
-| `XISOSharp` | 1.8.0 | Xbox image library: `XisoImage`/`XisoImageSource` detect ISO/CISO/CCI/GOD sources, probe XDVDFS and serve entries/streams. |
-| `StfsSharp` | 1.0.0 | Xbox 360 STFS/GOD reader used by XISOSharp for the SVOD fragment mapping (and available to future STFS features). |
+| `XISOSharp` | 1.8.0 | Xbox image library: `XisoImage`/`XisoImageSource` detect ISO/CISO/CCI/GOD sources, probe XDVDFS and serve entries/streams. CCI/CCIM decoding is CCISharp-backed inside the package. |
+| `StfsSharp` | 1.0.0 | Xbox 360 STFS/GOD reader; `GodHeader` resolves GOD header/`.data`/parent paths and maps SVOD fragments. |
 | `ZArchiveSharp` | 1.4.0 | Pure-C# ZArchive reader/writer; the mount-friendly reader API (node handles, entry streams, failure reasons) is used to mount `.zar` volumes. |
 | `LibFuseSharp` | 1.0.1 | FUSE 3 high-level mount library (MIT), consumed from NuGet; source lives in <https://github.com/purelogiccode/LibFuseSharp>. |
 | `Meziantou.Analyzer` | 3.0.317 | Build-time code analyzers. |

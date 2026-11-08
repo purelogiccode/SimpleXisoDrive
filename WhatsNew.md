@@ -18,9 +18,13 @@ Framework-dependent builds require the .NET 10.0 Runtime (the base runtime).
 - **XISOSharp 1.8.0.** Path-based mounts now use the open-once `XisoImage` facade and
   `XisoImageSource` detection (ISO, split ISO, CISO, CCI, GOD/SVOD). Renamed sector images keep
   mounting through a content fallback.
-- **StfsSharp 1.0.0.** Added as a direct dependency for the GOD/SVOD reader.
-- **Tests.** The app suite is **436 tests** (402 core + 34 Unix), including synthetic GOD header,
-  `.data` folder, parent-folder resolution and `--image-iso` coverage.
+- **StfsSharp 1.0.0.** A direct dependency for the GOD/SVOD reader (`GodHeader`), matching the
+  package XISOSharp has used since 1.8.0.
+- **CCI/CCIM input.** Path resolution recognizes `.cci` and XISOSharp's `XisoImageSource` performs
+  split discovery (including multi-digit parts and standalone numeric names); CCISharp remains a
+  transitive dependency of XISOSharp rather than an application-level API.
+- **Tests.** The app suite is **441 tests** (407 core + 34 Unix), including synthetic GOD header,
+  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage.
 
 # What's New in 1.5.2 (since 1.5.1)
 

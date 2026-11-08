@@ -1,7 +1,7 @@
 # SimpleXisoDrive Wiki
 
 SimpleXisoDrive is a lightweight, read-only virtual file system driver for Windows, Linux and macOS.
-It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`), Xbox ISO CHD images (`.chd`), ZArchive
+It mounts original Xbox ISO images (`.iso`, `.xiso`, `.cso`, `.cci`), Xbox ISO CHD images (`.chd`), ZArchive
 (`.zar`) files and Xbox 360 GOD/SVOD containers as virtual drive letters or folder mount points and
 exposes their contents directly in the file manager.
 
@@ -65,7 +65,9 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
   x64/ARM64 (FUSE 3 / macFUSE), sharing one core library.
 - **Broad Xbox format support** - standard Xbox ISO dumps (volume descriptor at sector 32),
   rebuilt XISO images (sector 0), dual-layer/hybrid dumps using the XGD1, XGD3, and GLOBAL
-  partition offsets, and CISO-compressed images (`.cso`, including split `.1.cso` part sets).
+  partition offsets, CISO-compressed images (`.cso`, including split `.1.cso` part sets), and
+  CCI/CCIM images (`.cci`, including split sets) read through XISOSharp's container detection
+  (CCISharp-backed).
 - **Xbox ISO CHD support** - `.chd` images mount directly with on-demand hunk decompression through
   the pure-C# CHDSharp decoder (CHD V1–V5, all codecs). Only CHDs whose decompressed image is a
   valid Xbox ISO are accepted; CD/GD-ROM CHDs are rejected.
@@ -128,6 +130,9 @@ SimpleXisoDrive.exe "D:\Games\Halo.zar" Z:
 # Mount a CISO image (single or split .1.cso part set)
 SimpleXisoDrive.exe "D:\Games\Halo.cso" Z:
 
+# Mount a CCI/CCIM image (single or split .1.cci part set)
+SimpleXisoDrive.exe "D:\Games\Halo.cci" Z: --image-iso
+
 # Mount an Xbox ISO stored as CHD
 SimpleXisoDrive.exe "D:\Games\Halo.chd" Z:
 
@@ -151,7 +156,7 @@ mkdir -p ~/mnt/halo
 SimpleXisoDrive ~/Games/Halo.iso ~/mnt/halo --launch
 ```
 
-The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso`, `.chd` or `.zar` file, or a
+The simplest path of all is to drag and drop an `.iso`, `.xiso`, `.cso`, `.cci`, `.chd` or `.zar` file, or a
 GOD/SVOD header or `.data` folder, onto `SimpleXisoDrive.exe` (Windows only).
 
 ## Support the project

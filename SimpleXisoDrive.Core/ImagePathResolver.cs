@@ -1,5 +1,6 @@
 using Serilog;
 using XISOSharp;
+using GodHeader = StfsSharp.GodHeader;
 
 namespace SimpleXisoDrive.Core;
 
@@ -13,14 +14,15 @@ public static class ImagePathResolver
     /// <summary>
     /// The file extensions the resolver recognizes, in preference order.
     /// </summary>
-    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".cso", ".chd", ".zar"];
+    private static readonly string[] ImageExtensions = [".iso", ".xiso", ".cso", ".cci", ".chd", ".zar"];
 
     /// <summary>
     /// Resolves the image file path, handling cases where the user provides a path without an
     /// extension. Supports Xbox ISO/XISO images (<c>.iso</c>, <c>.xiso</c>), CISO-compressed
-    /// images (<c>.cso</c>, including split <c>.1.cso</c> sets), Xbox ISO CHD images
-    /// (<c>.chd</c>), ZArchive (<c>.zar</c>) files and GOD/SVOD containers (a content-hash
-    /// header beside its <c>.data</c> directory). Tries multiple strategies to find the file:
+    /// images (<c>.cso</c>, including split <c>.1.cso</c> sets), CCI/CCIM images (<c>.cci</c>,
+    /// including split sets), Xbox ISO CHD images (<c>.chd</c>), ZArchive (<c>.zar</c>) files
+    /// and GOD/SVOD containers (a content-hash header beside its <c>.data</c> directory).
+    /// Tries multiple strategies to find the file:
     /// 1. Return original path if file exists
     /// 2. If path is a GOD <c>.data</c> directory, resolve to its header
     /// 3. If path is a directory containing exactly one image file, resolve to it
@@ -135,6 +137,17 @@ public static class ImagePathResolver
                 // A split CISO set (game.1.cso, game.2.cso, ...) is one image; the
                 // entry point is the first part, so continuation parts are ignored.
                 if (string.Equals(extension, ".cso", StringComparison.OrdinalIgnoreCase) && IsCsoContinuationPart(file))
+                {
+                    continue;
+                }
+
+                // CCI split rules belong to the XISOSharp detection layer (which is
+                // backed by CCISharp): a contiguous set starts at .1.cci and any part
+                // of it opens the whole image. Ask the detector for the entry point so
+                // standalone numeric names (such as game.2.cci with no game.1.cci)
+                // still resolve.
+                if (string.Equals(extension, ".cci", StringComparison.OrdinalIgnoreCase) &&
+                    IsCciContinuationPart(file))
                 {
                     continue;
                 }
@@ -268,6 +281,54 @@ public static class ImagePathResolver
 
         return int.TryParse(name.AsSpan(separator + 1), System.Globalization.CultureInfo.InvariantCulture,
             out var part) && part >= 2;
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="path"/> is a continuation part of a split CCI
+    /// set. <see cref="XisoImageSource"/> resolves the contiguous set from
+    /// <c>.1.cci</c>; when detection names another file as the first part, this file is
+    /// not a mount entry point. A numeric name that is not part of a contiguous set is
+    /// a standalone image and is kept. Invalid or unreadable files are kept so the
+    /// mount reports the real error.
+    /// </summary>
+    private static bool IsCciContinuationPart(string path)
+    {
+        if (!HasNumericPartSuffix(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!XisoImageSource.TryDetect(path, out XisoImageSourceInfo? info) || info is null ||
+                info.FirstPart.Length == 0)
+            {
+                return false;
+            }
+
+            return !string.Equals(Path.GetFullPath(info.FirstPart), Path.GetFullPath(path),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                       or InvalidDataException or OverflowException)
+        {
+            Log.Debug(ex, "Could not inspect the CCI split set for '{Path}'", path);
+            return false;
+        }
+    }
+
+    /// <summary>Returns true when the file name ends with a numeric <c>.N</c> part suffix.</summary>
+    private static bool HasNumericPartSuffix(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var separator = name.LastIndexOf('.');
+        if (separator < 0 || separator == name.Length - 1)
+        {
+            return false;
+        }
+
+        return int.TryParse(name.AsSpan(separator + 1), System.Globalization.CultureInfo.InvariantCulture,
+            out var part) && part >= 1;
     }
 
     private static IEnumerable<string> EnumerateExtensionCandidates(string path)

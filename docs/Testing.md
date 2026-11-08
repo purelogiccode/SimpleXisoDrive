@@ -16,8 +16,8 @@ separate [LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) repositor
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.1 |
 | Coverage collector | `coverlet.collector` 10.1.0 |
-| Test count | 436 app tests (unreleased): 402 core + 34 Unix |
-| Library tests | 55 in the separate LibFuseSharp repository; 491 combined |
+| Test count | 441 app tests (unreleased): 407 core + 34 Unix |
+| Library tests | 55 in the separate LibFuseSharp repository; 496 combined |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -50,7 +50,7 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 402, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+A healthy run reports `Passed: 407, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
 `Passed: 34, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
