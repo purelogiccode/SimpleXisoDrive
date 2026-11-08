@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using SimpleXisoDrive.Core;
 using SimpleXisoDrive.Core.Interfaces;
 using SimpleXisoDrive.Tests.Models;
@@ -844,6 +845,175 @@ public class VfsContainerTests
         finally
         {
             File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies <c>--image-iso</c> still exposes the raw image for an Xbox ISO whose
+    /// extension does not match its content.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithIsoRenamedToZarAndImageIso_ExposesDecompressedImage()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("renamed zar raw"u8.ToArray());
+        var isoPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".iso");
+        File.WriteAllBytes(isoPath, image);
+        var renamedPath = Path.ChangeExtension(isoPath, ".zar");
+        File.Move(isoPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath, exposeImageIso: true);
+
+            var imageEntry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(imageEntry);
+            Assert.Equal(image.Length, imageEntry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(imageEntry, buffer, 0));
+            Assert.Equal(image, buffer);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies <c>--image-iso</c> still exposes the raw image for an Xbox ISO renamed
+    /// to .cso (a CISO extension whose content is not CISO).
+    /// </summary>
+    [Fact]
+    public void Constructor_WithIsoRenamedToCsoAndImageIso_ExposesDecompressedImage()
+    {
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("renamed cso raw"u8.ToArray());
+        var isoPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".iso");
+        File.WriteAllBytes(isoPath, image);
+        var renamedPath = Path.ChangeExtension(isoPath, ".cso");
+        File.Move(isoPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath, exposeImageIso: true);
+
+            var imageEntry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(imageEntry);
+            Assert.Equal(image.Length, imageEntry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(imageEntry, buffer, 0));
+            Assert.Equal(image, buffer);
+        }
+        finally
+        {
+            File.Delete(renamedPath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a CISO image renamed to .zar still mounts and exposes its decompressed
+    /// image through content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCisoRenamedToZarAndImageIso_ExposesDecompressedImage()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var isoPath = Path.Combine(directory, "source.iso");
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("ciso renamed"u8.ToArray());
+        File.WriteAllBytes(isoPath, image);
+        var csoPath = Path.Combine(directory, "game.cso");
+        Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath));
+        File.Delete(isoPath);
+        var renamedPath = Path.ChangeExtension(csoPath, ".zar");
+        File.Move(csoPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath, exposeImageIso: true);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("ciso renamed"u8.Length, file.Size);
+
+            var imageEntry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(imageEntry);
+            Assert.Equal(image.Length, imageEntry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(imageEntry, buffer, 0));
+            Assert.Equal(image, buffer);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a CCI image renamed to .zar still mounts and exposes its decompressed
+    /// image through content detection.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCciRenamedToZarAndImageIso_ExposesDecompressedImage()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var isoPath = Path.Combine(directory, "source.iso");
+        var image = TestImageFactory.CreateMinimalXdvdfsImage("cci renamed"u8.ToArray());
+        File.WriteAllBytes(isoPath, image);
+        var cciPath = Path.Combine(directory, "game.cci");
+        Assert.Equal(0, XisoCci.CompressToCci(isoPath, cciPath, level: 1, splitBytes: 0, overwrite: true));
+        File.Delete(isoPath);
+        var renamedPath = Path.ChangeExtension(cciPath, ".zar");
+        File.Move(cciPath, renamedPath);
+
+        try
+        {
+            using var vfs = new VfsContainer(renamedPath, exposeImageIso: true);
+
+            var file = vfs.GetEntry("\\default.xbe");
+            Assert.NotNull(file);
+            Assert.Equal("cci renamed"u8.Length, file.Size);
+
+            var imageEntry = vfs.GetEntry("\\image.iso");
+            Assert.NotNull(imageEntry);
+            Assert.Equal(image.Length, imageEntry.Size);
+
+            var buffer = new byte[image.Length];
+            Assert.Equal(image.Length, vfs.ReadFile(imageEntry, buffer, 0));
+            Assert.Equal(image, buffer);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a single-file STFS package is rejected with an STFS-specific error
+    /// instead of the generic "not an Xbox ISO" message.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithStfsPackage_ThrowsInvalidImageExceptionWithStfsMessage()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".bin");
+        var header = new byte[0x500];
+        BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(0), 0x4C495645); // "LIVE"
+        BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(0x344), 0x000D0000); // XBLA
+        BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(0x3A9), 0); // STFS volume
+        File.WriteAllBytes(path, header);
+
+        try
+        {
+            var ex = Assert.Throws<InvalidImageException>(() => new VfsContainer(path));
+
+            Assert.Contains("STFS", ex.Message, StringComparison.Ordinal);
+            Assert.Contains("GOD/SVOD", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(path);
         }
     }
 

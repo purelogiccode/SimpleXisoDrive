@@ -175,7 +175,7 @@ See [Getting Started](docs/Getting-Started.md) and the
 
 ## Technical Details
 
-*   **XDVDFS Parsing:** Uses the XISOSharp 1.8 library (`XisoImage`/`XisoImageSource`) to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images, CISO/CCI containers and GOD/SVOD containers (StfsSharp-backed).
+*   **XDVDFS Parsing:** Uses the XISOSharp 1.8.0 library (`XisoImage`/`XisoImageSource`) to traverse the Xbox-specific binary tree structure, including rebuilt sector-0 images, CISO/CCI containers and GOD/SVOD containers (StfsSharp-backed).
 *   **CCI Discovery:** Uses XISOSharp's `XisoImageSource` detection (CCISharp-backed) for `.cci` split-set resolution, including multi-digit part names and standalone numeric images.
 *   **CHD Parsing:** Uses the CHDSharp library to decompress CHD hunks on demand (all CHD versions V1–V5 and codecs), exposing the decompressed Xbox image to the XDVDFS parser. Only CHDs whose decompressed image is a valid Xbox ISO are mounted; differential child CHDs must be merged with their parent first.
 *   **ZArchive Parsing:** Mounts the ZArchive directory tree with on-demand zstd block decompression, and detects a single embedded XISO image automatically.
@@ -197,7 +197,8 @@ See [Getting Started](docs/Getting-Started.md) and the
 | `macFUSE (libfuse3) was not found` | Install [macFUSE](https://macfuse.io) and allow the system extension. |
 | `Image file not found at '<path>'` | Check the path and quote it if it contains spaces. A directory with exactly one image, or a missing extension, is resolved automatically. |
 | `Mount path '<path>' is not an existing directory` | Create the folder first (`mkdir "C:\mount\xiso"`), or pass a drive letter such as `Z:`. |
-| `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, an STFS package, incomplete, or uses an unsupported layout. Convert it to XISO first; only GOD/SVOD containers carry an XDVDFS partition. |
+| `'<path>' is not a valid Xbox ISO/XISO image` | The file is a PC ISO, an encrypted Redump-style dump, incomplete, or uses an unsupported layout. Convert it to XISO first; only GOD/SVOD containers carry an XDVDFS partition. |
+| `'<path>' is an Xbox 360 STFS package (XBLA/XBLIG), not an Xbox disc image` | The file is a single-file STFS package; its payload is a file table, not an XDVDFS image. Only GOD/SVOD containers can be mounted. |
 | `'<path>' is not an Xbox ISO CHD` | The decompressed CHD is not an Xbox ISO (for example a CD, GD-ROM or Xbox 360 image). A differential child CHD must be merged with its parent first. |
 | `'<path>' is not a valid ZArchive (.zar) file` | The archive is corrupt, is not a ZArchive, or uses an unsupported version. Re-create it from the original image. |
 | `Could not find an available drive letter (M-R)` | Free one of `M:`-`R:` or pass an explicit mount path. |

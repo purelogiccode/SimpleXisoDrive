@@ -1,8 +1,9 @@
 # Getting Started
 
 This page walks through the two supported ways to mount an Xbox image on Windows: drag-and-drop and
-the command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), Xbox ISO
-CHD images (`.chd`), ZArchive (`.zar`) files and Xbox 360 GOD/SVOD containers are supported.
+the command line. Xbox ISO/XISO images (`.iso`, `.xiso`), CISO-compressed images (`.cso`), CCI/CCIM
+images (`.cci`), Xbox ISO CHD images (`.chd`), ZArchive (`.zar`) files and Xbox 360 GOD/SVOD
+containers are supported.
 
 Before you begin, make sure [the .NET runtime and your platform's mount driver are installed](Installation)
 (Dokan on Windows, FUSE 3 on Linux, macFUSE on macOS). On Linux and macOS the workflow is
@@ -47,7 +48,7 @@ Every run follows the same sequence:
 
 This is the fastest way to mount an image and requires no typing.
 
-1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`), Xbox ISO CHD (`.chd`), ZArchive (`.zar`) file, or a GOD/SVOD header/`.data` folder in File Explorer.
+1. Locate an Xbox ISO/XISO (`.iso`, `.xiso`), CISO (`.cso`), CCI/CCIM (`.cci`), Xbox ISO CHD (`.chd`), ZArchive (`.zar`) file, or a GOD/SVOD header/`.data` folder in File Explorer.
 2. Drag the file and drop it onto `SimpleXisoDrive.exe`.
 3. A console window opens. The application:
    - validates the path,

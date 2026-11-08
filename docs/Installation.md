@@ -143,8 +143,8 @@ SimpleXisoDrive.exe
 ```
 
 With no arguments the application prints its usage information and a reminder that you can drag and
-drop an ISO/XISO/CISO, CHD or ZAR file onto the executable. The console uses a green-on-black theme
-and remains open until you press a key.
+drop an ISO/XISO/CISO/CCI, CHD, ZAR or GOD/SVOD container onto the executable. The console uses a
+green-on-black theme and remains open until you press a key.
 
 For a first real mount:
 

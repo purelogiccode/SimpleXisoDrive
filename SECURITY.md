@@ -30,8 +30,9 @@ advisory and release notes unless you ask to stay anonymous.
 In scope:
 
 - The application and its libraries in this repository (`SimpleXisoDrive`, `SimpleXisoDrive.Core`,
-  `SimpleXisoDrive.Unix`, and `FuseSharp`).
-- Parsing of XISO, CISO, CHD, ZArchive and GOD/SVOD containers, and the virtual filesystem/mount layer.
+  `SimpleXisoDrive.Unix`, and the external `LibFuseSharp` package).
+- Parsing of XISO, CISO, CCI, CHD, ZArchive and GOD/SVOD containers, and the virtual
+  filesystem/mount layer.
 - The update checker, bug-report upload, and other network-facing features.
 
 Out of scope:

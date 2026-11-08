@@ -10,8 +10,8 @@ file system driver through [DokanNet](https://github.com/dokan-dev/dokany/tree/m
 on Linux and macOS it uses the FUSE 3 high-level API (`libfuse3` / macFUSE). All platforms share the
 XISOSharp 1.8 library (`XisoImage`) that parses the Xbox Disc Video File System (**XDVDFS**). CHD
 files are decompressed hunk-by-hunk with the CHDSharp library, ZArchive files are read directly with
-on-demand zstd decompression, and GOD/SVOD containers are mapped through the StfsSharp reader. The source image is never modified: every write operation is rejected
-at the file system layer.
+on-demand zstd decompression, and GOD/SVOD containers are mapped through the StfsSharp reader. The
+source image is never modified: every write operation is rejected at the file system layer.
 
 Developed by [PureLogic Code](https://purelogiccode.com/) and released under the **GPL-3.0** license.
 
@@ -100,7 +100,7 @@ Developed by [PureLogic Code](https://purelogiccode.com/) and released under the
 | Property | Value |
 | --- | --- |
 | Application name | SimpleXisoDrive |
-| Current version | 1.5.2 |
+| Current version | 1.6.0 |
 | Platform | Windows (x64, ARM64), Linux (x64, ARM64), macOS (x64, ARM64) |
 | Target framework | .NET 10 (`net10.0-windows` / `net10.0`) |
 | FUSE library | `LibFuseSharp` 1.0.1 (NuGet, MIT) |

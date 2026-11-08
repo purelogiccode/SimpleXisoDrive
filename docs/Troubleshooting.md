@@ -136,13 +136,13 @@ before Dokan is invoked, so the error is reported even when Dokan is missing.
 
 ### "Error: Image file not found at '<path>'"
 
-The resolver tried all four strategies (see
+The resolver tried all five strategies (see
 [Command-Line Reference](Command-Line-Reference#image-path-resolution)) and failed. Additional hints
 are printed when applicable:
 
 | Hint | Meaning |
 | --- | --- |
-| "The specified path is a directory..." | You passed a folder with zero or multiple image files. Point at a file, or ensure the folder contains exactly one `.iso`, `.xiso`, `.cso`, `.chd`, `.zar` or GOD/SVOD header. |
+| "The specified path is a directory..." | You passed a folder with zero or multiple image files. Point at a file, or ensure the folder contains exactly one `.iso`, `.xiso`, `.cso`, `.cci`, `.chd`, `.zar` or GOD/SVOD header. |
 | "Tried looking for '<path>.iso', ... and checked for a GOD/SVOD container..." | The extensionless variant and a GOD/SVOD container were not found. Check the file name. |
 | "If your file path contains spaces..." | Quote the path: `"D:\My Games\Halo.iso"` |
 
@@ -164,16 +164,21 @@ The file exists but no valid volume descriptor could be found. The most common r
 1. It is a **PC ISO**, not an Xbox disc image.
 2. It is an **encrypted/Redump-style image** that must be converted to XISO first.
 3. It is a **corrupted or incomplete** download.
-4. It uses an **unsupported layout** (for example, an STFS/XBLA package, an Xbox One file system, or
-   an Xbox 360 disc dump rather than an XDVDFS partition).
+4. It uses an **unsupported layout** (for example an Xbox One file system or an Xbox 360 disc dump
+   rather than an XDVDFS partition).
 5. It is a **GOD/SVOD container with a missing fragment**; check that every `DataNNNN` file in the
    `.data` directory is present and that the header carries a recognized XContent signature.
 
-CISO-compressed images (`.cso`, including split `.1.cso` part sets), Xbox ISO CHDs (`.chd`) and
-GOD/SVOD containers are supported and decompressed or mapped on the fly, so they do not need to be
-extracted first. XISOSharp's
+CISO-compressed images (`.cso`, including split `.1.cso` part sets), CCI/CCIM images (`.cci`,
+including split sets), Xbox ISO CHDs (`.chd`) and GOD/SVOD containers are supported and
+decompressed or mapped on the fly, so they do not need to be extracted first. XISOSharp's
 underlying diagnostic (the probed locations and their failure reasons) is attached as the inner
 exception and written to the log file for support.
+
+### "Error: '<path>' is an Xbox 360 STFS package (XBLA/XBLIG), not an Xbox disc image."
+
+The file is a single-file Xbox 360 STFS package. Its payload is a file table rather than an XDVDFS
+disc image, so it cannot be mounted. Only GOD/SVOD containers carry an XDVDFS game partition.
 
 ### "Error: '<path>' is not a readable CHD file: ..."
 

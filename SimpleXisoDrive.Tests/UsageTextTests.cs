@@ -49,6 +49,7 @@ public class UsageTextTests
         Assert.Contains("<image-file>", usage, StringComparison.Ordinal);
         Assert.Contains("<mount-path>", usage, StringComparison.Ordinal);
         Assert.Contains(".iso", usage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".cci", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".chd", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(".zar", usage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("GOD/SVOD", usage, StringComparison.OrdinalIgnoreCase);

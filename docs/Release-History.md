@@ -5,6 +5,7 @@ history.
 
 | Version | Tag | Date |
 | --- | --- | --- |
+| 1.6.0 | `release_1.6.0` | 2026-11-08 |
 | 1.5.2 | `release_1.5.2` | 2026-10-29 |
 | 1.5.1 | `release_1.5.1` | 2026-10-29 |
 | 1.5.0 | `release_1.5.0` | 2026-10-02 |
@@ -23,7 +24,7 @@ history.
 
 ---
 
-## Unreleased
+## 1.6.0 - 2026-11-08
 
 - **Xbox 360 GOD/SVOD mounting.** Xbox 360 Games-on-Demand containers now mount read-only. Pass
   the content-hash header, its `.data` fragment directory, or a parent folder containing exactly one
@@ -38,8 +39,15 @@ history.
 - **CCI/CCIM input.** Path resolution recognizes `.cci`; XISOSharp's `XisoImageSource` resolves
   split sets (including multi-digit parts and standalone numeric names) and mounts the image through
   the shared `XisoImage` path. CCISharp stays a transitive dependency of XISOSharp.
-- **Tests.** The app suite is **441 tests** (407 core + 34 Unix), including synthetic GOD header,
-  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage.
+- **Renamed-container fixes.** The `--image-iso` raw source now uses the same content fallback as
+  the volume, so a plain ISO renamed to `.cso`/`.zar`, a CISO renamed to `.zar`, and a CCI renamed
+  to `.zar` expose the correct decompressed image. A CCI whose extension does not match its content
+  is detected by its container magic instead of being read as a plain sector image.
+- **Clear STFS rejection.** Single-file Xbox 360 STFS packages (XBLA/XBLIG) report that they are a
+  file table, not an XDVDFS disc image, instead of the generic "not a valid Xbox ISO" error.
+- **Tests.** The app suite is **446 tests** (412 core + 34 Unix), including synthetic GOD header,
+  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage, plus
+  regression tests for renamed sector containers and the STFS error.
 - **Docs.** ReadMe, Home, Command-Line Reference, Virtual File System, FAQ, Glossary, Architecture and
   Testing now describe GOD/SVOD and the `XisoImage` path.
 
@@ -238,7 +246,7 @@ Initial public release lineage:
 ## Version scheme
 
 Versions follow `major.minor.patch`. Release tags use the `release_<version>` prefix (for example
-`release_1.5.2`), and the update checker extracts the numeric portion from GitHub tag names when
+`release_1.6.0`), and the update checker extracts the numeric portion from GitHub tag names when
 comparing against the installed version. The `LibFuseSharp` NuGet package is versioned independently
 in its own repository.
 

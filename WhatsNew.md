@@ -1,6 +1,8 @@
-# What's New (unreleased)
+# What's New in 1.6.0 (since 1.5.2)
 
-Framework-dependent builds require the .NET 10.0 Runtime (the base runtime).
+Prepared for the `release_1.6.0` tag. Framework-dependent `win-x64`/`win-arm64`,
+`linux-x64`/`linux-arm64` and `osx-x64`/`osx-arm64` builds require the .NET 10.0 Runtime (the base
+runtime; the Desktop Runtime also works but is not required).
 
 ## Xbox 360 GOD/SVOD mounting
 
@@ -23,8 +25,19 @@ Framework-dependent builds require the .NET 10.0 Runtime (the base runtime).
 - **CCI/CCIM input.** Path resolution recognizes `.cci` and XISOSharp's `XisoImageSource` performs
   split discovery (including multi-digit parts and standalone numeric names); CCISharp remains a
   transitive dependency of XISOSharp rather than an application-level API.
-- **Tests.** The app suite is **441 tests** (407 core + 34 Unix), including synthetic GOD header,
-  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage.
+
+## Reliability and fixes
+
+- **Renamed containers keep `--image-iso`.** A plain ISO renamed to `.cso`/`.zar`, a CISO renamed
+  to `.zar`, and a CCI renamed to `.zar` now expose the correct decompressed image through
+  `image.iso`; the raw-image source uses the same content fallback as the volume.
+- **Renamed CCI images mount.** A CCI container whose extension does not match its content is
+  detected by its container magic instead of being read as a plain sector image.
+- **Clear STFS rejection.** Single-file Xbox 360 STFS packages (XBLA/XBLIG) report that they are a
+  file table, not an XDVDFS disc image, instead of the generic "not a valid Xbox ISO" error.
+- **Tests.** The app suite is **446 tests** (412 core + 34 Unix), including synthetic GOD header,
+  `.data` folder, parent-folder resolution, `--image-iso` and CCI path/mount coverage, plus
+  regression tests for renamed sector containers and the STFS error.
 
 # What's New in 1.5.2 (since 1.5.1)
 

@@ -16,8 +16,8 @@ separate [LibFuseSharp](https://github.com/purelogiccode/LibFuseSharp) repositor
 | Test framework | xUnit 2.9.3 |
 | Runner | `xunit.runner.visualstudio` 4.0.1 |
 | Coverage collector | `coverlet.collector` 10.1.0 |
-| Test count | 441 app tests (unreleased): 407 core + 34 Unix |
-| Library tests | 55 in the separate LibFuseSharp repository; 496 combined |
+| Test count | 446 app tests (version 1.6.0): 412 core + 34 Unix |
+| Library tests | 55 in the separate LibFuseSharp repository; 501 combined |
 
 The application exposes internals to the test projects through `InternalsVisibleTo` in
 `SimpleXisoDrive/AssemblyInfo.cs`, `SimpleXisoDrive.Core/AssemblyInfo.cs` and
@@ -50,7 +50,7 @@ dotnet test SimpleXisoDrive.Tests/SimpleXisoDrive.Tests.csproj --filter "FullyQu
 dotnet test CSharp_SimpleXisoDrive.sln --logger "console;verbosity=detailed"
 ```
 
-A healthy run reports `Passed: 407, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
+A healthy run reports `Passed: 412, Failed: 0` for `SimpleXisoDrive.Tests.dll` and
 `Passed: 34, Failed: 0` for `SimpleXisoDrive.Unix.Tests.dll`. The same suites run in
 CI on every push and pull request (see [Building](Building#continuous-integration)); the workflow
 always uploads the `.trx` results and the Cobertura coverage report as artifacts.
@@ -65,10 +65,10 @@ always uploads the `.trx` results and the Cobertura coverage report as artifacts
 | `XisoVfsVolumeTreeTests` | Directory trees and reads | Multi-file and nested-directory images, separators and case-insensitivity, empty files/directories, reads across sector boundaries, clamped reads, attribute-flag mapping, descriptor FILETIME values, parallel reads (path and stream modes), idempotent dispose |
 | `XboxIsoVfsDokanTests` | Dokan operation layer | Volume information and free space, `.`/`..` listings, wildcard filtering (`*`, `*.*` including extensionless files, `?`, literal, no-match), metadata for files/directories/root (root reports the volume label), `CreateFile` access and creation modes (failed opens leave no handle context, `OpenOrCreate` opens existing files), `ReadFile` offsets/clamping/directories/empty buffers/missing entries (`FileNotFound`)/negative offsets (`InvalidParameter`), normalized special and interior path segments (including the context-less fallback), the read-only access allow list (write-capable bits including `GenericAll`/`MaximumAllowed`/`ChangePermissions` denied, read-only bits allowed), successful no-op flush, locking, alternate-stream reporting, security descriptors for files/directories and `FileNotFound` for missing entries, and failure injection for listing/open/security/read callbacks |
 | `ApiKeyProviderTests` | API key protection | Deterministic decryption of the double-encrypted key, expected key digest (without storing the key), preload behavior |
-| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup, null-path guard, case-insensitive extension resolution (the class runs in a non-parallel collection because it mutates the process-wide current directory) |
+| `ResolveImagePathTests` | CLI path resolution | Existing file, extension appending (`.iso`, `.xiso`, `.cso`, `.cci`, `.chd`, `.zar`), split CISO sets, directory with exactly one image, multiple/zero images, current-directory lookup, null-path guard, case-insensitive extension resolution (the class runs in a non-parallel collection because it mutates the process-wide current directory) |
 | `GodVfsContainerTests` | GOD/SVOD mounting | Header and `.data` folder mounts, nested reads, `--image-iso` decompressed logical image, incomplete-container rejection, `.data`/parent-folder path resolution, renamed plain ISO fallback |
-| `ImagePathResolverExtraTests` | CLI path resolution edge cases | Whitespace-only paths, `.iso`/`.xiso` extension preference, first `.1.cso` part resolution, continuation-only directories (`.2`, `.10`, `.99`), dot-containing names |
-| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, content-detection fallbacks (ISO renamed to `.chd`/`.zar`, ZAR renamed to `.chd`), invalid archive errors, null/empty path guards, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, embedded-XISO `.zar` and tree `.zar` inputs |
+| `ImagePathResolverExtraTests` | CLI path resolution edge cases | Whitespace-only paths, `.iso`/`.xiso` extension preference, first `.1.cso` part resolution, continuation-only directories (`.2`, `.10`, `.99`), `.cci` extension appending, single and split CCI directory resolution, standalone numeric CCI names, dot-containing names |
+| `VfsContainerTests` | Volume facade and format detection | ZAR tree mount, embedded XISO mount (including nested content), renamed `.zar` fallback, content-detection fallbacks (ISO renamed to `.chd`/`.cso`/`.zar`, CISO/CCI renamed to `.zar`, ZAR renamed to `.chd`), CCI mounting, STFS rejection message, invalid archive errors, null/empty path guards, plain `.iso` and `.xiso` mounts, locked/missing images surface I/O errors, `--image-iso` mounts for `.iso`, `.cso`, renamed containers, embedded-XISO `.zar` and tree `.zar` inputs |
 | `VfsContainerLifecycleTests` | Volume facade lifecycle | Null/empty path guards, idempotent disposal, image-handle release, missing-path lookups, metadata delegation |
 | `ChdVfsContainerTests` | Xbox ISO CHD mounts | CHD mount of rebuilt and standard-layout images, nested directory trees, `--image-iso` decompressed image, non-Xbox CHD rejection, renamed `.chd` and renamed `.zar` fallbacks, missing file errors |
 | `ImageIsoVfsVolumeTests` | Virtual `image.iso` decorator | Root listing (cached instance) and case-insensitive lookup, raw reads at offsets with clamping, inner tree entries remain readable, a real `image.iso` entry wins, metadata delegation, size policy (no double count for the mounted image, added for synthesized ZArchive images), subdirectory listings, null arguments, rewritten exception behavior, idempotent disposal |

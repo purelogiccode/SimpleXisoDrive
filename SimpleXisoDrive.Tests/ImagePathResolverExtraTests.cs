@@ -207,7 +207,7 @@ public class ImagePathResolverExtraTests
     private static string CreateCci(string directory, string baseName, int sectors = 8, long splitBytes = 0)
     {
         string isoPath = Path.Combine(directory, baseName + ".source.iso");
-        File.WriteAllBytes(isoPath, new byte[sectors * XISOSharp.Constants.SectorSize]);
+        File.WriteAllBytes(isoPath, new byte[sectors * Constants.SectorSize]);
 
         string outputPath = Path.Combine(directory, baseName);
         int result = XisoCci.CompressToCci(isoPath, outputPath, level: 1, splitBytes: splitBytes, overwrite: true);

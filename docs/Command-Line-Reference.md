@@ -67,8 +67,8 @@ If the mounted image already contains a real file named `image.iso`, that real f
 of the synthetic one.
 
 The synthetic file counts towards the reported volume size only when it is additional content
-(a ZArchive directory tree). For plain images, CISO and CHD, `image.iso` is the same image the
-volume is already mounted from, so its length is not added twice.
+(a ZArchive directory tree). For plain images, CISO/CCI, CHD and GOD/SVOD, `image.iso` is the same
+image the volume is already mounted from, so its length is not added twice.
 
 ## Behavior by argument count
 

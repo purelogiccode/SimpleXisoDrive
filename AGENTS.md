@@ -106,7 +106,7 @@ jb inspectcode "C:\Users\HomePC\Dropbox\source\repos\CSharp_SimpleXisoDrive\CSha
 Requirements:
 
 - Build: **0 warnings, 0 errors**.
-- Tests: all pass. Current app suite: **441** (407 core + 34 Unix). If the library changed, its
+- Tests: all pass. Current app suite: **446** (412 core + 34 Unix). If the library changed, its
   **55** tests must pass too. Record the counts; `docs/Testing.md`, `WhatsNew.md` and
   `docs/Release-History.md` must match.
 - InspectCode: **no `warning` or `error` results**. Notes/suggestions may remain only if they are
@@ -553,7 +553,7 @@ plan.
 
 - [ ] `git status` clean; `master` pushed.
 - [ ] Build: 0 warnings, 0 errors.
-- [ ] All app tests pass (currently **441**: 407 core + 34 Unix); if the library changed, its
+- [ ] All app tests pass (currently **446**: 412 core + 34 Unix); if the library changed, its
       **55** tests pass too.
 - [ ] InspectCode: no warnings or errors (app and, when changed, the library).
 - [ ] Version bumped in all five app projects.

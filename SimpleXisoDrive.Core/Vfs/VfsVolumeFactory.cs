@@ -123,8 +123,18 @@ internal static class VfsVolumeFactory
             Log.Information("'{ImagePath}' is not an Xbox ISO; opening it as a CHD.", imagePath);
             return OpenChd(imagePath, exposeImageIso);
         }
-        catch (InvalidImageException)
+        catch (InvalidImageException ex)
         {
+            // A single-file STFS package carries an XContent header like a GOD
+            // container, but its payload is a file table rather than an XDVDFS
+            // partition; report that instead of the generic "not an Xbox ISO".
+            if (StfsSharp.StfsHeader.IsStfsPackage(imagePath))
+            {
+                throw new InvalidImageException(
+                    $"'{imagePath}' is an Xbox 360 STFS package (XBLA/XBLIG), not an Xbox disc image; " +
+                    "only GOD/SVOD containers carry an XDVDFS partition.", ex);
+            }
+
             // XisoImage's detection is extension-led: a valid ISO/CISO renamed
             // to .zar/.chd would be rejected, so probe the content as a sector
             // image before falling back to the other containers.
@@ -271,9 +281,9 @@ internal static class VfsVolumeFactory
 
     /// <summary>
     /// Opens a sector image whose extension does not match its content (for
-    /// example a plain ISO renamed to <c>.zar</c>). CISO containers are
-    /// decompressed on demand; everything else is probed as a plain XDVDFS
-    /// stream.
+    /// example a plain ISO renamed to <c>.zar</c>, or a CCI renamed to <c>.cso</c>).
+    /// CISO/CCI containers are decompressed on demand; everything else is probed
+    /// as a plain XDVDFS stream.
     /// </summary>
     private static bool TryOpenRenamedSectorVolume(string imagePath, out XisoVfsVolume volume)
     {
@@ -286,10 +296,7 @@ internal static class VfsVolumeFactory
         Stream? stream = null;
         try
         {
-            stream = CisoReader.IsCso(imagePath)
-                ? new BlockDeviceStream(new CisoBlockDevice(imagePath, FileShare.ReadWrite))
-                : new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536,
-                    FileOptions.SequentialScan);
+            stream = OpenSectorImageStream(imagePath);
             volume = new XisoVfsVolume(stream, imagePath);
             return true;
         }
@@ -301,14 +308,54 @@ internal static class VfsVolumeFactory
     }
 
     /// <summary>
-    /// Opens the raw image bytes for a path-based image: CISO/CCI inputs are
-    /// decompressed on demand and GOD/SVOD sets are mapped through
-    /// <see cref="XisoImageSource.OpenRead"/>; plain ISO/XISO files are read
-    /// directly.
+    /// Opens the raw image bytes for a path-based image as a decompressed
+    /// sector stream: CISO/CCI inputs are decompressed on demand, GOD/SVOD sets
+    /// are mapped through <see cref="XisoImageSource.OpenRead"/>, and plain
+    /// ISO/XISO files are read directly. <see cref="XisoImageSource"/> detection
+    /// is extension-led for <c>.cso</c> and <c>.zar</c>, so a renamed container
+    /// (for example a CISO renamed to <c>.zar</c>) falls back to the container
+    /// magic before the plain sector stream.
+    /// </summary>
+    private static Stream OpenSectorImageStream(string imagePath)
+    {
+        const FileShare share = FileShare.ReadWrite;
+        try
+        {
+            return XisoImageSource.OpenRead(imagePath, share);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or XisoFormatException)
+        {
+            Log.Debug(ex, "XISOSharp could not detect '{ImagePath}' by extension; probing its content",
+                imagePath);
+        }
+
+        if (CisoReader.IsCso(imagePath))
+        {
+            return new BlockDeviceStream(new CisoBlockDevice(imagePath, share));
+        }
+
+        try
+        {
+            return new BlockDeviceStream(new CciBlockDevice(imagePath, share));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            Log.Debug(ex, "'{ImagePath}' is not a CCI container; opening it as a plain sector stream",
+                imagePath);
+        }
+
+        return new FileStream(imagePath, FileMode.Open, FileAccess.Read, share, 65536,
+            FileOptions.SequentialScan);
+    }
+
+    /// <summary>
+    /// Opens the raw image bytes for a path-based image as a virtual
+    /// <c>image.iso</c>, using the same renamed-container content fallback as
+    /// <see cref="OpenSectorImageStream"/>.
     /// </summary>
     private static IRawImageSource OpenPathRawImageSource(string imagePath)
     {
-        return new StreamRawImageSource(XisoImageSource.OpenRead(imagePath, FileShare.ReadWrite));
+        return new StreamRawImageSource(OpenSectorImageStream(imagePath));
     }
 
     /// <summary>
